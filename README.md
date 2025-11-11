@@ -4,15 +4,15 @@ The Web Conf. 2026 Demo Track Artifact
 # How to run
 
 The Release package includes an examplar peer identity private key.
-To run only one instance of the Abyss brower, just run AbyssUI.exe.
-To run multiple instnaces, copy the entire folder in different location, and generate another private key using the command below.
+Double click on AbyssUI.exe to run the Abyss browser.
+To run multiple instances of the Abyss browser, copy the entire folder in different location, and generate another private key using the command below.
 The command must be executed using powershell.
 
 ```
 ssh-keygen -t ed25519 -f "my_key.pem" -N '""' > $null
 ```
 
-use differnt file name instead of "my_key.pem".
+Use another file name instead of "my_key.pem".
 
 
 # How to build
