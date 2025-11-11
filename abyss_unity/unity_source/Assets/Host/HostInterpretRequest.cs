@@ -20,13 +20,13 @@ namespace Host
                     Tx.ConnectPeer(conn_addr);
                     return;
                 }
-                var transform = _interaction_base.GetContentSpawnPos();
-                var uuid = Guid.NewGuid();
+                var spawn_transform = _interaction_base.GetContentSpawnPos();
+                var new_uuid = Guid.NewGuid();
                 Tx.ShareContent(
-                    ByteString.CopyFrom(uuid.ToByteArray()),
+                    ByteString.CopyFrom(new_uuid.ToByteArray()),
                     arg,
-                    new Vec3 { X = transform.localPosition.x, Y = transform.localPosition.y, Z = transform.localPosition.z },
-                    new Vec4 { W = transform.localRotation.w, X = transform.localRotation.x, Y = transform.localRotation.y, Z = transform.localRotation.z }
+                    new Vec3 { X = spawn_transform.localPosition.x, Y = spawn_transform.localPosition.y, Z = spawn_transform.localPosition.z },
+                    new Vec4 { W = spawn_transform.localRotation.w, X = spawn_transform.localRotation.x, Y = spawn_transform.localRotation.y, Z = spawn_transform.localRotation.z }
                 );
             };
             _ui_base.OnConsoleCommand = (arg) => Tx.ConsoleInput(0, arg);

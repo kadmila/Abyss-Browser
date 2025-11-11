@@ -1,5 +1,5 @@
 cd .\abyss_core
-./build_dll.ps1
+./build_dll_debug.ps1
 cd ..
 
 cd .\abyss_engine

@@ -1,4 +1,6 @@
-﻿cd ./ABI
+﻿Write-Output "building AbyssCLI.exe"
+
+cd ./ABI
 ./build.ps1
 cd ..
 
