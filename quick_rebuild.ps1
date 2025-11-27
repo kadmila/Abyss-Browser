@@ -1,4 +1,5 @@
 cd .\abyss_core
+$env:CGO_ENABLED = "1"
 ./build_dll_debug.ps1
 cd ..
 

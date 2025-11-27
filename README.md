@@ -26,6 +26,8 @@ To build the binaries, you need
 * unity 3D 2022.3 with Windows Build Support (IL2CPP)
 * Runtime OBJ Importer package by Dummiesman from Unity Asset Store
 * Input System package from Unity Registry
+* protobuf (protoc in PATH) https://github.com/protocolbuffers/protobuf/releases
+* 64-bit gcc in PATH
 
 ## Overview
 
@@ -52,7 +54,7 @@ Before starting the project setup, you must follow the initial setup procedure b
 
 Now, we need to do an inconvence,
 6) Create a temporary Visual Studio C# project in any directory (outside the project).
-7) Install "Protobuf by Google" Nuget package.
+7) Install "Google.Protobuf" Nuget package and build solution.
 8) Copy the contents of Plugins/ folder into ./AbyssUI/Assets/Plugins. This should include Google.Protobuf.dll
 
 9) Open the unity project. The unity editor should start withour an error (only warnings in the editor Debug Console).
