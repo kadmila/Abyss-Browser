@@ -21,6 +21,8 @@ internal class ContentB : IDisposable
             Document.Init();
             using var _document_cache_ref = Client.Client.Cache.GetReference(_url.ToString());
 
+            Client.Client.CerrWriteLine("getting document cache: " + _url);
+
             Cache.CachedResource? doc_resource;
             try
             {
@@ -29,8 +31,11 @@ internal class ContentB : IDisposable
             catch
             {
                 //todo: show loading status/error in UI
+                Client.Client.CerrWriteLine("failed to load document body: " + _url);
                 return;
             }
+
+            Client.Client.CerrWriteLine("document loaded: " + _url);
 
             if (doc_resource is not Cache.Text doc_text) //relaxed from text/aml, Cache.Text allows text/* - for compatibility
             {
@@ -40,6 +45,8 @@ internal class ContentB : IDisposable
 
             ParseUtil.ParseAMLDocument(Document, raw_document, _cts.Token);
             Document.StartJavaScript(_cts.Token);
+
+            Client.Client.CerrWriteLine("document started: " + _url);
 
             while (true)
             { //temporary: fixed duration cleanup

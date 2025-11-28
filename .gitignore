@@ -1,11 +1,11 @@
 /AbyssUI/*
-AbyssUIBuild
+/AbyssUIBuild
 *.exe
 *.dll
-abyss_core/abyssnet.h
-abyss_engine/ABI/*.cs
-abyss_engine/obj
-abyss_engine/bin
+/abyss_core/abyssnet.h
+/abyss_engine/ABI/*.cs
+/abyss_engine/obj
+/abyss_engine/bin
 Abyss-Browser.code-workspace
 *.db
 *.vsidx
@@ -17,3 +17,5 @@ Abyss-Browser.code-workspace
 *copilot-chat*
 *.vsconfig
 *.pdb
+*.db-wal
+*.db-shm

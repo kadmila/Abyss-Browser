@@ -201,7 +201,7 @@ func (h *BetaNetService) ConnectAbyssAsync(url *aurl.AURL) error {
 	return nil
 }
 func (h *BetaNetService) ConnectAbyst(peer_hash string) (quic.Connection, error) {
-	if peer_hash == h.localIdentity.root_id_hash { //loopback
+	if peer_hash == h.localIdentity.root_id_hash || peer_hash == "local" { //loopback
 		connection, err := h.quicTransport.Dial(h.ctx, h.local_aurl.Addresses[len(h.local_aurl.Addresses)-1], h.abystTlsConf, h.quicConf)
 		if err != nil {
 			return nil, err

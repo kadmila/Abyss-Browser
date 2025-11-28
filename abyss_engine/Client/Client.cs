@@ -1,5 +1,6 @@
 ﻿using AbyssCLI.ABI;
 using AbyssCLI.Tool;
+using static AbyssCLI.ABI.UIAction.Types;
 
 namespace AbyssCLI.Client;
 
@@ -61,11 +62,10 @@ public static partial class Client
         }
         RenderWriter.LocalInfo(Host.local_aurl.Raw, Host.local_aurl.Id);
 
-        var http_client = new HttpClient();
         Cache = new(
             http_request => Task.Run(async () =>
             {
-                HttpResponseMessage result = await http_client.SendAsync(http_request, HttpCompletionOption.ResponseHeadersRead);
+                HttpResponseMessage result = await HttpClient.SendAsync(http_request, HttpCompletionOption.ResponseHeadersRead);
 
                 string mime = result.Content.Headers.ContentType.MediaType;
                 Cache.Patch(http_request.RequestUri.ToString(), mime switch
@@ -78,8 +78,37 @@ public static partial class Client
             }),
             abyst_request => Task.Run(() =>
             {
-                //TODO
-                //var result = await abyst_client.SendAsync(request);
+                CerrWriteLine("abyst cache get: " + abyst_request.AbyssURL.ToString());
+                var get_abyst_client_result = Host.GetAbystClient(abyst_request.AbyssURL.Id);
+                if (!get_abyst_client_result.Item2.Empty)
+                {
+                    CerrWriteLine("abyst client creation failed: " + get_abyst_client_result.Item2.Message);
+                    return;
+                }
+                var AbystClient = get_abyst_client_result.Item1;
+
+                var response = AbystClient.Request(AbyssLib.AbystRequestMethod.GET, abyst_request.AbyssURL.ToString());
+                _ = response.TryLoadBodyAll();
+                HttpResponseMessage result = new((System.Net.HttpStatusCode)response.Code)
+                {
+                    Content = new ByteArrayContent(response.Body)
+                };
+                var mime = response.Header.TryGetValue("Content-Type", out var content_types) ? content_types[0] : "unknown";
+                {//remove charset/format suffix
+                    int index = mime.IndexOf(';');
+                    if (index >= 0)
+                        mime = mime[..index];
+                }
+                CerrWriteLine("abyst patch: " + abyst_request.AbyssURL.ToString());
+
+                Cache.Patch(abyst_request.AbyssURL.ToString(), mime switch
+                {
+                    "model/obj" or "image/png" => new Cache.StaticSimpleResource(result),
+                    "image/jpeg" => new Cache.StaticResource(result),
+                    _ when mime.StartsWith("text/") => new Cache.Text(result),
+                    _ => new Cache.StaticSimpleResource(result),
+                });
+                CerrWriteLine("abyst patch done: " + abyst_request.AbyssURL.ToString());
             })
         );
         CachedResourceWorker.Start();

@@ -1,5 +1,6 @@
 ﻿using AbyssCLI.Abyst;
 using AbyssCLI.Tool;
+using System;
 
 namespace AbyssCLI.Cache;
 
@@ -35,6 +36,7 @@ public class Cache(Action<HttpRequestMessage> http_requester, Action<AbystReques
     {
         lock (_inner)
         {
+            Client.Client.CerrWriteLine("Patch:" + key + "|");
             if (_inner.TryGetValue(key, out RcTaskCompletionSource<CachedResource> entry))
             {
                 Client.Client.RenderWriter.DebugEnter("patch A");
@@ -61,6 +63,7 @@ public class Cache(Action<HttpRequestMessage> http_requester, Action<AbystReques
 
         lock (_inner) //not releasing
         {
+            Client.Client.CerrWriteLine("GetReference:" + uri + "|");
             if (_inner.TryGetValue(normalized_key, out RcTaskCompletionSource<CachedResource> entry))
             {
                 _ = entry.TryGetReference(out TaskCompletionReference<CachedResource> reference);
