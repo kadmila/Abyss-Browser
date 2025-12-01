@@ -19,3 +19,4 @@ Abyss-Browser.code-workspace
 *.pdb
 *.db-wal
 *.db-shm
+*.zip
