@@ -168,3 +168,8 @@
     padding-bottom: 0;
     padding-left: 0;
 }
+
+#info-section {
+    height: 15%;
+    width: 100%;
+}

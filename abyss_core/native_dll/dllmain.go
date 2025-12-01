@@ -160,6 +160,8 @@ func NewSimpleAbystServer(path_ptr *C.char, path_len C.int) C.uintptr_t {
 	watchdog.CountHandleExport()
 	return C.uintptr_t(cgo.NewHandle(&http3.Server{
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			watchdog.Info("abyst request: " + r.URL.String())
+
 			if r.URL.Path == "/" {
 				// Serve main.aml for root path
 				http.ServeFile(w, r, filepath.Join(path, "main.aml"))

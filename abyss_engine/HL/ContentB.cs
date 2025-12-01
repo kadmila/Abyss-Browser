@@ -42,6 +42,7 @@ internal class ContentB : IDisposable
                 throw new Exception("fatal:::MIME mismatch: " + (doc_resource.MIMEType == "" ? "<unspecified>" : doc_resource.MIMEType));
             }
             string raw_document = await doc_text.ReadAsync(_cts.Token);
+            Client.Client.CerrWriteLine(raw_document);
 
             ParseUtil.ParseAMLDocument(Document, raw_document, _cts.Token);
             Document.StartJavaScript(_cts.Token);

@@ -22,7 +22,7 @@ public class Cache(Action<HttpRequestMessage> http_requester, Action<AbystReques
         string normalized_key = requestMessage switch
         {
             HttpRequestMessage hrm => hrm.RequestUri.ToString(),
-            AbystRequestMessage arm => arm.ToString(),
+            AbystRequestMessage arm => arm.AbyssURL.Raw,
             _ => throw new Exception("invalid address: " + uri),
         };
         return (requestMessage, normalized_key);
@@ -63,7 +63,7 @@ public class Cache(Action<HttpRequestMessage> http_requester, Action<AbystReques
 
         lock (_inner) //not releasing
         {
-            Client.Client.CerrWriteLine("GetReference:" + uri + "|");
+            Client.Client.CerrWriteLine("GetReference: " + normalized_key + "|");
             if (_inner.TryGetValue(normalized_key, out RcTaskCompletionSource<CachedResource> entry))
             {
                 _ = entry.TryGetReference(out TaskCompletionReference<CachedResource> reference);

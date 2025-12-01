@@ -20,7 +20,7 @@
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:ScrollView name="info-section">
-            <ui:Label parse-escape-sequences="true" display-tooltip-when-elided="true" name="info-more" text="maybe some extra text will be here!" style="color: rgb(255, 255, 255);" />
+            <ui:Label parse-escape-sequences="true" display-tooltip-when-elided="true" name="info-more" text="maybe some extra text will be here!" style="color: rgb(255, 255, 255); width: auto; height: 100%;" />
         </ui:ScrollView>
         <ui:TextField picking-mode="Ignore" value="abyst:local/home" name="console-input-bar">
             <ui:Label parse-escape-sequences="true" display-tooltip-when-elided="true" name="frame-time" text="frame-time" style="color: rgb(255, 255, 255);" />

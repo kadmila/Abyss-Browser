@@ -54,6 +54,7 @@ public static partial class Client
         {
             _ = Directory.CreateDirectory(abyst_server_path);
         }
+        CerrWriteLine("abyst server path: " + abyst_server_path);
         Host = AbyssLib.OpenAbyssHost(init_msg.Init.RootKey.ToByteArray(), _resolver, AbyssLib.NewSimpleAbystServer(abyst_server_path));
         if (!Host.IsValid())
         {
@@ -87,7 +88,7 @@ public static partial class Client
                 }
                 var AbystClient = get_abyst_client_result.Item1;
 
-                var response = AbystClient.Request(AbyssLib.AbystRequestMethod.GET, abyst_request.AbyssURL.ToString());
+                var response = AbystClient.Request(AbyssLib.AbystRequestMethod.GET, abyst_request.AbyssURL.Path);
                 _ = response.TryLoadBodyAll();
                 HttpResponseMessage result = new((System.Net.HttpStatusCode)response.Code)
                 {
