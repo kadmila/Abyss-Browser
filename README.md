@@ -23,7 +23,7 @@ This section explains how you can build & contribute to this project.
 To build the binaries, you need
 * go version go1.24.3 windows/amd64
 * visual studio 2022 with C# .NET framework 4.8 and Unity3D dev package.
-* unity 3D 2022.3 with Windows Build Support (IL2CPP)
+* unity 3D 2022.3.62 with Windows Build Support (IL2CPP)
 * Runtime OBJ Importer package by Dummiesman from Unity Asset Store
 * Input System package from Unity Registry
 * protobuf (protoc in PATH) https://github.com/protocolbuffers/protobuf/releases
