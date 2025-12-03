@@ -1,6 +1,7 @@
 # Abyss Browser
 The Web Conf. 2026 Demo Track Artifact
 Prototype Abyss Browser, along with a simple public peer registry.
+See https://github.com/kadmila/Abyss-Browser/wiki for development guide, user guide, AML specification, and others.
 
 # How to Run
 
