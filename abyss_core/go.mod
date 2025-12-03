@@ -1,4 +1,4 @@
-module github.com/MinwooWebeng/abyss_core
+module github.com/kadmila/Abyss-Browser/abyss_core
 
 go 1.24.1
 

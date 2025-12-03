@@ -38,7 +38,7 @@ const (
 	SOD_T
 )
 
-// for debug
+// Msg_type_names for debug
 var Msg_type_names = [...]string{"JN", "JOK", "JDN", "JNI", "MEM", "SJN", "CRR", "RST", "SOA", "SOD"}
 
 type RawJN struct {
