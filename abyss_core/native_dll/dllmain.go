@@ -18,33 +18,32 @@ import (
 	"runtime/cgo"
 	"time"
 
-	"github.com/MinwooWebeng/abyss_core/watchdog"
+	"github.com/kadmila/Abyss-Browser/abyss_core/watchdog"
 
-	"github.com/MinwooWebeng/abyss_core/tools/functional"
+	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
 
-	abyss_host "github.com/MinwooWebeng/abyss_core/host"
+	abyss_host "github.com/kadmila/Abyss-Browser/abyss_core/host"
 
-	abyss_net "github.com/MinwooWebeng/abyss_core/net_service"
+	abyss_net "github.com/kadmila/Abyss-Browser/abyss_core/net_service"
 
-	abyss_and "github.com/MinwooWebeng/abyss_core/and"
+	abyss_and "github.com/kadmila/Abyss-Browser/abyss_core/and"
 
-	"github.com/MinwooWebeng/abyss_core/aurl"
+	"github.com/kadmila/Abyss-Browser/abyss_core/aurl"
 
-	abyss "github.com/MinwooWebeng/abyss_core/interfaces"
+	abyss "github.com/kadmila/Abyss-Browser/abyss_core/interfaces"
 
 	"github.com/google/uuid"
 	"github.com/quic-go/quic-go/http3"
 	"golang.org/x/crypto/ssh"
 )
 
-// return value (C.int)
 const (
 	EOF               = -1
 	ERROR             = -1
 	INVALID_ARGUMENTS = -2
 	BUFFER_OVERFLOW   = -3
-	REMOTE_ERROR      = -4  //peer error.
-	INVALID_HANDLE    = -99 //for method calls
+	REMOTE_ERROR      = -4
+	INVALID_HANDLE    = -99
 )
 
 func marshalError(err error) C.uintptr_t {

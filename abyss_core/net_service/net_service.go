@@ -12,8 +12,8 @@ import (
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 
-	"github.com/MinwooWebeng/abyss_core/aurl"
-	abyss "github.com/MinwooWebeng/abyss_core/interfaces"
+	"github.com/kadmila/Abyss-Browser/abyss_core/aurl"
+	abyss "github.com/kadmila/Abyss-Browser/abyss_core/interfaces"
 )
 
 type BetaNetService struct {

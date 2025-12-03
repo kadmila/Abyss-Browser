@@ -1,3 +1,0 @@
-# Some README
-
-## Subpackages

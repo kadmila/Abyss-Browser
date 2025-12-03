@@ -3,7 +3,7 @@ package interfaces
 import (
 	"net"
 
-	"github.com/MinwooWebeng/abyss_core/aurl"
+	"github.com/kadmila/Abyss-Browser/abyss_core/aurl"
 
 	"github.com/quic-go/quic-go"
 )

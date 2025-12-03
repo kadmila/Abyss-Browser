@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	abyss "github.com/MinwooWebeng/abyss_core/interfaces"
+	abyss "github.com/kadmila/Abyss-Browser/abyss_core/interfaces"
 )
 
 type JN struct {

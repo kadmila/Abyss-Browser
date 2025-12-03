@@ -1,70 +1,76 @@
 // Package abyss_core provides the core networking module for the Abyss Browser.
 // This builds a DLL library, and not expected to be used as an imported package.
+// Subpackages can be imported for external use, but backward compatibility is not guaranteed.
 //
 // See https://github.com/kadmila/Abyss-Browser
+//
+// # API Reference
+//
+// For DLL exported functions and its usage, see https://pkg.go.dev/github.com/kadmila/Abyss-Browser/abyss_core/native_dll
 //
 // # Build Profiles
 //
 // The project supports two build profiles: debug and release.
-// Using `-tags=debug` (as in build_dll_debug.ps1) enables the debug profile.
+// Using `-tags=debug` enables the debug profile.
+// Use ./build_dll_debug.ps1 or ./build_dll_debug.ps1 to build.
 //
-// # Directory Structure
+// # Subpackages
 //
-// native_dll
+// # native_dll
 //
-//	Contains DLL exports for abyssnet.dll. The file `dllmain.go` defines
-//	export symbols, and `marshalling.go` provides dynamic-length byte array
-//	marshalling utilities.
+// Contains DLL exports for abyssnet.dll. The file `dllmain.go` defines
+// export symbols, and `marshalling.go` provides dynamic-length byte array
+// marshalling utilities.
 //
-// aerr
+// # aerr
 //
-//	Defines all custom error types used across the project.
+// Defines all custom error types used across the project.
 //
-// ahmp
+// # ahmp
 //
-//	Contains AHMP message definitions. Serialization is not included.
-//	For protocol details, see the AHMP specification.
+// Contains AHMP message definitions. Serialization is not included.
+// For protocol details, see the AHMP specification.
 //
-// and
+// # and
 //
-//	Implements the Abyss world neighbor discovery protocol.
+// Implements the Abyss world neighbor discovery protocol.
 //
-// aurl
+// # aurl
 //
-//	AbyssURL(AURL) handling and parsing utilities.
+// AbyssURL(AURL) handling and parsing utilities.
 //
-// crash
+// # crash
 //
-//	TODO: crash dump utility.
+// TODO: crash dump utility.
 //
-// host
+// # host
 //
-//	main QUIC host
+// main QUIC host
 //
-// interfaces
+// # interfaces
 //
-//	Interfaces hiding low-level network protocol implementations. This is designed for compatibility between different communication protocol/abyss neighbor discovery protocol implementations.
+// Interfaces hiding low-level network protocol implementations. This is designed for compatibility between different communication protocol/abyss neighbor discovery protocol implementations.
 //
-// net_service
+// # net_service
 //
-//	low level networking service (implements `interfaces`).
+// low level networking service (implements `interfaces`).
 //
-// test
+// # test
 //
-//	test suits
+// test suits
 //
-// test_logs
+// # test_logs
 //
-//	Stores .log files for test results. This directory should not be
-//	committed to the repository.
+// Stores .log files for test results. This directory should not be
+// committed to the repository.
 //
-// tools
+// # tools
 //
-//	utilities and helpers.
+// utilities and helpers.
 //
-// watchdog
+// # watchdog
 //
-//	debug watchdog.
+// debug watchdog.
 //
 // See individual types and functions for more detailed documentation.
 package abyss_core

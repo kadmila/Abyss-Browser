@@ -3,8 +3,8 @@ package host
 import (
 	"context"
 
-	abyss_and "github.com/MinwooWebeng/abyss_core/and"
-	abyss_net "github.com/MinwooWebeng/abyss_core/net_service"
+	abyss_and "github.com/kadmila/Abyss-Browser/abyss_core/and"
+	abyss_net "github.com/kadmila/Abyss-Browser/abyss_core/net_service"
 
 	"github.com/quic-go/quic-go/http3"
 )

@@ -1,7 +1,7 @@
 package host
 
 import (
-	abyss "github.com/MinwooWebeng/abyss_core/interfaces"
+	abyss "github.com/kadmila/Abyss-Browser/abyss_core/interfaces"
 
 	"github.com/google/uuid"
 )

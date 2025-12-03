@@ -6,9 +6,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/MinwooWebeng/abyss_core/aurl"
-	abyss "github.com/MinwooWebeng/abyss_core/interfaces"
-	"github.com/MinwooWebeng/abyss_core/watchdog"
+	"github.com/kadmila/Abyss-Browser/abyss_core/aurl"
+	abyss "github.com/kadmila/Abyss-Browser/abyss_core/interfaces"
+	"github.com/kadmila/Abyss-Browser/abyss_core/watchdog"
 )
 
 type AND struct {

@@ -8,8 +8,8 @@ import (
 	"github.com/fxamacker/cbor/v2"
 	"github.com/quic-go/quic-go"
 
-	"github.com/MinwooWebeng/abyss_core/aerr"
-	"github.com/MinwooWebeng/abyss_core/ahmp"
+	"github.com/kadmila/Abyss-Browser/abyss_core/aerr"
+	"github.com/kadmila/Abyss-Browser/abyss_core/ahmp"
 )
 
 func (h *BetaNetService) PrepareAbyssInbound(listen_ctx context.Context, connection quic.Connection) {

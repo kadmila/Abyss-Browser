@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	abyss_net "github.com/MinwooWebeng/abyss_core/net_service"
+	abyss_net "github.com/kadmila/Abyss-Browser/abyss_core/net_service"
 )
 
 func TestContextMan(t *testing.T) {

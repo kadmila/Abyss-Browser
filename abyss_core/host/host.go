@@ -10,12 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/MinwooWebeng/abyss_core/ahmp"
-	"github.com/MinwooWebeng/abyss_core/and"
-	"github.com/MinwooWebeng/abyss_core/aurl"
-	abyss "github.com/MinwooWebeng/abyss_core/interfaces"
-	"github.com/MinwooWebeng/abyss_core/tools/functional"
-	"github.com/MinwooWebeng/abyss_core/watchdog"
+	"github.com/kadmila/Abyss-Browser/abyss_core/ahmp"
+	"github.com/kadmila/Abyss-Browser/abyss_core/and"
+	"github.com/kadmila/Abyss-Browser/abyss_core/aurl"
+	abyss "github.com/kadmila/Abyss-Browser/abyss_core/interfaces"
+	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
+	"github.com/kadmila/Abyss-Browser/abyss_core/watchdog"
 
 	"github.com/google/uuid"
 	"github.com/quic-go/quic-go"

@@ -3,7 +3,7 @@ package interfaces
 import (
 	"time"
 
-	"github.com/MinwooWebeng/abyss_core/aurl"
+	"github.com/kadmila/Abyss-Browser/abyss_core/aurl"
 
 	"github.com/google/uuid"
 )
