@@ -13,7 +13,6 @@ Abyss-Browser.code-workspace
 *.suo
 *.json
 *.bin
-*.meta
 *copilot-chat*
 *.vsconfig
 *.pdb

@@ -412,9 +412,9 @@ MonoBehaviour:
   m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_PanelSettings: {fileID: 11400000, guid: 8e5828f3ac5d3884aa2cef4ace39da3b, type: 2}
+  m_PanelSettings: {fileID: 11400000, guid: 1f4b8ba999a8af5418909e05933506ea, type: 2}
   m_ParentUI: {fileID: 0}
-  sourceAsset: {fileID: 9197481963319205126, guid: 36b380802ff0b4b4e9e4b0ed1ad17455, type: 3}
+  sourceAsset: {fileID: 9197481963319205126, guid: 454458e501d560640b211022e9309348, type: 3}
   m_SortingOrder: 0
 --- !u!1 &2328361773866832315
 GameObject:
@@ -478,7 +478,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00e2d9dafadf4b4499aef6bf7048a7af, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  actions: {fileID: -944628639613478452, guid: 656b82032fe34af4796f3347fefa65df, type: 3}
+  actions: {fileID: -944628639613478452, guid: ed3b3c8ae609e5242a1023ecf98522c4, type: 3}
   uiHandler: {fileID: 8648849958789343001}
   cameraMover: {fileID: 963194229}
   viewDirection: {fileID: 963194228}
@@ -543,8 +543,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   uiDocument: {fileID: 940586177416233047}
-  DefaultItemIcon: {fileID: 2346436936791262179, guid: 1e9737d9883d6324ebc42240e62a824c, type: 3}
-  DefaultMemberProfile: {fileID: -4528830608231651361, guid: 1e9737d9883d6324ebc42240e62a824c, type: 3}
+  DefaultItemIcon: {fileID: 2346436936791262179, guid: 658586cd7e83aae4ab13d74793759458, type: 3}
+  DefaultMemberProfile: {fileID: -4528830608231651361, guid: 658586cd7e83aae4ab13d74793759458, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
