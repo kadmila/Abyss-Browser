@@ -11,6 +11,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"time"
 )
 
 // AbyssPeerIdentity contains a set of keys and certificates that identifies a peer.
@@ -18,6 +19,7 @@ type AbyssPeerIdentity struct {
 	id                  string
 	root_self_cert_x509 *x509.Certificate
 	handshake_pub_key   *rsa.PublicKey
+	issue_time          time.Time
 
 	root_self_cert         string
 	root_self_cert_der     []byte
@@ -111,6 +113,7 @@ func NewAbyssPeerIdentity(root_self_cert *x509.Certificate, handshake_key_cert *
 		root_self_cert_x509: root_self_cert,
 		id:                  id,
 		handshake_pub_key:   pkey,
+		issue_time:          handshake_key_cert.NotBefore,
 
 		root_self_cert:         root_self_cert_pem,
 		root_self_cert_der:     root_self_cert_der,
@@ -175,3 +178,4 @@ func (p *AbyssPeerIdentity) RootCertificate() string            { return p.root_
 func (p *AbyssPeerIdentity) RootCertificateDer() []byte         { return p.root_self_cert_der }
 func (p *AbyssPeerIdentity) HandshakeKeyCertificate() string    { return p.handshake_key_cert }
 func (p *AbyssPeerIdentity) HandshakeKeyCertificateDer() []byte { return p.handshake_key_cert_der }
+func (p *AbyssPeerIdentity) IssueTime() time.Time               { return p.issue_time }

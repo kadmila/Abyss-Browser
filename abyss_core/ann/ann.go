@@ -19,15 +19,15 @@ type AbyssNode struct {
 	*sec.AbyssRootSecret
 	*sec.TLSIdentity
 
-	verified_tls_certs    *sec.VerifiedTlsCertMap
+	udpConn               *net.UDPConn
 	transport             *quic.Transport
 	listener              *quic.Listener
 	local_addr_candidates []netip.AddrPort
 
-	inner_ctx  context.Context
-	ctx_cancel context.CancelFunc
-	inner_done chan bool
-	backlog    chan *AbyssPeer
+	dial_ctx        context.Context
+	dial_cancelfunc context.CancelFunc
+
+	HandshakeHandler
 }
 
 func NewAbyssNode(root_private_key sec.PrivateKey) (*AbyssNode, error) {
@@ -41,32 +41,56 @@ func NewAbyssNode(root_private_key sec.PrivateKey) (*AbyssNode, error) {
 		return nil, err
 	}
 
-	verified_tls_certs := sec.NewVerifiedTlsCertMap()
+	dial_ctx, dial_cancelfunc := context.WithCancel(context.Background())
 
-	udpConn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
-	if err != nil {
-		return nil, err
+	return &AbyssNode{
+		AbyssRootSecret: root_secret,
+		TLSIdentity:     tls_identity,
+
+		udpConn:               nil,
+		transport:             nil,
+		listener:              nil,
+		local_addr_candidates: make([]netip.AddrPort, 0),
+
+		dial_ctx:        dial_ctx,
+		dial_cancelfunc: dial_cancelfunc,
+
+		HandshakeHandler: MakeHandshakeHandler(),
+	}, nil
+}
+
+func newQuicConfig() *quic.Config {
+	return &quic.Config{
+		MaxIdleTimeout:  time.Second * 20,
+		KeepAlivePeriod: time.Second * 5,
+		EnableDatagrams: true,
 	}
-	transport := &quic.Transport{Conn: udpConn}
+}
 
-	listener, err := transport.Listen(tls_identity.NewServerTlsConf(verified_tls_certs), NewQuicConf())
+func (n *AbyssNode) Listen() error {
+	var err error
+	n.udpConn, err = net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	bind_addr, ok := listener.Addr().(*net.UDPAddr)
+	n.transport = &quic.Transport{Conn: n.udpConn}
+	n.listener, err = n.transport.Listen(n.NewServerTlsConf(n.verified_tls_certs), newQuicConfig())
+	if err != nil {
+		return err
+	}
+
+	bind_addr, ok := n.listener.Addr().(*net.UDPAddr)
 	if !ok {
-		return nil, errors.New("failed to get listener bind address")
+		return errors.New("failed to get listener bind address")
 	}
 	port := uint16(bind_addr.Port)
-
-	var addr_candidates []netip.AddrPort
 
 	// query all network interfaces.
 	{
 		ifaces, err := net.Interfaces()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		for _, iface := range ifaces {
 			// Skip disabled interfaces
@@ -93,51 +117,36 @@ func NewAbyssNode(root_private_key sec.PrivateKey) (*AbyssNode, error) {
 				if !ok {
 					continue
 				}
-				addr_candidates = append(
-					addr_candidates,
+				n.local_addr_candidates = append(
+					n.local_addr_candidates,
 					netip.AddrPortFrom(netip_ip, port),
 				)
 			}
 		}
 	}
-
-	inner_ctx, ctx_cancel := context.WithCancel(context.Background())
-
-	result := &AbyssNode{
-		AbyssRootSecret: root_secret,
-		TLSIdentity:     tls_identity,
-
-		verified_tls_certs:    verified_tls_certs,
-		transport:             transport,
-		listener:              listener,
-		local_addr_candidates: addr_candidates,
-
-		inner_ctx:  inner_ctx,
-		ctx_cancel: ctx_cancel,
-		backlog:    make(chan *AbyssPeer, 32),
-	}
-	go result.innerLoop()
-	return result, nil
+	return nil
 }
 
-func NewQuicConf() *quic.Config {
-	return &quic.Config{
-		MaxIdleTimeout:  time.Second * 20,
-		KeepAlivePeriod: time.Second * 5,
-		EnableDatagrams: true,
-	}
+func (n *AbyssNode) Serve() error {
+	n.HandshakeHandler.run()
+
+	n.listener.Close()
+	return nil
 }
 
-func (n *AbyssNode) innerLoop() {
-	for {
-		connection, err := n.listener.Accept(n.inner_ctx)
-		if err != nil {
-			if n.inner_ctx.Done() {
-				break
-			}
-		}
-	}
-	n.inner_done <- true
+func (n *AbyssNode) LocalAddrCandidates() []netip.AddrPort { return n.local_addr_candidates }
+
+// TODO func (n *AbyssNode) NewAbystClient() (IAbystClient, error) {}
+
+// TODO NewCollocatedHttp3Client() (http.Client, error)
+
+func (n *AbyssNode) Dial(id string, addr *netip.AddrPort) error {
+	return n.dial(id, addr, n.transport)
+}
+
+func (n *AbyssNode) Close() error {
+	n.dial_cancelfunc()
+	return nil
 }
 
 // func T() {
@@ -145,30 +154,3 @@ func (n *AbyssNode) innerLoop() {
 // 	var n ani.IAbyssNode
 // 	n, err = NewAbyssNode(root_key)
 // }
-
-func (n *AbyssNode) LocalAddrCandidates() []netip.AddrPort { return n.local_addr_candidates }
-
-func (n *AbyssNode) Accept(ctx context.Context) (*AbyssPeer, error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case new_peer, ok := <-n.backlog:
-		if !ok {
-			return nil, errors.New("AbyssNode closed")
-		}
-		return new_peer, nil
-	}
-}
-
-func (n *AbyssNode) Dial() {
-
-}
-
-func (n *AbyssNode) Close() {
-	n.ctx_cancel()
-	n.listener.Close()
-
-	// wait for inner loop termination and close backlog.
-	<-n.inner_done
-	close(n.backlog)
-}

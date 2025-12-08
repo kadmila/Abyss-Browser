@@ -39,6 +39,7 @@ type AbyssRootSecret struct {
 	root_self_cert_x509 *x509.Certificate
 
 	handshake_priv_key *rsa.PrivateKey //may support others in future
+	issue_time         time.Time       //handshake encryption key issue time
 
 	handshake_key_cert     string //pem
 	handshake_key_cert_der []byte
@@ -96,6 +97,7 @@ func NewAbyssRootSecrets(root_private_key PrivateKey) (*AbyssRootSecret, error) 
 	if err != nil {
 		return nil, err
 	}
+	issue_time := time.Now().Add(time.Duration(-1) * time.Second) //1-sec backdate, for badly synced peers.
 	h_template := x509.Certificate{
 		Issuer: pkix.Name{
 			CommonName: id,
@@ -103,7 +105,7 @@ func NewAbyssRootSecrets(root_private_key PrivateKey) (*AbyssRootSecret, error) 
 		Subject: pkix.Name{
 			CommonName: "H-" + id + "-OAEP-SHA3-256-AES-256-GCM", //handshake encryption key, RSA OAEP + AES-256 encryption
 		},
-		NotBefore:             time.Now().Add(time.Duration(-1) * time.Second), //1-sec backdate, for badly synced peers.
+		NotBefore:             issue_time,
 		SerialNumber:          serialNumber,
 		KeyUsage:              x509.KeyUsageEncipherOnly,
 		BasicConstraintsValid: true,
@@ -130,6 +132,7 @@ func NewAbyssRootSecrets(root_private_key PrivateKey) (*AbyssRootSecret, error) 
 		root_self_cert_x509: r_x509,
 
 		handshake_priv_key: handshake_private_key,
+		issue_time:         issue_time,
 
 		handshake_key_cert:     h_pem_buf.String(),
 		handshake_key_cert_der: h_derBytes,
@@ -219,3 +222,4 @@ func (r *AbyssRootSecret) RootCertificate() string            { return r.root_se
 func (r *AbyssRootSecret) RootCertificateDer() []byte         { return r.root_self_cert_der }
 func (r *AbyssRootSecret) HandshakeKeyCertificate() string    { return r.handshake_key_cert }
 func (r *AbyssRootSecret) HandshakeKeyCertificateDer() []byte { return r.handshake_key_cert_der }
+func (r *AbyssRootSecret) IssueTime() time.Time               { return r.issue_time }

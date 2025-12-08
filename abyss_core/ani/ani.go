@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/netip"
+	"time"
 )
 
 type IAbyssPeerIdentity interface {
@@ -16,6 +17,7 @@ type IAbyssPeerIdentity interface {
 	RootCertificateDer() []byte
 	HandshakeKeyCertificate() string //pem
 	HandshakeKeyCertificateDer() []byte
+	IssueTime() time.Time
 }
 
 // IAbyssNode defines an abyss node.
@@ -23,17 +25,32 @@ type IAbyssPeerIdentity interface {
 // It may implement abyst server internally.
 type IAbyssNode interface {
 	IAbyssPeerIdentity
+
+	// Listen binds network interface, starts service.
+	// Do Not call Listen() and Serve() twice.
+	// The AbyssNode is designed for single-use.
+	Listen() error
+
+	// Serve is the main service loop.
+	// It returns when Close() is called or when it crashed.
+	// Please file a bug report when it crashes.
+	Serve() error
+
+	// LocalAddrCandidates is the list of addresses for bound network interfaces.
+	// The return value must not be mutated.
 	LocalAddrCandidates() []netip.AddrPort
 
-	Accept(context.Context) (IAbyssPeer, error)
+	// AppendKnownPeer adds peer information for mutual auth.
+	// This is mendatory before Dial() and Accept().
+	AppendKnownPeer(root_cert string, handshake_key_cert string) error
+	AppendKnownPeerDer(root_cert []byte, handshake_key_cert []byte) error
 
 	// Dial returns error only for unknown hash or invalid address.
 	// When connected, the connection can be retrieved from Accept().
-	Dial(hash string, addr *netip.AddrPort) error
+	Dial(hash string, addr *netip.AddrPort) bool
 
-	// AppendKnownPeer adds peer information for mutual auth.
-	AppendKnownPeer(root_cert string, handshake_key_cert string) error
-	AppendKnownPeerDer(root_cert []byte, handshake_key_cert []byte) error
+	// Accept returns a newly established peer.
+	Accept(ctx context.Context) (IAbyssPeer, error)
 
 	// NewAbystClient creates an instance of abyst client.
 	NewAbystClient() (IAbystClient, error)
@@ -42,9 +59,12 @@ type IAbyssNode interface {
 	// QUIC host with the abyst node, with TLS client auth enabled.
 	NewCollocatedHttp3Client() (http.Client, error)
 
-	// Close internal loop.
+	// Close terminates internal loop.
+	// Even after Listen() failes, Close() should be called.
+	// DO NOT reuse AbyssNode after Close().
 	// After it returns, Accept() will only return error.
 	// Incoming connections are rejected.
+	// LocalAddrCandidates will be emptied.
 	Close() error
 }
 
@@ -52,6 +72,7 @@ type IAbyssNode interface {
 // Inbound messages are handled by internal handlers.
 type IAbyssPeer interface {
 	IAbyssPeerIdentity
+
 	// RemoteAddrCandidates are the confirmed address candidates.
 	// They accumulate after connection establishment.
 	RemoteAddrCandidates() []*netip.AddrPort
