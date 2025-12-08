@@ -1,12 +1,7 @@
 package ann
 
 import (
-	"context"
-	"errors"
-	"net/netip"
-
 	"github.com/fxamacker/cbor/v2"
-	"github.com/kadmila/Abyss-Browser/abyss_core/sec"
 	"github.com/quic-go/quic-go"
 )
 
@@ -22,73 +17,19 @@ type OutboundConnection struct {
 	ahmp_decoder *cbor.Decoder
 }
 
-type HandshakeHandler struct {
-	table              PeerStatusMap
-	verified_tls_certs *sec.VerifiedTlsCertMap
-	backlog            chan *AbyssPeer
-
-	inbound_backlog  chan *InboundConnection
-	outbound_backlog chan *OutboundConnection
+type AbyssConnection struct {
+	inbound_connection  quic.Connection
+	outbound_connection quic.Connection
+	ahmp_encoder        *cbor.Encoder
+	ahmp_decoder        *cbor.Decoder
 }
 
-func MakeHandshakeHandler() HandshakeHandler {
-	return HandshakeHandler{
-		table:              MakePeerStatusMap(),
-		verified_tls_certs: sec.NewVerifiedTlsCertMap(),
-		backlog:            make(chan *AbyssPeer, 32),
-
-		inbound_backlog:  make(chan *InboundConnection, 32),
-		outbound_backlog: make(chan *OutboundConnection, 32),
-	}
-}
-
-func (n *HandshakeHandler) AppendKnownPeer(root_cert string, handshake_key_cert string) error {
-	identity, err := sec.NewAbyssPeerIdentityFromPEM(root_cert, handshake_key_cert)
-	if err != nil {
-		return err
-	}
-
-	n.table.UpdatePeerInformation(identity)
-	return nil
-}
-func (n *HandshakeHandler) AppendKnownPeerDer(root_cert []byte, handshake_key_cert []byte) error {
-	identity, err := sec.NewAbyssPeerIdentityFromDER(root_cert, handshake_key_cert)
-	if err != nil {
-		return err
-	}
-
-	n.table.UpdatePeerInformation(identity)
-	return nil
-}
-
-func (n *HandshakeHandler) dial(hash string, addr *netip.AddrPort, transport *quic.Transport) error {
-	// conn, err := transport.Dial(
-	// 	n.dial_ctx,
-	// 	&net.UDPAddr{
-	// 		IP:   addr.Addr().AsSlice(),
-	// 		Port: int(addr.Port()),
-	// 	},
-	// 	n.NewAbyssClientTlsConf(),
-	// 	newQuicConfig(),
-	// )
-	return nil
-}
-
-func (n *HandshakeHandler) Accept(ctx context.Context) (*AbyssPeer, error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case new_peer, ok := <-n.backlog:
-		if !ok {
-			return nil, errors.New("AbyssNode closed")
-		}
-		return new_peer, nil
-	}
-}
-
-func (h *HandshakeHandler) run() error {
-	return nil
-}
+const (
+	AbyssQuicRedundantConnection quic.ApplicationErrorCode = 1000
+	AbyssQuicAhmpStreamFail      quic.ApplicationErrorCode = 1001
+	AbyssQuicCryptoFail          quic.ApplicationErrorCode = 1002
+	AbyssQuicAuthenticationFail  quic.ApplicationErrorCode = 1002
+)
 
 // func (n *AbyssNode) handshakeService(ctx context.Context, done chan<- bool) {
 

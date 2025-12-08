@@ -6,15 +6,22 @@ package ann
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"net"
 	"net/netip"
+	"sync"
 	"time"
 
+	"github.com/fxamacker/cbor/v2"
+	"github.com/kadmila/Abyss-Browser/abyss_core/ahmp"
 	"github.com/kadmila/Abyss-Browser/abyss_core/sec"
 	"github.com/quic-go/quic-go"
 )
 
+// AbyssNode handles abyss/abyst handshakes, listening inbound connections.
+// TODO: Close() should wait for ongoing handshake goroutines to terminate.
+// This requires the goroutines to 1) check before executing, 2) check when terminate.
 type AbyssNode struct {
 	*sec.AbyssRootSecret
 	*sec.TLSIdentity
@@ -27,7 +34,15 @@ type AbyssNode struct {
 	dial_ctx        context.Context
 	dial_cancelfunc context.CancelFunc
 
-	HandshakeHandler
+	dial_stats         DialStatusMap
+	verified_tls_certs *sec.VerifiedTlsCertMap
+	backlog            chan *AbyssPeer
+
+	backlog_join_mtx sync.Mutex
+
+	peers            map[string]*AbyssConnection
+	inbound_backlog  map[string]*InboundConnection
+	outbound_backlog map[string]*OutboundConnection
 }
 
 func NewAbyssNode(root_private_key sec.PrivateKey) (*AbyssNode, error) {
@@ -55,7 +70,13 @@ func NewAbyssNode(root_private_key sec.PrivateKey) (*AbyssNode, error) {
 		dial_ctx:        dial_ctx,
 		dial_cancelfunc: dial_cancelfunc,
 
-		HandshakeHandler: MakeHandshakeHandler(),
+		dial_stats:         MakePeerStatusMap(),
+		verified_tls_certs: sec.NewVerifiedTlsCertMap(),
+		backlog:            make(chan *AbyssPeer, 128),
+
+		peers:            make(map[string]*AbyssConnection),
+		inbound_backlog:  make(map[string]*InboundConnection),
+		outbound_backlog: make(map[string]*OutboundConnection),
 	}, nil
 }
 
@@ -128,21 +149,153 @@ func (n *AbyssNode) Listen() error {
 }
 
 func (n *AbyssNode) Serve() error {
-	n.HandshakeHandler.run()
-
+	// TODO
 	n.listener.Close()
+	n.transport.Close()
+	n.udpConn.Close()
 	return nil
 }
 
 func (n *AbyssNode) LocalAddrCandidates() []netip.AddrPort { return n.local_addr_candidates }
 
+func (n *AbyssNode) AppendKnownPeer(root_cert string, handshake_key_cert string) error {
+	identity, err := sec.NewAbyssPeerIdentityFromPEM(root_cert, handshake_key_cert)
+	if err != nil {
+		return err
+	}
+
+	n.dial_stats.UpdatePeerInformation(identity)
+	return nil
+}
+func (n *AbyssNode) AppendKnownPeerDer(root_cert []byte, handshake_key_cert []byte) error {
+	identity, err := sec.NewAbyssPeerIdentityFromDER(root_cert, handshake_key_cert)
+	if err != nil {
+		return err
+	}
+
+	n.dial_stats.UpdatePeerInformation(identity)
+	return nil
+}
+
+func (n *AbyssNode) Dial(id string, addr *netip.AddrPort) error {
+	peer_identity, err := n.dial_stats.TryAppendDialingAndGetIdentity(id, addr.Addr())
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		var err error
+		defer func() {
+			if err != nil {
+				n.dial_stats.ReportDialFailure(id, addr.Addr())
+			}
+		}()
+
+		// dial
+		conn, err := n.transport.Dial(
+			n.dial_ctx,
+			&net.UDPAddr{
+				IP:   addr.Addr().AsSlice(),
+				Port: int(addr.Port()),
+			},
+			n.TLSIdentity.NewAbyssClientTlsConf(),
+			newQuicConfig(),
+		)
+		if err != nil {
+			return
+		}
+
+		// get ephemeral TLS certificate
+		tls_info := conn.ConnectionState().TLS
+		client_tls_cert := tls_info.PeerCertificates[0]
+
+		// open ahmp stream
+		ahmp_stream, err := conn.OpenStreamSync(n.dial_ctx)
+		if err != nil {
+			conn.CloseWithError(AbyssQuicAhmpStreamFail, "failed to start AHMP")
+			return
+		}
+		ahmp_encoder := cbor.NewEncoder(ahmp_stream)
+		ahmp_decoder := cbor.NewDecoder(ahmp_stream)
+
+		// send local tls-abyss binding cert encrypted with remote handshake key.
+		encrypted_cert, aes_secret, err := peer_identity.EncryptHandshake(n.TLSIdentity.AbyssBindingCertificate())
+		if err != nil {
+			conn.CloseWithError(AbyssQuicCryptoFail, "abyss cryptograhic failure")
+			return
+		}
+		handshake_1_payload := &ahmp.HS1{
+			EncryptedCertificate: encrypted_cert,
+			EncryptedSecret:      aes_secret,
+		}
+		err = ahmp_encoder.Encode(handshake_1_payload)
+		if err != nil {
+			conn.CloseWithError(AbyssQuicAhmpStreamFail, "failed to transmit AHMP")
+			return
+		}
+
+		// receive accepter-side self-authentication
+		var handshake_2_payload []byte
+		err = ahmp_decoder.Decode(&handshake_2_payload)
+		if err != nil {
+			conn.CloseWithError(AbyssQuicAhmpStreamFail, "failed to receive AHMP")
+			return
+		}
+		handshake_2_payload_x509, err := x509.ParseCertificate(handshake_2_payload)
+		if err != nil {
+			conn.CloseWithError(AbyssQuicAuthenticationFail, "failed to parse certificate")
+			return
+		}
+		err = peer_identity.VerifyTLSBinding(handshake_2_payload_x509, client_tls_cert)
+		if err != nil {
+			conn.CloseWithError(AbyssQuicAuthenticationFail, "invalid certificate")
+			return
+		}
+
+		n.OutboundConnectionJoin(id, conn, peer_identity)
+
+		// wait for 1) inbound completion, or 2) peer disconnect
+	}()
+	return nil
+}
+
+func (n *AbyssNode) OutboundConnectionJoin(id string, connection quic.Connection, identity *sec.AbyssPeerIdentity) {
+	n.backlog_join_mtx.Lock()
+	defer n.backlog_join_mtx.Unlock()
+
+	if _, ok := n.peers[id]; ok {
+		conn.CloseWithError(AbyssQuicRedundantConnection, "redundant connection")
+		return
+	}
+
+	outbound_conn, ok := n.outbound_backlog[id]
+	if ok {
+		conn.CloseWithError(AbyssQuicRedundantConnection, "redundant connection")
+	}
+
+	inbound_conn, ok := n.inbound_backlog[id]
+	if ok {
+
+	} else {
+		n.outbound_backlog[id]
+	}
+}
+
+func (n *AbyssNode) Accept(ctx context.Context) (*AbyssPeer, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case new_peer, ok := <-n.backlog:
+		if !ok {
+			return nil, errors.New("AbyssNode closed")
+		}
+		return new_peer, nil
+	}
+}
+
 // TODO func (n *AbyssNode) NewAbystClient() (IAbystClient, error) {}
 
 // TODO NewCollocatedHttp3Client() (http.Client, error)
-
-func (n *AbyssNode) Dial(id string, addr *netip.AddrPort) error {
-	return n.dial(id, addr, n.transport)
-}
 
 func (n *AbyssNode) Close() error {
 	n.dial_cancelfunc()
