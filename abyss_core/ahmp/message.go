@@ -8,10 +8,7 @@ import (
 	abyss "github.com/kadmila/Abyss-Browser/abyss_core/interfaces"
 )
 
-type HS1 struct {
-	EncryptedCertificate []byte
-	EncryptedSecret      []byte
-}
+///// AND
 
 type JN struct {
 	SenderSessionID uuid.UUID

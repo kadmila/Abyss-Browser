@@ -11,6 +11,15 @@ import (
 	"github.com/google/uuid"
 )
 
+///// AHMP for abyss handshake
+
+type RawHS1 struct {
+	EncryptedCertificate []byte
+	EncryptedSecret      []byte
+}
+
+///// AHMP for AND
+
 type RawSessionInfoForDiscovery struct {
 	AURL                       string
 	SessionID                  string

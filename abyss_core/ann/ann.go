@@ -207,7 +207,7 @@ func (n *AbyssNode) serveAbyssInbound(connection quic.Connection) {
 
 	// (handshake 1)
 	// receive and decrypt peer's tls-binding certificate
-	var handshake_1_message ahmp.HS1
+	var handshake_1_message ahmp.RawHS1
 	if err = ahmp_decoder.Decode(&handshake_1_message); err != nil {
 		connection.CloseWithError(AbyssQuicAhmpStreamFail, "failed to receie AHMP")
 		n.peer_ctor.AppendError(addr, false, err)
@@ -253,8 +253,9 @@ func (n *AbyssNode) serveAbyssInbound(connection quic.Connection) {
 
 	n.peer_ctor.Append(n.service_ctx, &AuthenticatedConnection{
 		identity:     peer_identity,
-		is_inbound:   true,
+		is_dialing:   false,
 		connection:   connection,
+		remote_addr:  addr,
 		ahmp_encoder: ahmp_encoder,
 		ahmp_decoder: ahmp_decoder,
 	})
@@ -345,7 +346,7 @@ func (n *AbyssNode) Dial(id string, addr netip.AddrPort) error {
 			n.peer_ctor.AppendError(addr, true, err)
 			return
 		}
-		handshake_1_message := &ahmp.HS1{
+		handshake_1_message := &ahmp.RawHS1{
 			EncryptedCertificate: encrypted_cert,
 			EncryptedSecret:      aes_secret,
 		}
@@ -380,8 +381,9 @@ func (n *AbyssNode) Dial(id string, addr netip.AddrPort) error {
 
 		n.peer_ctor.Append(n.service_ctx, &AuthenticatedConnection{
 			identity:     peer_identity,
-			is_inbound:   false,
+			is_dialing:   true,
 			connection:   connection,
+			remote_addr:  addr,
 			ahmp_encoder: ahmp_encoder,
 			ahmp_decoder: ahmp_decoder,
 		})
