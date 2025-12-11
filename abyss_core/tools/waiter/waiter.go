@@ -52,10 +52,7 @@ func (w *Waiter[T]) Wait(ctx context.Context) (T, error) {
 	select {
 	case v := <-w.inner:
 		// recycle value for next waiter.
-		select {
-		case w.inner <- v:
-		default:
-		}
+		w.inner <- v
 		return v, nil
 	case <-ctx.Done():
 		return result, ctx.Err()

@@ -3,20 +3,21 @@ package ann
 import (
 	"context"
 	"net/netip"
+
+	"github.com/fxamacker/cbor/v2"
+	"github.com/kadmila/Abyss-Browser/abyss_core/sec"
+	"github.com/quic-go/quic-go"
 )
 
 type AbyssPeer struct {
-	AuthenticatedConnection
-	origin      *PeerConstructor
+	*sec.AbyssPeerIdentity
+	origin      *AbyssNode
 	internal_id uint64
-}
 
-func NewAbyssPeer(connection AuthenticatedConnection, origin *PeerConstructor, internal_id uint64) *AbyssPeer {
-	return &AbyssPeer{
-		AuthenticatedConnection: connection,
-		origin:                  origin,
-		internal_id:             internal_id,
-	}
+	connection   quic.Connection
+	remote_addr  netip.AddrPort
+	ahmp_encoder *cbor.Encoder
+	ahmp_decoder *cbor.Decoder
 }
 
 func (p *AbyssPeer) RemoteAddr() netip.AddrPort {

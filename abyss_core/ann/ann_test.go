@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/rand/v2"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -267,6 +268,52 @@ func TestReconnect(t *testing.T) {
 
 	for range 5 {
 		one_cycle()
-		<-time.After(time.Millisecond * 10)
+	}
+}
+
+func TestDialTimeout(t *testing.T) {
+	root_key_A, _ := sec.NewRootPrivateKey()
+	node_A, _ := ann.NewAbyssNode(root_key_A)
+	node_A.Listen()
+	go node_A.Serve()
+
+	root_key_B, _ := sec.NewRootPrivateKey()
+	node_B, _ := ann.NewAbyssNode(root_key_B)
+
+	node_A.AppendKnownPeer(node_B.RootCertificate(), node_B.HandshakeKeyCertificate())
+
+	err := node_A.Dial(node_B.ID(), netip.MustParseAddrPort("127.0.0.1:10000"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, ctxcancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer ctxcancel()
+	_, err = node_A.Accept(ctx)
+	if err == nil || errors.Is(err, context.DeadlineExceeded) {
+		t.Fatal("should throw error other than Accept context timeout")
+	}
+}
+
+func TestDialTimeout2(t *testing.T) {
+	root_key_A, _ := sec.NewRootPrivateKey()
+	node_A, _ := ann.NewAbyssNode(root_key_A)
+	node_A.Listen()
+	go node_A.Serve()
+
+	root_key_B, _ := sec.NewRootPrivateKey()
+	node_B, _ := ann.NewAbyssNode(root_key_B)
+	node_B.Listen()
+
+	node_A.AppendKnownPeer(node_B.RootCertificate(), node_B.HandshakeKeyCertificate())
+
+	err := node_A.Dial(node_B.ID(), node_B.LocalAddrCandidates()[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, ctxcancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer ctxcancel()
+	_, err = node_A.Accept(ctx)
+	if err == nil || errors.Is(err, context.DeadlineExceeded) {
+		t.Fatal("should throw error other than Accept context timeout")
 	}
 }
