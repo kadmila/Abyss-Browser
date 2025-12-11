@@ -71,10 +71,17 @@ func (c *PeerConstructor) Append(ctx context.Context, connection *AuthenticatedC
 				c.internal_peer_id_cnt++
 				new_peer = NewAbyssPeer(*connection, c, c.internal_peer_id_cnt)
 				c.connected_peers[connection.ID()] = new_peer
+				is_new_peer_created = true
 			}
-			is_new_peer_created = !ok
 		}
 		c.mtx.Unlock()
+
+		// if this does not create a new peer, prune connection.
+		if !is_new_peer_created {
+			connection.connection.CloseWithError(AbyssQuicRedundantConnection, "")
+			c.AppendError(connection.remote_addr, connection.is_dialing, errors.New("redundant connection"))
+			return
+		}
 
 		// connection confirmation (handshake 3)
 		code := 0
@@ -85,14 +92,9 @@ func (c *PeerConstructor) Append(ctx context.Context, connection *AuthenticatedC
 			return
 		}
 
-		if is_new_peer_created {
-			c.BackLog <- BackLogEntry{
-				peer: new_peer,
-				err:  nil,
-			}
-		} else {
-			connection.connection.CloseWithError(AbyssQuicRedundantConnection, "")
-			c.AppendError(connection.remote_addr, connection.is_dialing, errors.New("redundant connection"))
+		c.BackLog <- BackLogEntry{
+			peer: new_peer,
+			err:  nil,
 		}
 		return
 	} else {
