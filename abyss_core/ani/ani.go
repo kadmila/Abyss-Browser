@@ -86,9 +86,12 @@ type IAbyssPeer interface {
 	Recv(any) error
 
 	// Context returns a context that is cancelled when the connection dies.
-	// This is directly exposed from quic-go.
+	// By calling Err(), you can retrieve the reason why the connection is closed.
 	Context() context.Context
 
+	// Close returns net.ErrClosed or the result of quic.Connection.CloseWithError().
+	// The return value is only for reference;
+	// To reliably get the cause of disconnection, refer Context().Err()
 	Close() error
 }
 

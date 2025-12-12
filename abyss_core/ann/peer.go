@@ -2,7 +2,10 @@ package ann
 
 import (
 	"context"
+	"crypto/x509"
+	"net"
 	"net/netip"
+	"sync/atomic"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/kadmila/Abyss-Browser/abyss_core/sec"
@@ -11,13 +14,17 @@ import (
 
 type AbyssPeer struct {
 	*sec.AbyssPeerIdentity
-	origin      *AbyssNode
-	internal_id uint64
+	origin          *AbyssNode
+	internal_id     uint64
+	client_tls_cert *x509.Certificate // this is stupid
 
 	connection   quic.Connection
 	remote_addr  netip.AddrPort
 	ahmp_encoder *cbor.Encoder
 	ahmp_decoder *cbor.Decoder
+
+	// is_closed should be referenced only from AbyssNode.
+	is_closed atomic.Bool
 }
 
 func (p *AbyssPeer) RemoteAddr() netip.AddrPort {
@@ -35,9 +42,11 @@ func (p *AbyssPeer) Context() context.Context {
 }
 
 func (p *AbyssPeer) Close() error {
-	err := p.connection.CloseWithError(AbyssQuicClose, "")
-	p.origin.ReportPeerClose(p)
-	return err
+	if p.origin.reportPeerClose(p) {
+		return nil
+	} else {
+		return net.ErrClosed
+	}
 }
 
 func (p *AbyssPeer) Equal(subject *AbyssPeer) bool {

@@ -11,7 +11,6 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
-	"sync"
 	"time"
 
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
@@ -43,13 +42,10 @@ type AbyssNode struct {
 	service_ctx        context.Context
 	service_cancelfunc context.CancelFunc
 
-	dial_stats         DialInfoMap
-	verified_tls_certs *sec.VerifiedTlsCertMap
+	dial_stats DialInfoMap
+	registry   *AbyssPeerRegistry
 
-	backlog_mtx          sync.Mutex
-	backlog              chan backLogEntry
-	connected_peers      map[string]*AbyssPeer
-	internal_peer_id_cnt uint64
+	backlog chan backLogEntry
 }
 
 func NewAbyssNode(root_private_key sec.PrivateKey) (*AbyssNode, error) {
