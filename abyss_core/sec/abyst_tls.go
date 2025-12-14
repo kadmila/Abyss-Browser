@@ -8,6 +8,7 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
 	"github.com/quic-go/quic-go/http3"
 )
 
@@ -54,7 +55,7 @@ func HashTlsCertificate(cert *x509.Certificate) [32]byte {
 }
 
 // NewServerTlsConf provides *tls.Config for server-side
-func (t *TLSIdentity) NewServerTlsConf(verified_tls_certs *VerifiedTlsCertMap) *tls.Config {
+func (t *TLSIdentity) NewServerTlsConf(abyst_cert_checker ani.IAbystTlsCertChecker) *tls.Config {
 	return &tls.Config{
 		Certificates: []tls.Certificate{
 			{
@@ -73,8 +74,7 @@ func (t *TLSIdentity) NewServerTlsConf(verified_tls_certs *VerifiedTlsCertMap) *
 			}
 			switch cs.NegotiatedProtocol {
 			case http3.NextProtoH3:
-				cert_hash := HashTlsCertificate(cert)
-				if _, ok := verified_tls_certs.Load(cert_hash); !ok {
+				if _, ok := abyst_cert_checker.GetPeerIdFromTlsCertificate(cert); !ok {
 					return errors.New("unknown peer")
 				}
 				return nil

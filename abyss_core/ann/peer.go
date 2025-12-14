@@ -3,7 +3,6 @@ package ann
 import (
 	"context"
 	"crypto/x509"
-	"net"
 	"net/netip"
 	"sync/atomic"
 
@@ -22,6 +21,8 @@ type AbyssPeer struct {
 	remote_addr  netip.AddrPort
 	ahmp_encoder *cbor.Encoder
 	ahmp_decoder *cbor.Decoder
+
+	// abyst connections
 
 	// is_closed should be referenced only from AbyssNode.
 	is_closed atomic.Bool
@@ -42,11 +43,7 @@ func (p *AbyssPeer) Context() context.Context {
 }
 
 func (p *AbyssPeer) Close() error {
-	if p.origin.reportPeerClose(p) {
-		return nil
-	} else {
-		return net.ErrClosed
-	}
+	return p.origin.registry.ReportPeerClose(p)
 }
 
 func (p *AbyssPeer) Equal(subject *AbyssPeer) bool {

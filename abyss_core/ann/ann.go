@@ -42,8 +42,7 @@ type AbyssNode struct {
 	service_ctx        context.Context
 	service_cancelfunc context.CancelFunc
 
-	dial_stats DialInfoMap
-	registry   *AbyssPeerRegistry
+	registry *AbyssPeerRegistry
 
 	backlog chan backLogEntry
 }
@@ -59,7 +58,7 @@ func NewAbyssNode(root_private_key sec.PrivateKey) (*AbyssNode, error) {
 		return nil, err
 	}
 
-	dial_ctx, dial_cancelfunc := context.WithCancel(context.Background())
+	service_ctx, service_cancelfunc := context.WithCancel(context.Background())
 
 	return &AbyssNode{
 		AbyssRootSecret: root_secret,
@@ -71,14 +70,12 @@ func NewAbyssNode(root_private_key sec.PrivateKey) (*AbyssNode, error) {
 		listener:              nil,
 		local_addr_candidates: make([]netip.AddrPort, 0),
 
-		service_ctx:        dial_ctx,
-		service_cancelfunc: dial_cancelfunc,
+		service_ctx:        service_ctx,
+		service_cancelfunc: service_cancelfunc,
 
-		dial_stats:         MakeDialInfoMap(),
-		verified_tls_certs: sec.NewVerifiedTlsCertMap(),
+		registry: NewAbyssPeerRegistry(),
 
-		backlog:         make(chan backLogEntry, 128),
-		connected_peers: make(map[string]*AbyssPeer),
+		backlog: make(chan backLogEntry, 128),
 	}, nil
 }
 
@@ -104,7 +101,7 @@ func (n *AbyssNode) Listen() error {
 	// n.transport = &quic.Transport{Conn: n.udpConn}
 	// normal
 
-	n.listener, err = n.transport.Listen(n.NewServerTlsConf(n.verified_tls_certs), newQuicConfig())
+	n.listener, err = n.transport.Listen(n.NewServerTlsConf(n.registry), newQuicConfig())
 	if err != nil {
 		return err
 	}
@@ -157,20 +154,6 @@ func (n *AbyssNode) Listen() error {
 // Serve is the main server loop of AbyssNode.
 // It waits for incoming connections on quic.Listener in a loop.
 func (n *AbyssNode) Serve() error {
-	// start peer identity waiter cleaning loop.
-	waiter_clean_loop_termiate_ch := make(chan bool)
-	go func() {
-		for {
-			select {
-			case <-n.service_ctx.Done():
-				waiter_clean_loop_termiate_ch <- true
-				return
-			case <-time.After(time.Minute * 3):
-				n.dial_stats.CleaupWaiter()
-			}
-		}
-	}()
-
 	var err error
 	for {
 		var connection quic.Connection
@@ -201,8 +184,6 @@ func (n *AbyssNode) Serve() error {
 			connection.CloseWithError(0, "unsupported application layer protocol")
 		}
 	}
-
-	<-waiter_clean_loop_termiate_ch
 	return n.cleanUp(err)
 }
 
@@ -222,7 +203,7 @@ func (n *AbyssNode) AppendKnownPeer(root_cert string, handshake_key_cert string)
 		return err
 	}
 
-	n.dial_stats.UpdatePeerInformation(identity)
+	n.registry.UpdatePeerIdentity(identity)
 	return nil
 }
 func (n *AbyssNode) AppendKnownPeerDer(root_cert []byte, handshake_key_cert []byte) error {
@@ -231,12 +212,12 @@ func (n *AbyssNode) AppendKnownPeerDer(root_cert []byte, handshake_key_cert []by
 		return err
 	}
 
-	n.dial_stats.UpdatePeerInformation(identity)
+	n.registry.UpdatePeerIdentity(identity)
 	return nil
 }
 
 func (n *AbyssNode) EraseKnownPeer(id string) {
-	n.dial_stats.Remove(id)
+	n.registry.RemovePeerIdentity(id)
 }
 
 // Dial synchronously check for dialing plausibility, and
@@ -244,12 +225,12 @@ func (n *AbyssNode) EraseKnownPeer(id string) {
 func (n *AbyssNode) Dial(id string, addr netip.AddrPort) error {
 	// query identity and dialing permission
 	// TODO: this should be separated.
-	peer_identity, err := n.dial_stats.AskDialingPermissionAndGetIdentity(id, addr.Addr())
+	peer_identity, err := n.registry.GetPeerIdentityIfDialable(id, addr.Addr())
 	if err != nil {
 		return err
 	}
 
-	go n.dialRoutine(id, addr, peer_identity)
+	go n.dialRoutine(addr, peer_identity)
 	return nil
 }
 

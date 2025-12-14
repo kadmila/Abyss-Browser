@@ -5,6 +5,7 @@ package ani
 
 import (
 	"context"
+	"crypto/x509"
 	"io"
 	"net/http"
 	"net/netip"
@@ -19,6 +20,18 @@ type IAbyssPeerIdentity interface {
 	HandshakeKeyCertificateDer() []byte
 	IssueTime() time.Time
 }
+
+// *Note*
+// When a peer disconnects and re-connects the same peer immediately,
+// the peer does not accept the new connection before
+// Close() is called for the old connection with the same peer.
+// This is a design for better application-layer state management.
+//
+// Depending on tie-breaking result, this may result in two behaviors;
+// 1) The connection is accepted, but it is closed.
+// 2) Accept() returns an error for the redundant connection.
+// This is not random; each peer will experience one of the behaviors
+// repeatedly.
 
 // IAbyssNode defines an abyss node.
 // It is constructed from ann.Listen() (IAbyssNode, error).
@@ -72,6 +85,10 @@ type IAbyssNode interface {
 	Close() error
 }
 
+type IAbystTlsCertChecker interface {
+	GetPeerIdFromTlsCertificate(certificate *x509.Certificate) (string, bool)
+}
+
 // IAbyssPeer is an interface for sending ahmp messages to a connected peer.
 // Inbound messages are handled by internal handlers.
 type IAbyssPeer interface {
@@ -87,11 +104,16 @@ type IAbyssPeer interface {
 
 	// Context returns a context that is cancelled when the connection dies.
 	// By calling Err(), you can retrieve the reason why the connection is closed.
-	Context() context.Context
+	// Context() context.Context
 
-	// Close returns net.ErrClosed or the result of quic.Connection.CloseWithError().
-	// The return value is only for reference;
-	// To reliably get the cause of disconnection, refer Context().Err()
+	// Close disconnectes the peer and clears backlog.
+	// Calling this is mendatory before dialing the same peer again.
+	// The return value provides the cause of disconnection,
+	// nil is returned when the connection is gracefully closed by this call.
+	// If the connection was closed before this call, the return value is
+	// typically net.ErrClosed.
+	// Calling Close() more than once is a no-op (returns nil) and discouraged,
+	// though it is thread-safe.
 	Close() error
 }
 

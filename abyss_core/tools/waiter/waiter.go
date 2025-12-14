@@ -61,7 +61,11 @@ func (w *Waiter[T]) Wait(ctx context.Context) (T, error) {
 
 // Set should not be called twice.
 func (w *Waiter[T]) Set(v T) {
-	w.inner <- v
+	select {
+	case w.inner <- v:
+	default:
+		panic("detected Waiter.Set() called twice. This is an undefined bahavior")
+	}
 }
 
 // TryClose tries to close the waiter.

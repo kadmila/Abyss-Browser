@@ -157,17 +157,17 @@ func (p *AbyssPeerIdentity) EncryptHandshake(payload []byte) ([]byte, []byte, er
 	encrypted_aes_secret, err := rsa.EncryptOAEP(sha3.New256(), rand.Reader, p.handshake_pub_key, aes_secret, nil)
 	return encrypted_payload, encrypted_aes_secret, err
 }
-func (p *AbyssPeerIdentity) VerifyTLSBinding(abyss_bind_cert *x509.Certificate, tls_cert *x509.Certificate) error {
-	if err := abyss_bind_cert.CheckSignatureFrom(p.root_self_cert_x509); err != nil {
+func (p *AbyssPeerIdentity) VerifyTLSBinding(tls_binding_cert *x509.Certificate, tls_cert *x509.Certificate) error {
+	if err := tls_binding_cert.CheckSignatureFrom(p.root_self_cert_x509); err != nil {
 		return err
 	}
-	if !abyss_bind_cert.PublicKey.(ed25519.PublicKey).Equal(tls_cert.PublicKey) {
+	if !tls_binding_cert.PublicKey.(ed25519.PublicKey).Equal(tls_cert.PublicKey) {
 		return errors.New("invalid TLS binding key certificate; TLS public key mismatch")
 	}
-	if abyss_bind_cert.Issuer.CommonName != p.id {
+	if tls_binding_cert.Issuer.CommonName != p.id {
 		return errors.New("invalid TLS binding key certificate; issuer mismatch")
 	}
-	if abyss_bind_cert.Subject.CommonName != "tls."+p.id {
+	if tls_binding_cert.Subject.CommonName != "tls."+p.id {
 		return errors.New("invalid root certificate; unrecognized name")
 	}
 	return nil
