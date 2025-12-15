@@ -360,14 +360,14 @@ func (n *AbyssNode) backlogAppendSlave(is_dialing bool, pre_peer *AbyssPeer) {
 	}
 }
 
-func (c *AbyssNode) backlogAppendError(addr netip.AddrPort, is_dialing bool, err error) {
+func (n *AbyssNode) backlogAppendError(addr netip.AddrPort, is_dialing bool, err error) {
 	var direction string
 	if is_dialing {
 		direction = "(outbound)"
 	} else {
 		direction = "(inbound)"
 	}
-	c.backlog <- backLogEntry{
+	n.backlog <- backLogEntry{
 		peer: nil,
 		err:  errors.New(addr.String() + direction + err.Error()),
 	}

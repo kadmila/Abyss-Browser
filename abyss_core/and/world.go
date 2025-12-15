@@ -23,6 +23,7 @@ const (
 	WS_MEM                      //member
 )
 
+// ANDPeerSessionState represents the peer's state in world session lifecycle.
 // timestamp is used only for JNI.
 type ANDPeerSessionState struct {
 	//latest
@@ -202,7 +203,7 @@ func (w *ANDWorld) ClearStates(peer_id string, info *ANDPeerSessionState, messag
 	}
 }
 
-// return (old session ID, success). old session ID is nil if not updated
+// TryUpdateSessionID returns (old session ID, success). old session ID is nil if not updated
 func (w *ANDWorld) TryUpdateSessionID(s *ANDPeerSessionState, session_id uuid.UUID, timestamp time.Time) bool {
 	if s.TimeStamp.Before(timestamp) {
 		w.ClearStates(s.Peer.IDHash(), s, "session id update failure")

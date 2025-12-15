@@ -171,7 +171,6 @@ func (a *AND) TimerExpire(local_session_id uuid.UUID) abyss.ANDERROR {
 	return 0
 }
 
-// session_uuid is always the sender's session id.
 func (a *AND) JN(local_session_id uuid.UUID, peer_session abyss.ANDPeerSession, timestamp time.Time) abyss.ANDERROR {
 	a.api_mtx.Lock()
 	defer a.api_mtx.Unlock()

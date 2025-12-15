@@ -119,11 +119,11 @@ func (r *AbyssPeerRegistry) GetPeerIdentityIfDialable(id string, addr netip.Addr
 }
 
 // ReportDialTermination removes entry from m.dialed map, allowing retry.
-func (m *AbyssPeerRegistry) ReportDialTermination(identity *sec.AbyssPeerIdentity, addr netip.Addr) {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
+func (r *AbyssPeerRegistry) ReportDialTermination(identity *sec.AbyssPeerIdentity, addr netip.Addr) {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
 
-	history, ok := m.dialed[identity.ID()]
+	history, ok := r.dialed[identity.ID()]
 	if !ok || !history.handshake_key_issue_time.Equal(identity.IssueTime()) {
 		return
 	}
@@ -136,28 +136,28 @@ func (m *AbyssPeerRegistry) ReportDialTermination(identity *sec.AbyssPeerIdentit
 
 // TryCompletingPeer numbers the peer and registers it,
 // If there is no existing connection, and the peer is known.
-func (n *AbyssPeerRegistry) TryCompletingPeer(peer *AbyssPeer) (*AbyssPeer, *DialError) {
-	n.mtx.Lock()
-	defer n.mtx.Unlock()
+func (r *AbyssPeerRegistry) TryCompletingPeer(peer *AbyssPeer) (*AbyssPeer, *DialError) {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
 
-	if _, ok := n.known[peer.ID()]; !ok {
+	if _, ok := r.known[peer.ID()]; !ok {
 		return nil, &DialError{T: DE_UnknownPeer}
 	}
 
-	_, ok := n.connected[peer.ID()]
+	_, ok := r.connected[peer.ID()]
 	if ok {
 		return nil, &DialError{T: DE_Redundant}
 	}
 
-	n.peer_id_cnt++
-	peer.internal_id = n.peer_id_cnt
-	n.connected[peer.ID()] = peer
-	n.tls_certs[sec.HashTlsCertificate(peer.client_tls_cert)] = peer.ID()
+	r.peer_id_cnt++
+	peer.internal_id = r.peer_id_cnt
+	r.connected[peer.ID()] = peer
+	r.tls_certs[sec.HashTlsCertificate(peer.client_tls_cert)] = peer.ID()
 	return peer, nil
 }
 
 // ReportPeerClose is called from AbyssPeer.
-func (n *AbyssPeerRegistry) ReportPeerClose(peer *AbyssPeer) error {
+func (r *AbyssPeerRegistry) ReportPeerClose(peer *AbyssPeer) error {
 	// check if Close() is already called.
 	if !peer.is_closed.CompareAndSwap(false, true) {
 		return nil
@@ -166,11 +166,11 @@ func (n *AbyssPeerRegistry) ReportPeerClose(peer *AbyssPeer) error {
 	err := peer.connection.CloseWithError(AbyssQuicClose, "")
 
 	// remove peer from backlog.
-	n.mtx.Lock()
-	defer n.mtx.Unlock()
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
 
-	delete(n.connected, peer.ID())
-	delete(n.tls_certs, sec.HashTlsCertificate(peer.client_tls_cert))
+	delete(r.connected, peer.ID())
+	delete(r.tls_certs, sec.HashTlsCertificate(peer.client_tls_cert))
 	return err
 }
 

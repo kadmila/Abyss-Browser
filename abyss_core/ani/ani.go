@@ -69,6 +69,10 @@ type IAbyssNode interface {
 	// Accept returns a newly established peer.
 	Accept(ctx context.Context) (IAbyssPeer, error)
 
+	// ConfigAbystGateway configures abyst gateway from a json string.
+	// read (link will be here) for details.
+	ConfigAbystGateway(config string) error
+
 	// NewAbystClient creates an instance of abyst client.
 	NewAbystClient() (IAbystClient, error)
 

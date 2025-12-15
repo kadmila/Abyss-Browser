@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"sync"
 
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
 	"github.com/quic-go/quic-go/http3"
@@ -21,33 +20,6 @@ type TLSIdentity struct {
 	priv_key        crypto.PrivateKey
 	tls_self_cert   []byte //der
 	abyss_bind_cert []byte //der
-}
-
-// VerifiedTlsCertMap relates sha-3 256 digests of verified mTLS certificates
-// with the corresponding peer id.
-// The TLS certificates are the ones used for ephemeral TLS handshake for abyss connection.
-// This object is thread safe.
-// TODO: the peer id will be attached as a http request header (X-Abyss-ID)
-type VerifiedTlsCertMap struct {
-	inner sync.Map // map[[32]byte]string
-}
-
-func NewVerifiedTlsCertMap() *VerifiedTlsCertMap {
-	return &VerifiedTlsCertMap{
-		inner: sync.Map{},
-	}
-}
-
-func (m *VerifiedTlsCertMap) Store(key [32]byte, value string) {
-	m.inner.Store(key, value)
-}
-func (m *VerifiedTlsCertMap) Load(key [32]byte) (string, bool) {
-	value, ok := m.inner.Load(key)
-	str, ok2 := value.(string)
-	return str, ok && ok2
-}
-func (m *VerifiedTlsCertMap) Delete(key [32]byte) {
-	m.inner.Delete(key)
 }
 
 func HashTlsCertificate(cert *x509.Certificate) [32]byte {
@@ -118,7 +90,7 @@ func (t *TLSIdentity) NewAbyssClientTlsConf() *tls.Config {
 }
 
 // NewAbystClientTlsConf provides *tls.Config for client-side (abyst)
-func (t *TLSIdentity) NewAbystClientTlsConf(verified_tls_certs *VerifiedTlsCertMap) *tls.Config {
+func (t *TLSIdentity) NewAbystClientTlsConf(abyst_cert_checker ani.IAbystTlsCertChecker) *tls.Config {
 	return &tls.Config{
 		Certificates: []tls.Certificate{
 			{
@@ -137,8 +109,7 @@ func (t *TLSIdentity) NewAbystClientTlsConf(verified_tls_certs *VerifiedTlsCertM
 			if err := cert.CheckSignatureFrom(cert); err != nil {
 				return err
 			}
-			cert_hash := HashTlsCertificate(cert)
-			if _, ok := verified_tls_certs.Load(cert_hash); !ok {
+			if _, ok := abyst_cert_checker.GetPeerIdFromTlsCertificate(cert); !ok {
 				return errors.New("unknown peer")
 			}
 			return nil

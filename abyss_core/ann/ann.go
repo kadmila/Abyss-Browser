@@ -13,6 +13,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/kadmila/Abyss-Browser/abyss_core/abyst"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
 	"github.com/kadmila/Abyss-Browser/abyss_core/sec"
 	"github.com/quic-go/quic-go"
@@ -45,6 +46,8 @@ type AbyssNode struct {
 	registry *AbyssPeerRegistry
 
 	backlog chan backLogEntry
+
+	abyst_hub *abyst.AbystGateway
 }
 
 func NewAbyssNode(root_private_key sec.PrivateKey) (*AbyssNode, error) {
@@ -76,6 +79,8 @@ func NewAbyssNode(root_private_key sec.PrivateKey) (*AbyssNode, error) {
 		registry: NewAbyssPeerRegistry(),
 
 		backlog: make(chan backLogEntry, 128),
+
+		abyst_hub: abyst.NewAbystGateway(),
 	}, nil
 }
 
@@ -241,6 +246,10 @@ func (n *AbyssNode) Accept(ctx context.Context) (ani.IAbyssPeer, error) {
 	case backlog_entry := <-n.backlog:
 		return backlog_entry.peer, backlog_entry.err
 	}
+}
+
+func (n *AbyssNode) ConfigAbystGateway(config string) error {
+	return n.abyst_hub.SetInternalMuxFromJson(config)
 }
 
 func (n *AbyssNode) NewAbystClient() (ani.IAbystClient, error) {
