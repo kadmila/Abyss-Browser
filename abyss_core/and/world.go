@@ -206,7 +206,7 @@ func (w *ANDWorld) ClearStates(peer_id string, info *ANDPeerSessionState, messag
 // TryUpdateSessionID returns (old session ID, success). old session ID is nil if not updated
 func (w *ANDWorld) TryUpdateSessionID(s *ANDPeerSessionState, session_id uuid.UUID, timestamp time.Time) bool {
 	if s.TimeStamp.Before(timestamp) {
-		w.ClearStates(s.Peer.IDHash(), s, "session id update failure")
+		w.ClearStates(s.Peer.ID(), s, "session id update failure")
 		s.PeerSessionID = session_id
 		s.TimeStamp = timestamp
 		return true
@@ -224,13 +224,13 @@ func (w *ANDWorld) IsProperMemberOrReset(info *ANDPeerSessionState, peer_session
 		}
 		fallthrough
 	default:
-		w.ClearStates(info.Peer.IDHash(), info, "non-member reset")
+		w.ClearStates(info.Peer.ID(), info, "non-member reset")
 	}
 	return false
 }
 
 func (w *ANDWorld) PeerConnected(peer abyss.IANDPeer) {
-	info, ok := w.peers[peer.IDHash()]
+	info, ok := w.peers[peer.ID()]
 	if ok { // known peer
 		w.o.stat.W(4)
 
@@ -260,12 +260,12 @@ func (w *ANDWorld) PeerConnected(peer abyss.IANDPeer) {
 		return
 	}
 	//unknown peer
-	w.peers[peer.IDHash()] = NewANDPeerSessionState(peer, uuid.Nil, time.Time{}, WS_CC)
+	w.peers[peer.ID()] = NewANDPeerSessionState(peer, uuid.Nil, time.Time{}, WS_CC)
 }
 func (w *ANDWorld) JN(peer_session abyss.ANDPeerSession, timestamp time.Time) {
 	w.o.stat.JN_RX++
 
-	info := w.peers[peer_session.Peer.IDHash()]
+	info := w.peers[peer_session.Peer.ID()]
 	switch info.state {
 	case WS_CC:
 		w.o.stat.W(7)
@@ -308,7 +308,7 @@ func (w *ANDWorld) JN(peer_session abyss.ANDPeerSession, timestamp time.Time) {
 func (w *ANDWorld) JOK(peer_session abyss.ANDPeerSession, timestamp time.Time, world_url string, member_infos []abyss.ANDFullPeerSessionIdentity) {
 	w.o.stat.JOK_RX++
 
-	sender_id := peer_session.Peer.IDHash()
+	sender_id := peer_session.Peer.ID()
 	info := w.peers[sender_id]
 	if w.join_hash != sender_id ||
 		info.state != WS_JT {
@@ -345,8 +345,8 @@ func (w *ANDWorld) JOK(peer_session abyss.ANDPeerSession, timestamp time.Time, w
 func (w *ANDWorld) JDN(peer abyss.IANDPeer, code int, message string) { //no branch number here... :(
 	w.o.stat.JDN_RX++
 
-	info := w.peers[peer.IDHash()]
-	if w.join_hash != peer.IDHash() ||
+	info := w.peers[peer.ID()]
+	if w.join_hash != peer.ID() ||
 		info.state != WS_JT {
 		w.o.stat.W(15)
 
@@ -367,7 +367,7 @@ func (w *ANDWorld) JDN(peer abyss.IANDPeer, code int, message string) { //no bra
 func (w *ANDWorld) JNI(peer_session abyss.ANDPeerSession, member_info abyss.ANDFullPeerSessionIdentity) {
 	w.o.stat.JNI_RX++
 
-	sender_id := peer_session.Peer.IDHash()
+	sender_id := peer_session.Peer.ID()
 	info := w.peers[sender_id]
 
 	if !w.IsProperMemberOrReset(info, peer_session) {
@@ -487,7 +487,7 @@ func (w *ANDWorld) JNI_MEMS(sender_id string, mem_info abyss.ANDFullPeerSessionI
 func (w *ANDWorld) MEM(peer_session abyss.ANDPeerSession, timestamp time.Time) {
 	w.o.stat.MEM_RX++
 
-	info := w.peers[peer_session.Peer.IDHash()]
+	info := w.peers[peer_session.Peer.ID()]
 	switch info.state {
 	case WS_CC:
 		w.o.stat.W(29)
@@ -498,7 +498,7 @@ func (w *ANDWorld) MEM(peer_session abyss.ANDPeerSession, timestamp time.Time) {
 	case WS_JT:
 		w.o.stat.W(30)
 
-		w.ClearStates(peer_session.Peer.IDHash(), info, "received MEM from WS_JT")
+		w.ClearStates(peer_session.Peer.ID(), info, "received MEM from WS_JT")
 	case WS_JN, WS_RMEM_NJNI, WS_RMEM, WS_MEM:
 		if w.TryUpdateSessionID(info, peer_session.PeerSessionID, timestamp) {
 			w.o.stat.W(31)
@@ -550,7 +550,7 @@ func (w *ANDWorld) MEM(peer_session abyss.ANDPeerSession, timestamp time.Time) {
 func (w *ANDWorld) SJN(peer_session abyss.ANDPeerSession, member_infos []abyss.ANDPeerSessionIdentity) {
 	w.o.stat.SJN_RX++
 
-	info := w.peers[peer_session.Peer.IDHash()]
+	info := w.peers[peer_session.Peer.ID()]
 	if !w.IsProperMemberOrReset(info, peer_session) {
 		w.o.stat.W(40)
 
@@ -581,7 +581,7 @@ func (w *ANDWorld) SJN_MEMS(origin abyss.ANDPeerSession, mem_info abyss.ANDPeerS
 func (w *ANDWorld) CRR(peer_session abyss.ANDPeerSession, member_infos []abyss.ANDPeerSessionIdentity) {
 	w.o.stat.CRR_RX++
 
-	info := w.peers[peer_session.Peer.IDHash()]
+	info := w.peers[peer_session.Peer.ID()]
 	if !w.IsProperMemberOrReset(info, peer_session) {
 		w.o.stat.W(44)
 
@@ -612,7 +612,7 @@ func (w *ANDWorld) CRR_MEMS(origin *ANDPeerSessionState, mem_info abyss.ANDPeerS
 func (w *ANDWorld) SOA(peer_session abyss.ANDPeerSession, objects []abyss.ObjectInfo) {
 	w.o.stat.SOA_RX++
 
-	info := w.peers[peer_session.Peer.IDHash()]
+	info := w.peers[peer_session.Peer.ID()]
 	if info.PeerSessionID != peer_session.PeerSessionID {
 		w.o.stat.W(48)
 
@@ -637,7 +637,7 @@ func (w *ANDWorld) SOA(peer_session abyss.ANDPeerSession, objects []abyss.Object
 func (w *ANDWorld) SOD(peer_session abyss.ANDPeerSession, objectIDs []uuid.UUID) {
 	w.o.stat.SOD_RX++
 
-	info := w.peers[peer_session.Peer.IDHash()]
+	info := w.peers[peer_session.Peer.ID()]
 	if info.PeerSessionID != peer_session.PeerSessionID {
 		w.o.stat.W(51)
 
@@ -662,12 +662,12 @@ func (w *ANDWorld) SOD(peer_session abyss.ANDPeerSession, objectIDs []uuid.UUID)
 func (w *ANDWorld) RST(peer_session abyss.ANDPeerSession) {
 	w.o.stat.RST_RX++
 
-	info := w.peers[peer_session.Peer.IDHash()]
-	w.ClearStates(info.Peer.IDHash(), info, "RST received")
+	info := w.peers[peer_session.Peer.ID()]
+	w.ClearStates(info.Peer.ID(), info, "RST received")
 }
 
 func (w *ANDWorld) AcceptSession(peer_session abyss.ANDPeerSession) {
-	info, ok := w.peers[peer_session.Peer.IDHash()]
+	info, ok := w.peers[peer_session.Peer.ID()]
 	if !ok {
 		w.o.stat.W(54)
 		return
@@ -760,7 +760,7 @@ func (w *ANDWorld) AcceptSession(peer_session abyss.ANDPeerSession) {
 	}
 }
 func (w *ANDWorld) DeclineSession(peer_session abyss.ANDPeerSession, code int, message string) {
-	info, ok := w.peers[peer_session.Peer.IDHash()]
+	info, ok := w.peers[peer_session.Peer.ID()]
 	if !ok {
 		w.o.stat.W(71)
 		return
@@ -769,7 +769,7 @@ func (w *ANDWorld) DeclineSession(peer_session abyss.ANDPeerSession, code int, m
 		w.o.stat.W(72)
 
 		//TODO: proper JDN
-		w.ClearStates(peer_session.Peer.IDHash(), info, "application-DeclineSession called")
+		w.ClearStates(peer_session.Peer.ID(), info, "application-DeclineSession called")
 	}
 	w.o.stat.W(73)
 
@@ -787,7 +787,7 @@ func (w *ANDWorld) TimerExpire() {
 		w.o.stat.W(75)
 
 		sjn_mem = append(sjn_mem, abyss.ANDPeerSessionIdentity{
-			PeerHash:  info.Peer.IDHash(),
+			PeerHash:  info.Peer.ID(),
 			SessionID: info.PeerSessionID,
 		})
 		info.sjnc++
@@ -817,8 +817,8 @@ func (w *ANDWorld) TimerExpire() {
 }
 
 func (w *ANDWorld) RemovePeer(peer abyss.IANDPeer) {
-	w.ClearStates(peer.IDHash(), w.peers[peer.IDHash()], "")
-	delete(w.peers, peer.IDHash())
+	w.ClearStates(peer.ID(), w.peers[peer.ID()], "")
+	delete(w.peers, peer.ID())
 }
 func (w *ANDWorld) Close() {
 	for _, info := range w.peers {

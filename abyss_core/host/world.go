@@ -30,7 +30,7 @@ func (w *World) GetEventChannel() chan any {
 
 func (w *World) RaisePeerRequest(peer_session abyss.ANDPeerSession) {
 	w.eventChannel <- abyss.EWorldMemberRequest{
-		MemberHash: peer_session.Peer.IDHash(),
+		MemberHash: peer_session.Peer.ID(),
 		Accept: func() {
 			w.origin.AcceptSession(w.session_id, peer_session)
 		},
@@ -43,7 +43,7 @@ func (w *World) RaisePeerReady(peer_session abyss.ANDPeerSession) {
 	w.eventChannel <- abyss.EWorldMemberReady{
 		Member: &WorldMember{
 			world:       w,
-			hash:        peer_session.Peer.IDHash(),
+			hash:        peer_session.Peer.ID(),
 			peerSession: peer_session,
 		},
 	}

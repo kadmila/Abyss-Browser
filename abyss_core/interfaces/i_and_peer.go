@@ -33,11 +33,10 @@ type ANDFullPeerSessionIdentity struct {
 }
 
 type IANDPeer interface {
-	IDHash() string
+	ID() string
 	RootCertificateDer() []byte
 	HandshakeKeyCertificateDer() []byte
 
-	IsConnected() bool
 	AURL() *aurl.AURL
 
 	//inactivity check

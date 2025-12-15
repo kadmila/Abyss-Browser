@@ -214,9 +214,6 @@ func (h *AbyssHost) listenLoop() {
 
 func (h *AbyssHost) serveLoop(peer abyss.IANDPeer) {
 	//fmt.Println(h.NetworkService.LocalIdentity().IDHash()[:6] + " connected " + peer.IDHash()[:6] + ": " + peer.AURL().Addresses[0].String())
-	if !peer.IsConnected() {
-		return
-	}
 	retval := h.neighborDiscoveryAlgorithm.PeerConnected(peer)
 	if retval != 0 {
 		return
@@ -236,7 +233,7 @@ func (h *AbyssHost) serveLoop(peer abyss.IANDPeer) {
 
 			switch message := message_any.(type) {
 			case *ahmp.JN:
-				local_session_id, ok := h.pathResolver.PathToSessionID(message.Text, peer.IDHash())
+				local_session_id, ok := h.pathResolver.PathToSessionID(message.Text, peer.ID())
 				if !ok {
 					peer.TrySendJDN(message.SenderSessionID, and.JNC_NOT_FOUND, and.JNM_NOT_FOUND)
 					continue // TODO: respond with proper error code
@@ -331,7 +328,7 @@ func (h *AbyssHost) eventLoop() {
 				}
 
 				e.Peer.Deactivate()
-				world.RaisePeerLeave(e.Peer.IDHash())
+				world.RaisePeerLeave(e.Peer.ID())
 			case abyss.ANDJoinSuccess:
 				//fmt.Println(h.NetworkService.LocalIdentity().IDHash()[:6] + " event ::: abyss.ANDJoinSuccess")
 
@@ -418,7 +415,7 @@ func (h *AbyssHost) eventLoop() {
 				}
 
 				e.Peer.Renew()
-				world.RaiseObjectAppend(e.Peer.IDHash(), e.Object.([]abyss.ObjectInfo))
+				world.RaiseObjectAppend(e.Peer.ID(), e.Object.([]abyss.ObjectInfo))
 
 			case abyss.ANDObjectDelete:
 				//fmt.Println(h.NetworkService.LocalIdentity().IDHash()[:6] + " event ::: abyss.ANDObjectDelete")
@@ -431,7 +428,7 @@ func (h *AbyssHost) eventLoop() {
 				}
 
 				e.Peer.Renew()
-				world.RaiseObjectDelete(e.Peer.IDHash(), e.Object.([]uuid.UUID))
+				world.RaiseObjectDelete(e.Peer.ID(), e.Object.([]uuid.UUID))
 
 			case abyss.ANDNeighborEventDebug:
 				//fmt.Println(h.NetworkService.LocalIdentity().IDHash()[:6] + " event ::: abyss.ANDNeighborEventDebug")

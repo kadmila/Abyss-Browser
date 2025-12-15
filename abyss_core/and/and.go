@@ -40,14 +40,14 @@ func (a *AND) EventChannel() chan abyss.NeighborEvent {
 
 func (a *AND) PeerConnected(peer abyss.IANDPeer) abyss.ANDERROR {
 	//debug
-	watchdog.Info("appCall::PeerConnected " + peer.IDHash())
+	watchdog.Info("appCall::PeerConnected " + peer.ID())
 
 	a.api_mtx.Lock()
 	defer a.api_mtx.Unlock()
 
 	a.stat.B(0)
 
-	a.peers[peer.IDHash()] = peer
+	a.peers[peer.ID()] = peer
 
 	for _, world := range a.worlds {
 		a.stat.B(1)
@@ -58,7 +58,7 @@ func (a *AND) PeerConnected(peer abyss.IANDPeer) abyss.ANDERROR {
 
 func (a *AND) PeerClose(peer abyss.IANDPeer) abyss.ANDERROR {
 	//debug
-	watchdog.Info("appCall::PeerClose " + peer.IDHash())
+	watchdog.Info("appCall::PeerClose " + peer.ID())
 
 	a.api_mtx.Lock()
 	defer a.api_mtx.Unlock()
@@ -69,7 +69,7 @@ func (a *AND) PeerClose(peer abyss.IANDPeer) abyss.ANDERROR {
 		a.stat.B(3)
 		world.RemovePeer(peer)
 	}
-	delete(a.peers, peer.IDHash())
+	delete(a.peers, peer.ID())
 	return 0
 }
 

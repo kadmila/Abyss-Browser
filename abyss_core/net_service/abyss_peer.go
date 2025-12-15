@@ -50,7 +50,7 @@ func NewAbyssPeer(identity PeerIdentity) *AbyssPeer {
 	}
 }
 
-func (p *AbyssPeer) IDHash() string {
+func (p *AbyssPeer) ID() string {
 	return p.identity.root_id_hash
 }
 
