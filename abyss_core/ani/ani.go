@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/netip"
 	"time"
+
+	"github.com/kadmila/Abyss-Browser/abyss_core/ahmp"
 )
 
 type IAbyssPeerIdentity interface {
@@ -22,16 +24,10 @@ type IAbyssPeerIdentity interface {
 }
 
 // *Note*
-// When a peer disconnects and re-connects the same peer immediately,
-// the peer does not accept the new connection before
+// When a peer disconnects and re-connects the same peer,
+// both peers do not accept the new connection before
 // Close() is called for the old connection with the same peer.
 // This is a design for better application-layer state management.
-//
-// Depending on tie-breaking result, this may result in two behaviors;
-// 1) The connection is accepted, but it is closed.
-// 2) Accept() returns an error for the redundant connection.
-// This is not random; each peer will experience one of the behaviors
-// repeatedly.
 
 // IAbyssNode defines an abyss node.
 // It is constructed from ann.Listen() (IAbyssNode, error).
@@ -103,16 +99,12 @@ type IAbyssPeer interface {
 
 	// Send and Recv exchange ahmp messages. Encoding details are defined in ahmp package.
 	// Warning: Nither of them are thread safe, but they are mutually thread-safe (isolated).
-	Send(any) error
-	Recv(any) error
+	Send(ahmp.AHMPMsgType, any) error
+	Recv(*ahmp.AHMPMesage) error
 
-	// Context returns a context that is cancelled when the connection dies.
-	// By calling Err(), you can retrieve the reason why the connection is closed.
-	// Context() context.Context
-
-	// Close disconnectes the peer and clears backlog.
+	// Close disconnectes the peer and resets internal states.
 	// Calling this is mendatory before dialing the same peer again.
-	// The return value provides the cause of disconnection,
+	// The return value provides the cause of disconnection, where
 	// nil is returned when the connection is gracefully closed by this call.
 	// If the connection was closed before this call, the return value is
 	// typically net.ErrClosed.
@@ -123,7 +115,7 @@ type IAbyssPeer interface {
 
 // IAbystClient is abyst http/3 client, with customized
 // redirect/cache/cookie handling mechanism.
-// This **not** compatible with standard http client, and only processes abyst: scheme.
+// This **not** compatible with standard http client, and only processes abyst URL.
 type IAbystClient interface {
 	Get(url string) (resp *http.Response, err error)
 	Head(url string) (resp *http.Response, err error)

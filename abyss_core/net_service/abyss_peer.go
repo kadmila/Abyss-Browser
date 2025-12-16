@@ -13,7 +13,6 @@ import (
 	"github.com/kadmila/Abyss-Browser/abyss_core/aurl"
 	abyss "github.com/kadmila/Abyss-Browser/abyss_core/interfaces"
 	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
-	"github.com/kadmila/Abyss-Browser/abyss_core/watchdog"
 )
 
 // Peer Network Complex State
@@ -99,7 +98,7 @@ func (p *ContextedPeer) _trySend(v any) bool {
 }
 func (p *ContextedPeer) _trySend2(v int, w any) bool {
 	//debug
-	watchdog.InfoV(ahmp.Msg_type_names[v]+"> "+p.inbound_conn.RemoteAddr().String(), w)
+	// watchdog.InfoV(ahmp.Msg_type_names[v]+"> "+p.inbound_conn.RemoteAddr().String(), w)
 	type_sent := p._trySend(v)
 	body_sent := p._trySend(w)
 	return type_sent && body_sent

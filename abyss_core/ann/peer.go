@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/fxamacker/cbor/v2"
+	"github.com/kadmila/Abyss-Browser/abyss_core/ahmp"
 	"github.com/kadmila/Abyss-Browser/abyss_core/sec"
 	"github.com/quic-go/quic-go"
 )
@@ -32,10 +33,10 @@ func (p *AbyssPeer) RemoteAddr() netip.AddrPort {
 	return p.remote_addr
 }
 
-func (p *AbyssPeer) Send(v any) error {
+func (p *AbyssPeer) Send(t ahmp.AHMPMsgType, v any) error {
 	return p.ahmp_encoder.Encode(v)
 }
-func (p *AbyssPeer) Recv(v any) error {
+func (p *AbyssPeer) Recv(v *ahmp.AHMPMesage) error {
 	return p.ahmp_decoder.Decode(v)
 }
 func (p *AbyssPeer) Context() context.Context {

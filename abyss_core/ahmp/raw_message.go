@@ -33,23 +33,6 @@ type RawSessionInfoForSJN struct {
 	SessionID string
 }
 
-const (
-	JN_T int = iota
-	JOK_T
-	JDN_T
-	JNI_T
-	MEM_T
-	SJN_T
-	CRR_T
-	RST_T
-
-	SOA_T
-	SOD_T
-)
-
-// Msg_type_names for debug
-var Msg_type_names = [...]string{"JN", "JOK", "JDN", "JNI", "MEM", "SJN", "CRR", "RST", "SOA", "SOD"}
-
 type RawJN struct {
 	SenderSessionID string
 	Text            string
