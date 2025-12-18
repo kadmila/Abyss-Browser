@@ -5,53 +5,64 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
 )
 
 type IANDEvent any
 
 type EANDSessionRequest struct {
-	world *World
+	World *World
 	ANDPeerSession
 }
 type EANDSessionReady struct {
-	world *World
+	World *World
 	ANDPeerSession
 }
 type EANDSessionClose struct {
-	world *World
+	World *World
 	ANDPeerSession
 }
 type EANDJoinSuccess struct {
-	world *World
+	World *World
 	URL   string
 }
 type EANDJoinFail struct {
-	world   *World
+	World   *World
 	Code    int
 	Message string
 }
 type EANDWorldLeave struct {
-	world *World
+	World *World
 }
-type EANDConnectRequest struct {
+type EANDPeerRequest struct {
 	PeerID                     string
 	AddressCandidates          []netip.AddrPort
 	RootCertificateDer         []byte
 	HandshakeKeyCertificateDer []byte
 }
+type EANDPeerRemove struct {
+	World *World
+	Peer  ani.IAbyssPeer
+}
 type EANDTimerRequest struct {
-	world    *World
+	World    *World
 	Duration time.Duration
 }
+
+/// shared object
+
 type EANDObjectAppend struct {
-	world *World
+	World *World
 	ANDPeerSession
 	Objects []ObjectInfo
 }
 type EANDObjectDelete struct {
-	world *World
+	World *World
 	ANDPeerSession
 	ObjectIDs []uuid.UUID
 }
+
+/// debug
+
 type EANDError struct {
 }

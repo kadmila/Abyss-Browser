@@ -18,9 +18,27 @@ type RawSessionInfoForDiscovery struct {
 	HandshakeKeyCertificateDer []byte
 }
 
+func MakeRawSessionInfoForDiscovery(entry *peerWorldSessionState) RawSessionInfoForDiscovery {
+	return RawSessionInfoForDiscovery{
+		PeerID:                     entry.Peer.ID(),
+		AddressCandidates:          functional.Filter(entry.AddressCandidates, func(a netip.AddrPort) string { return a.String() }),
+		SessionID:                  entry.SessionID.String(),
+		TimeStamp:                  entry.TimeStamp.UnixMilli(),
+		RootCertificateDer:         entry.Peer.RootCertificateDer(),
+		HandshakeKeyCertificateDer: entry.Peer.HandshakeKeyCertificateDer(),
+	}
+}
+
 type RawSessionInfoForSJN struct {
 	PeerID    string
 	SessionID string
+}
+
+func MakeRawSessionInfoForSJN(entry *peerWorldSessionState) RawSessionInfoForSJN {
+	return RawSessionInfoForSJN{
+		PeerID:    entry.Peer.ID(),
+		SessionID: entry.SessionID.String(),
+	}
 }
 
 // AHMP message formats
@@ -28,7 +46,7 @@ type RawSessionInfoForSJN struct {
 
 type RawJN struct {
 	SenderSessionID string
-	Text            string
+	Path            string
 	TimeStamp       int64
 }
 
@@ -37,14 +55,14 @@ func (r *RawJN) TryParse() (*JN, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &JN{ssid, r.Text, time.UnixMilli(r.TimeStamp)}, nil
+	return &JN{ssid, r.Path, time.UnixMilli(r.TimeStamp)}, nil
 }
 
 type RawJOK struct {
 	SenderSessionID string
 	RecverSessionID string
+	URL             string
 	TimeStamp       int64
-	Text            string
 	Neighbors       []RawSessionInfoForDiscovery
 }
 
@@ -78,13 +96,19 @@ func (r *RawJOK) TryParse() (*JOK, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &JOK{ssid, rsid, time.UnixMilli(r.TimeStamp), neig, r.Text}, nil
+	return &JOK{
+		SenderSessionID: ssid,
+		RecverSessionID: rsid,
+		URL:             r.URL,
+		TimeStamp:       time.UnixMilli(r.TimeStamp),
+		Neighbors:       neig,
+	}, nil
 }
 
 type RawJDN struct {
 	RecverSessionID string
 	Code            int
-	Text            string
+	Message         string
 }
 
 func (r *RawJDN) TryParse() (*JDN, error) {
@@ -92,7 +116,11 @@ func (r *RawJDN) TryParse() (*JDN, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &JDN{rsid, r.Text, r.Code}, nil
+	return &JDN{
+		RecverSessionID: rsid,
+		Code:            r.Code,
+		Message:         r.Message,
+	}, nil
 }
 
 type RawJNI struct {

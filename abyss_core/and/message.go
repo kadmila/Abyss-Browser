@@ -10,20 +10,20 @@ import (
 
 type JN struct {
 	SenderSessionID uuid.UUID
-	Text            string
+	Path            string
 	TimeStamp       time.Time
 }
 type JOK struct {
 	SenderSessionID uuid.UUID
 	RecverSessionID uuid.UUID
+	URL             string
 	TimeStamp       time.Time
 	Neighbors       []ANDFullPeerSessionInfo
-	Text            string
 }
 type JDN struct {
 	RecverSessionID uuid.UUID
-	Text            string
 	Code            int
+	Message         string
 }
 type JNI struct {
 	SenderSessionID uuid.UUID
