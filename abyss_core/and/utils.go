@@ -67,14 +67,15 @@ func (s ANDSessionState) String() string {
 // peerWorldSessionState represents the peer's state in world session lifecycle.
 // timestamp is used only for JNI.
 type peerWorldSessionState struct {
-	PeerID            string
-	Peer              ani.IAbyssPeer   // this is nil if state is WS_DN_JNI
-	AddressCandidates []netip.AddrPort // this is shared with ANDFullPeerSession
-	SessionID         uuid.UUID
-	TimeStamp         time.Time
-	state             ANDSessionState
-	sjnp              bool //is sjn suppressed
-	sjnc              int  //sjn receive count
+	PeerID               string
+	Peer                 ani.IAbyssPeer   // this is nil if state is WS_DN_JNI
+	AddressCandidates    []netip.AddrPort // this is shared with ANDFullPeerSession
+	SessionID            uuid.UUID
+	TimeStamp            time.Time
+	state                ANDSessionState
+	is_session_requested bool // this is true if EANDSessionRequest was fired.
+	sjnp                 bool //is sjn suppressed
+	sjnc                 int  //sjn receive count
 }
 
 func (s *peerWorldSessionState) ANDPeerSession() ANDPeerSession {

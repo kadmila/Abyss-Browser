@@ -40,5 +40,5 @@ func (a *AND) OpenWorld(world_url string) *World {
 func (a *AND) JoinWorld(target ani.IAbyssPeer, target_addrs []netip.AddrPort, path string) (*World, error) {
 	watchdog.Info("appCall::JoinWorld " + target.ID() + " " + path)
 
-	return NewWorld_Join(a, target, target_addrs, path) //should immediate return
+	return newWorld_Join(a, target, target_addrs, path) //should immediate return
 }

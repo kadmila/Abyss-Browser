@@ -126,7 +126,7 @@ func (r *RawJDN) TryParse() (*JDN, error) {
 type RawJNI struct {
 	SenderSessionID string
 	RecverSessionID string
-	Neighbor        RawSessionInfoForDiscovery
+	Joiner          RawSessionInfoForDiscovery
 }
 
 func (r *RawJNI) TryParse() (*JNI, error) {
@@ -139,21 +139,21 @@ func (r *RawJNI) TryParse() (*JNI, error) {
 		return nil, err
 	}
 
-	addrs, _, err := functional.Filter_until_err(r.Neighbor.AddressCandidates, netip.ParseAddrPort)
+	addrs, _, err := functional.Filter_until_err(r.Joiner.AddressCandidates, netip.ParseAddrPort)
 	if err != nil {
 		return nil, err
 	}
-	psid, err := uuid.Parse(r.Neighbor.SessionID)
+	psid, err := uuid.Parse(r.Joiner.SessionID)
 	if err != nil {
 		return nil, err
 	}
 	return &JNI{ssid, rsid, ANDFullPeerSessionInfo{
-		PeerID:                     r.Neighbor.PeerID,
+		PeerID:                     r.Joiner.PeerID,
 		AddressCandidates:          addrs,
 		SessionID:                  psid,
-		TimeStamp:                  time.UnixMilli(r.Neighbor.TimeStamp),
-		RootCertificateDer:         r.Neighbor.RootCertificateDer,
-		HandshakeKeyCertificateDer: r.Neighbor.HandshakeKeyCertificateDer,
+		TimeStamp:                  time.UnixMilli(r.Joiner.TimeStamp),
+		RootCertificateDer:         r.Joiner.RootCertificateDer,
+		HandshakeKeyCertificateDer: r.Joiner.HandshakeKeyCertificateDer,
 	}}, nil
 }
 
