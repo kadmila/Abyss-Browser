@@ -57,7 +57,10 @@ func (h *AbyssHost) servePeer() error {
 
 	var msg ahmp.AHMPMesage
 	for {
-		peer.Recv(&msg)
+		err := peer.Recv(&msg)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
