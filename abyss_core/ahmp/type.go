@@ -23,7 +23,7 @@ type AHMPMesage struct {
 // Abyss Neigbor Discovery (AND)
 // 0x0000 ~ 0x0FFF
 const (
-	JN_T = iota
+	JN_T AHMPMsgType = iota
 	JOK_T
 	JDN_T
 	JNI_T
@@ -35,7 +35,7 @@ const (
 
 // Shared Object - AND extension
 const (
-	SOA_T = iota + 0x0100
+	SOA_T AHMPMsgType = iota + 0x0100
 	SOD_T
 )
 
@@ -43,7 +43,7 @@ const (
 
 // Abyss Utility
 const (
-	AU_PING_TX_T = iota + 0x1000
+	AU_PING_TX_T AHMPMsgType = iota + 0x1000
 	AU_PING_RX_T
 )
 

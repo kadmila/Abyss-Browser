@@ -20,7 +20,7 @@ type JOK struct {
 	TimeStamp       time.Time
 	Neighbors       []ANDFullPeerSessionInfo
 }
-type JDN struct {
+type JDN struct { // Do I ever need this? why not just use RST instead? - needs thinking
 	RecverSessionID uuid.UUID
 	Code            int
 	Message         string

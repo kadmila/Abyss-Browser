@@ -165,3 +165,11 @@ func SendRST_NoWorld(peer_session ANDPeerSession, code int, message string) erro
 		Message:         message,
 	})
 }
+
+func SendJDN_NoWorld(peer_session ANDPeerSession, code int, message string) error {
+	return peer_session.Peer.Send(ahmp.JDN_T, RawJDN{
+		RecverSessionID: peer_session.SessionID.String(),
+		Code:            code,
+		Message:         message,
+	})
+}

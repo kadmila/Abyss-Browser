@@ -15,9 +15,11 @@ import (
 
 // World is a state machine for a world and its member/related peers.
 // Removing join target from a world breakes it, so be careful.
+// A world must be externally locked, using the embedded sync.Mutex.
+// This gives better control over call and event synchronization for the host.
 type World struct {
-	o   *AND //origin
-	mtx sync.Mutex
+	o *AND //origin
+	sync.Mutex
 
 	lsid         uuid.UUID                         // local world session id
 	timestamp    time.Time                         // local world session creation timestamp
@@ -71,8 +73,7 @@ func newWorld_Join(origin *AND, target ani.IAbyssPeer, target_addrs []netip.Addr
 }
 
 func (w *World) CheckSanity() {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
+
 	if w.o == nil {
 		panic("world origin nil")
 	}
@@ -216,8 +217,6 @@ func (w *World) CheckSanity() {
 
 // ContainedPeers should only be called after the world termination.
 func (w *World) ContainedPeers() []ani.IAbyssPeer {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
 
 	peers := functional.Filter_MtS_ok(w.entries, func(s *peerWorldSessionState) (ani.IAbyssPeer, bool) {
 		return s.Peer, s.Peer != nil
@@ -326,8 +325,6 @@ func (w *World) mustBeMemberCheck(events *ANDEventQueue, peer_session ANDPeerSes
 }
 
 func (w *World) PeerConnected(events *ANDEventQueue, peer ani.IAbyssPeer, addrs []netip.AddrPort) {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
 
 	config.IF_DEBUG(func() {
 		if w.join_target != nil && w.join_target.PeerID == peer.ID() {
@@ -363,8 +360,6 @@ func (w *World) PeerConnected(events *ANDEventQueue, peer ani.IAbyssPeer, addrs 
 }
 
 func (w *World) JN(events *ANDEventQueue, peer_session ANDPeerSession, timestamp time.Time) {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
 
 	config.IF_DEBUG(func() {
 		if w.join_target != nil {
@@ -392,8 +387,6 @@ func (w *World) JN(events *ANDEventQueue, peer_session ANDPeerSession, timestamp
 }
 
 func (w *World) JOK(events *ANDEventQueue, peer_session ANDPeerSession, timestamp time.Time, world_url string, member_infos []ANDFullPeerSessionInfo) {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
 
 	// normal case
 	if w.join_target != nil && w.join_target.Peer == peer_session.Peer {
@@ -436,8 +429,6 @@ func (w *World) JOK(events *ANDEventQueue, peer_session ANDPeerSession, timestam
 }
 
 func (w *World) JDN(events *ANDEventQueue, peer ani.IAbyssPeer, code int, message string) {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
 
 	// normal case
 	if w.join_target != nil && w.join_target.Peer == peer {
@@ -458,8 +449,6 @@ func (w *World) JDN(events *ANDEventQueue, peer ani.IAbyssPeer, code int, messag
 }
 
 func (w *World) JNI(events *ANDEventQueue, peer_session ANDPeerSession, member_info ANDFullPeerSessionInfo) {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
 
 	// only the members can send JNI.
 	_, ok := w.mustBeMemberCheck(events, peer_session)
@@ -516,8 +505,6 @@ func (w *World) jni_mems(events *ANDEventQueue, mem_info ANDFullPeerSessionInfo)
 }
 
 func (w *World) MEM(events *ANDEventQueue, peer_session ANDPeerSession, timestamp time.Time) {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
 
 	// MEM is onemost simple but tricky message. Any peer can send MEM, and
 	// MEM can overrun old session; and it is forced, as it is from the peer.
@@ -580,8 +567,6 @@ func (w *World) MEM(events *ANDEventQueue, peer_session ANDPeerSession, timestam
 }
 
 func (w *World) AcceptSession(events *ANDEventQueue, peer_session ANDPeerSession) {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
 
 	entry, ok := w.entries[peer_session.Peer.ID()]
 	if !ok {
@@ -617,8 +602,6 @@ func (w *World) AcceptSession(events *ANDEventQueue, peer_session ANDPeerSession
 }
 
 func (w *World) DeclineSession(events *ANDEventQueue, peer_session ANDPeerSession, code int, message string) {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
 
 	entry, ok := w.entries[peer_session.Peer.ID()]
 	if !ok {
@@ -642,8 +625,6 @@ func (w *World) DeclineSession(events *ANDEventQueue, peer_session ANDPeerSessio
 }
 
 func (w *World) TimerExpire(events *ANDEventQueue) {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
 
 	w.broadcastSJN()
 
@@ -654,8 +635,6 @@ func (w *World) TimerExpire(events *ANDEventQueue) {
 }
 
 func (w *World) SJN(events *ANDEventQueue, peer_session ANDPeerSession, member_infos []ANDPeerSessionIdentity) {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
 
 	entry, ok := w.mustBeMemberCheck(events, peer_session)
 	if !ok {
@@ -694,8 +673,6 @@ func (w *World) SJN(events *ANDEventQueue, peer_session ANDPeerSession, member_i
 }
 
 func (w *World) CRR(events *ANDEventQueue, peer_session ANDPeerSession, member_infos []ANDPeerSessionIdentity) {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
 
 	sender, ok := w.mustBeMemberCheck(events, peer_session)
 	if !ok {
@@ -713,8 +690,6 @@ func (w *World) CRR(events *ANDEventQueue, peer_session ANDPeerSession, member_i
 }
 
 func (w *World) SOA(events *ANDEventQueue, peer_session ANDPeerSession, objects []ObjectInfo) {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
 
 	_, ok := w.mustBeMemberCheck(events, peer_session)
 	if !ok {
@@ -729,8 +704,6 @@ func (w *World) SOA(events *ANDEventQueue, peer_session ANDPeerSession, objects 
 }
 
 func (w *World) SOD(events *ANDEventQueue, peer_session ANDPeerSession, objectIDs []uuid.UUID) {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
 
 	_, ok := w.mustBeMemberCheck(events, peer_session)
 	if !ok {
@@ -765,8 +738,6 @@ func (w *World) removeEntrySilent(events *ANDEventQueue, entry *peerWorldSession
 }
 
 func (w *World) RST(events *ANDEventQueue, peer_session ANDPeerSession) {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
 
 	entry, ok := w.entries[peer_session.Peer.ID()]
 	if !ok || entry.SessionID != peer_session.SessionID {
@@ -779,8 +750,6 @@ func (w *World) RST(events *ANDEventQueue, peer_session ANDPeerSession) {
 // We don't verify everything like we did for the other messages; we trust the caller.
 // PeerDisconnected should raise EANDPeerDiscoard event for the peer.
 func (w *World) PeerDisconnected(events *ANDEventQueue, peer_id string) {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
 
 	if w.join_target != nil && w.join_target.PeerID == peer_id {
 		events.Push(&EANDWorldLeave{
@@ -797,8 +766,6 @@ func (w *World) PeerDisconnected(events *ANDEventQueue, peer_id string) {
 // Close does not take events argument, as the world is closed immediately.
 // no events are meaningful afterwards.
 func (w *World) Close() {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
 
 	w.broadcastRST(JNC_CLOSED, JNM_CLOSED)
 }
