@@ -63,20 +63,17 @@ func (w *World) sendMEM(member *peerWorldSessionState) error {
 		TimeStamp:       w.timestamp.UnixMilli(),
 	})
 }
-func (w *World) broadcastSJN(member *peerWorldSessionState) error {
-	sjn_mem := make([]*peerWorldSessionState, 0)
-	for _, entry := range w.entries {
-		if entry.state != WS_MEM || // not a member
-			time.Since(entry.TimeStamp) < time.Second || // too early
-			entry.sjnp || // prohibited
-			entry.sjnc > 3 { // more than three counts
-			continue
+func (w *World) broadcastSJN() error {
+	sjn_entries := functional.Filter_MtS_ok(w.entries, func(e *peerWorldSessionState) (RawSessionInfoForSJN, bool) {
+		result := MakeRawSessionInfoForSJN(e)
+		if e.state != WS_MEM || time.Since(e.TimeStamp) < time.Second || e.sjnp || e.sjnc > 3 {
+			return result, false
 		}
-		sjn_mem = append(sjn_mem, entry)
-		entry.sjnc += 3 // count as enough
-	}
+		e.sjnc++
+		return result, true
+	})
 
-	if len(sjn_mem) == 0 {
+	if len(sjn_entries) == 0 {
 		return nil
 	}
 
@@ -88,7 +85,7 @@ func (w *World) broadcastSJN(member *peerWorldSessionState) error {
 		entry.Peer.Send(ahmp.SJN_T, RawSJN{
 			SenderSessionID: w.lsid.String(),
 			RecverSessionID: entry.SessionID.String(),
-			MemberInfos:     functional.Filter(sjn_mem, MakeRawSessionInfoForSJN),
+			MemberInfos:     sjn_entries,
 		})
 	}
 	return nil
@@ -133,7 +130,17 @@ func (w *World) sendRST_Direct(peer_session ANDPeerSession, code int, message st
 }
 func (w *World) broadcastRST(code int, message string) error {
 	for _, entry := range w.entries {
-		if entry.Peer != nil && entry.SessionID != uuid.Nil {
+		if entry.Peer == nil || entry.SessionID == uuid.Nil {
+			// must not send an untargetted reset.
+			continue
+		}
+		if entry.state == WS_JN {
+			entry.Peer.Send(ahmp.RST_T, RawJDN{
+				RecverSessionID: entry.SessionID.String(),
+				Code:            code,
+				Message:         message,
+			})
+		} else {
 			entry.Peer.Send(ahmp.RST_T, RawRST{
 				SenderSessionID: w.lsid.String(),
 				RecverSessionID: entry.SessionID.String(),

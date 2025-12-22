@@ -36,7 +36,7 @@ type RawSessionInfoForSJN struct {
 
 func MakeRawSessionInfoForSJN(entry *peerWorldSessionState) RawSessionInfoForSJN {
 	return RawSessionInfoForSJN{
-		PeerID:    entry.Peer.ID(),
+		PeerID:    entry.PeerID,
 		SessionID: entry.SessionID.String(),
 	}
 }

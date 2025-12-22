@@ -16,6 +16,9 @@ const (
 	JNC_EXPIRED        = 530
 	JNC_RESET          = 598
 	JNC_REJECTED       = 599
+
+	//Network issue
+	JNC_DISCONNECTED = 600
 )
 
 const (
@@ -32,4 +35,6 @@ const (
 	JNM_EXPIRED        = "Join Expired"
 	JNM_RESET          = "Reset Requested"
 	JNM_REJECTED       = "Join Rejected"
+
+	JNM_DISCONNECTED = "Disconnected"
 )

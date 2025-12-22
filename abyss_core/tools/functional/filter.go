@@ -39,6 +39,18 @@ func Filter_ok[T any, Q any](s []T, f func(T) (Q, bool)) []Q {
 	return result
 }
 
+// Filter_MtS_ok equlivalents to Filter_ok, but takes map and returns slice.
+func Filter_MtS_ok[K comparable, T any, Q any](s map[K]T, f func(T) (Q, bool)) []Q {
+	result := make([]Q, 0, len(s))
+	for _, e := range s {
+		v, ok := f(e)
+		if ok {
+			result = append(result, v)
+		}
+	}
+	return result
+}
+
 func Filter_strict_ok[T any, Q any](s []T, f func(T) (Q, bool)) ([]Q, bool) {
 	result := make([]Q, len(s))
 	for i, e := range s {
