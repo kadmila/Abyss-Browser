@@ -38,9 +38,14 @@ func NewAbyssHost(root_key sec.PrivateKey) (*AbyssHost, error) {
 		net: node,
 		and: and.NewAND(node.ID()),
 
+		worlds:                    make(map[uuid.UUID]*and.World),
+		world_path_mapping:        make(map[uuid.UUID]string),
 		exposed_worlds:            make(map[string]*and.World),
 		peer_participating_worlds: make(map[string]map[uuid.UUID]*and.World),
 		peers:                     make(map[string]ani.IAbyssPeer),
+		address_candidates:        make(map[string][]netip.AddrPort),
+
+		event_ch: make(chan any, 1024),
 	}, nil
 }
 
