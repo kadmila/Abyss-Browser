@@ -1,16 +1,15 @@
 package ann
 
 import (
-	"context"
-	"errors"
-	"net"
 	"net/netip"
 
 	"github.com/quic-go/quic-go"
 )
 
-// backlogPushNetworkError pushes a HandshakeNetworkError to the backlog.
-func (n *AbyssNode) backlogPushNetworkError(
+// Error constructors - these only construct errors, they don't push to backlog
+
+// NewHandshakeNetworkError creates a HandshakeNetworkError.
+func NewHandshakeNetworkError(
 	addr netip.AddrPort,
 	peerID string,
 	isDialing bool,
@@ -18,8 +17,8 @@ func (n *AbyssNode) backlogPushNetworkError(
 	err error,
 	isTimeout bool,
 	isTransport bool,
-) {
-	handshakeErr := &HandshakeNetworkError{
+) *HandshakeNetworkError {
+	return &HandshakeNetworkError{
 		HandshakeError: HandshakeError{
 			RemoteAddr: addr,
 			PeerID:     peerID,
@@ -30,14 +29,10 @@ func (n *AbyssNode) backlogPushNetworkError(
 		IsTimeout:   isTimeout,
 		IsTransport: isTransport,
 	}
-	n.backlog <- backLogEntry{
-		peer: nil,
-		err:  handshakeErr,
-	}
 }
 
-// backlogPushProtocolError pushes a HandshakeProtocolError to the backlog.
-func (n *AbyssNode) backlogPushProtocolError(
+// NewHandshakeProtocolError creates a HandshakeProtocolError.
+func NewHandshakeProtocolError(
 	addr netip.AddrPort,
 	peerID string,
 	isDialing bool,
@@ -45,8 +40,8 @@ func (n *AbyssNode) backlogPushProtocolError(
 	err error,
 	isAHMP bool,
 	quicErrorCode *quic.ApplicationErrorCode,
-) {
-	handshakeErr := &HandshakeProtocolError{
+) *HandshakeProtocolError {
+	return &HandshakeProtocolError{
 		HandshakeError: HandshakeError{
 			RemoteAddr: addr,
 			PeerID:     peerID,
@@ -57,22 +52,18 @@ func (n *AbyssNode) backlogPushProtocolError(
 		IsAHMP:        isAHMP,
 		QuicErrorCode: quicErrorCode,
 	}
-	n.backlog <- backLogEntry{
-		peer: nil,
-		err:  handshakeErr,
-	}
 }
 
-// backlogPushAuthError pushes a HandshakeAuthError to the backlog.
-func (n *AbyssNode) backlogPushAuthError(
+// NewHandshakeAuthError creates a HandshakeAuthError.
+func NewHandshakeAuthError(
 	addr netip.AddrPort,
 	peerID string,
 	isDialing bool,
 	stage HandshakeStage,
 	err error,
 	reason AuthFailureReason,
-) {
-	handshakeErr := &HandshakeAuthError{
+) *HandshakeAuthError {
+	return &HandshakeAuthError{
 		HandshakeError: HandshakeError{
 			RemoteAddr: addr,
 			PeerID:     peerID,
@@ -82,22 +73,18 @@ func (n *AbyssNode) backlogPushAuthError(
 		},
 		Reason: reason,
 	}
-	n.backlog <- backLogEntry{
-		peer: nil,
-		err:  handshakeErr,
-	}
 }
 
-// backlogPushPeerStateError pushes a HandshakePeerStateError to the backlog.
-func (n *AbyssNode) backlogPushPeerStateError(
+// NewHandshakePeerStateError creates a HandshakePeerStateError.
+func NewHandshakePeerStateError(
 	addr netip.AddrPort,
 	peerID string,
 	isDialing bool,
 	stage HandshakeStage,
 	err error,
 	reason PeerStateReason,
-) {
-	handshakeErr := &HandshakePeerStateError{
+) *HandshakePeerStateError {
+	return &HandshakePeerStateError{
 		HandshakeError: HandshakeError{
 			RemoteAddr: addr,
 			PeerID:     peerID,
@@ -107,20 +94,16 @@ func (n *AbyssNode) backlogPushPeerStateError(
 		},
 		Reason: reason,
 	}
-	n.backlog <- backLogEntry{
-		peer: nil,
-		err:  handshakeErr,
-	}
 }
 
-// backlogPushDialError converts a DialError to appropriate HandshakePeerStateError and pushes to backlog.
-func (n *AbyssNode) backlogPushDialError(
+// NewHandshakePeerStateErrorFromDialError creates a HandshakePeerStateError from a DialError.
+func NewHandshakePeerStateErrorFromDialError(
 	addr netip.AddrPort,
 	peerID string,
 	isDialing bool,
 	stage HandshakeStage,
 	dialErr *DialError,
-) {
+) *HandshakePeerStateError {
 	var reason PeerStateReason
 	switch dialErr.T {
 	case DE_Redundant:
@@ -130,58 +113,15 @@ func (n *AbyssNode) backlogPushDialError(
 	default:
 		reason = PeerState_Rejected
 	}
-	n.backlogPushPeerStateError(addr, peerID, isDialing, stage, dialErr, reason)
+	return NewHandshakePeerStateError(addr, peerID, isDialing, stage, dialErr, reason)
 }
 
-// backlogPushGenericError analyzes a generic error and pushes the appropriate typed error to the backlog.
-// This is a helper for migration from the old backlogAppendError function.
-func (n *AbyssNode) backlogPushGenericError(
-	addr netip.AddrPort,
-	peerID string,
-	isDialing bool,
-	stage HandshakeStage,
-	err error,
-) {
-	// Check for DialError
-	var dialErr *DialError
-	if errors.As(err, &dialErr) {
-		n.backlogPushDialError(addr, peerID, isDialing, stage, dialErr)
-		return
-	}
+// Backlog push method
 
-	// Check for network timeout
-	var netErr net.Error
-	if errors.As(err, &netErr) && netErr.Timeout() {
-		n.backlogPushNetworkError(addr, peerID, isDialing, stage, err, true, false)
-		return
+// backlogPushErr pushes an error to the backlog.
+func (n *AbyssNode) backlogPushErr(err error) {
+	n.backlog <- backLogEntry{
+		peer: nil,
+		err:  err,
 	}
-
-	// Check for QUIC errors
-	var appErr *quic.ApplicationError
-	if errors.As(err, &appErr) {
-		code := appErr.ErrorCode
-		n.backlogPushProtocolError(addr, peerID, isDialing, stage, err, false, &code)
-		return
-	}
-
-	var transportErr *quic.TransportError
-	if errors.As(err, &transportErr) {
-		n.backlogPushNetworkError(addr, peerID, isDialing, stage, err, false, true)
-		return
-	}
-
-	var versionErr *quic.VersionNegotiationError
-	if errors.As(err, &versionErr) {
-		n.backlogPushProtocolError(addr, peerID, isDialing, stage, err, false, nil)
-		return
-	}
-
-	// Check for context errors (timeout)
-	if errors.Is(err, context.DeadlineExceeded) {
-		n.backlogPushNetworkError(addr, peerID, isDialing, stage, err, true, false)
-		return
-	}
-
-	// Default: treat as network error
-	n.backlogPushNetworkError(addr, peerID, isDialing, stage, err, false, false)
 }

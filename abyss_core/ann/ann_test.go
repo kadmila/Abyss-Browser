@@ -240,7 +240,9 @@ func TestReconnect(t *testing.T) {
 		peer_B_A.Recv(&msg_rcvd)
 
 		var v_rcvd int
-		cbor.Unmarshal(msg_rcvd.Payload, &v_rcvd)
+		if err := cbor.Unmarshal(msg_rcvd.Payload, &v_rcvd); err != nil {
+			t.Fatal(err)
+		}
 
 		if v_rcvd != v_sent {
 			t.Fatal("communication fail")

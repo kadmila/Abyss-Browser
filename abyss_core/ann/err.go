@@ -19,6 +19,8 @@ const (
 	AbyssQuicOverride quic.ApplicationErrorCode = 0x1101
 )
 
+//// Enums For Error Types
+
 // HandshakeStage represents the stage at which a handshake error occurred.
 type HandshakeStage int
 
@@ -99,6 +101,8 @@ func (r PeerStateReason) String() string {
 		return "unknown-peer-state"
 	}
 }
+
+//// Error Types
 
 type IHandshakeError interface {
 	error
