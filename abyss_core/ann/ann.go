@@ -21,7 +21,7 @@ import (
 
 type backLogEntry struct {
 	peer *AbyssPeer
-	err  error
+	err  *HandshakeError
 }
 
 // AbyssNode handles abyss/abyst handshakes, listening inbound connections.

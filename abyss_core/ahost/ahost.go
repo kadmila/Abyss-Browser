@@ -4,6 +4,7 @@ package ahost
 
 import (
 	"context"
+	"errors"
 	"net/netip"
 	"sync"
 
@@ -17,6 +18,9 @@ import (
 type AbyssHost struct {
 	net ani.IAbyssNode
 	and *and.AND
+
+	service_ctx        context.Context
+	service_cancelfunc context.CancelFunc
 
 	mtx                       sync.Mutex
 	worlds                    map[uuid.UUID]*and.World
@@ -34,9 +38,13 @@ func NewAbyssHost(root_key sec.PrivateKey) (*AbyssHost, error) {
 	if err != nil {
 		return nil, err
 	}
+	service_ctx, service_cancelfunc := context.WithCancel(context.Background())
 	return &AbyssHost{
 		net: node,
 		and: and.NewAND(node.ID()),
+
+		service_ctx:        service_ctx,
+		service_cancelfunc: service_cancelfunc,
 
 		worlds:                    make(map[uuid.UUID]*and.World),
 		world_path_mapping:        make(map[uuid.UUID]string),
@@ -60,9 +68,18 @@ func (h *AbyssHost) Main() error {
 	}()
 
 	for {
-		peer, err := h.net.Accept(context.Background())
+		peer, err := h.net.Accept(h.service_ctx)
+		if errors.Is(err, context.Canceled) {
+			break
+		}
+
+		go func() {
+			h.servePeer(peer)
+			// TODO: handle error
+		}()
 	}
 
+	<-node_done
 	return nil
 }
 
