@@ -14,6 +14,22 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
+// decodeWithContext decodes CBOR data with context support.
+// This is somewhat lame, but is forced by the quic interface.
+func decodeWithContext(ctx context.Context, decoder *cbor.Decoder, v any) error {
+	done := make(chan error, 1)
+	go func() {
+		err := decoder.Decode(v)
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 // handshakeResult is for dialRoutine and serveRoutine internal use only.
 type handshakeResult struct {
 	err               error
@@ -42,15 +58,14 @@ func (n *AbyssNode) dialRoutine(addr netip.AddrPort, peer_identity *sec.AbyssPee
 		newQuicConfig(),
 	)
 	if err != nil {
-		// QUIC handshake failure
-		var net_err HandshakeTransportError
-		if connection != nil {
-			net_err.RemoteAddr = connection.RemoteAddr().(*net.UDPAddr).AddrPort()
-		}
-		net_err.IsDialing = true
-		net_err.Stage = HS_Connection
-		net_err.Underlying = err
-		n.backlogPushErr(&net_err)
+		n.backlogPushErr(NewHandshakeError(
+			err,
+			addr,
+			peer_identity.ID(),
+			true,
+			HS_Connection,
+			HS_Fail_TransportFail,
+		))
 		return
 	}
 
@@ -61,95 +76,119 @@ func (n *AbyssNode) dialRoutine(addr netip.AddrPort, peer_identity *sec.AbyssPee
 	// open ahmp stream
 	ahmp_stream, err := connection.OpenStreamSync(handshake_ctx)
 	if err != nil {
-		// QUIC stream failure
-		var net_err HandshakeTransportError
-		net_err.RemoteAddr = connection.RemoteAddr().(*net.UDPAddr).AddrPort()
-		net_err.IsDialing = true
-		net_err.Stage = HS_Connection
-		net_err.Underlying = err
-		n.backlogPushErr(&net_err)
-
 		connection.CloseWithError(AbyssQuicAhmpStreamFail, "failed to start AHMP")
+		n.backlogPushErr(NewHandshakeError(
+			err,
+			addr,
+			peer_identity.ID(),
+			true,
+			HS_StreamSetup,
+			HS_Fail_TransportFail,
+		))
 		return
 	}
 	ahmp_encoder := cbor.NewEncoder(ahmp_stream)
 	ahmp_decoder := cbor.NewDecoder(ahmp_stream)
 
-	// handle handshake timeout for non-contexted calls. This is somewhat lame, but is forced by the quic interface.
-	handshake_result := make(chan handshakeResult, 1)
-	go func() {
-		result := handshakeResult{}
-		defer func() {
-			handshake_result <- result
-		}()
-		// (handshake 1)
-		// send local tls-abyss binding cert encrypted with remote handshake key.
-		encrypted_cert, aes_secret, err := peer_identity.EncryptHandshake(n.TLSIdentity.AbyssBindingCertificate())
-		if err != nil {
-			result.err = err
-			result.close_code = AbyssQuicCryptoFail
-			result.close_msg = "abyss cryptograhic failure"
-			return
-		}
-		handshake_1_message := &ahmp.RawHS1{
-			EncryptedCertificate: encrypted_cert,
-			EncryptedSecret:      aes_secret,
-		}
-		if err := ahmp_encoder.Encode(handshake_1_message); err != nil {
-			result.err = err
-			result.close_code = AbyssQuicAhmpStreamFail
-			result.close_msg = "failed to transmit AHMP"
-			return
-		}
-
-		// (handshake 2)
-		// receive server-side tls-abyss binding and verify
-		var handshake_2_message []byte
-		if err := ahmp_decoder.Decode(&handshake_2_message); err != nil {
-			result.err = err
-			result.close_code = AbyssQuicAhmpStreamFail
-			result.close_msg = "failed to receive AHMP"
-			return
-		}
-		handshake_2_payload_x509, err := x509.ParseCertificate(handshake_2_message)
-		if err != nil {
-			result.err = err
-			result.close_code = AbyssQuicAuthenticationFail
-			result.close_msg = "failed to parse certificate"
-			return
-		}
-		if err := peer_identity.VerifyTLSBinding(handshake_2_payload_x509, client_tls_cert); err != nil {
-			result.err = err
-			result.close_code = AbyssQuicAuthenticationFail
-			result.close_msg = "invalid certificate"
-			return
-		}
-	}()
-	select {
-	case result := <-handshake_result:
-		if result.err == nil {
-			n.backlogAppend(true,
-				&AbyssPeer{
-					AbyssPeerIdentity: peer_identity,
-					origin:            n,
-					client_tls_cert:   client_tls_cert,
-					connection:        connection,
-					remote_addr:       addr,
-					ahmp_encoder:      ahmp_encoder,
-					ahmp_decoder:      ahmp_decoder,
-				})
-		} else if result.do_timeout {
-			<-handshake_ctx.Done()
-			connection.CloseWithError(AbyssQuicHandshakeTimeout, "handshake timeout")
-			n.backlogAppendError(addr, true, result.err)
-		} else {
-			connection.CloseWithError(result.close_code, result.close_msg)
-			n.backlogAppendError(addr, true, result.err)
-		}
-	case <-handshake_ctx.Done():
-		connection.CloseWithError(AbyssQuicHandshakeTimeout, "handshake timeout")
-		n.backlogAppendError(addr, true, handshake_ctx.Err())
+	// (handshake 1)
+	// send local tls-abyss binding cert encrypted with remote handshake key.
+	encrypted_cert, aes_secret, err := peer_identity.EncryptHandshake(n.TLSIdentity.AbyssBindingCertificate())
+	if err != nil {
+		connection.CloseWithError(AbyssQuicCryptoFail, "abyss cryptograhic failure")
+		n.backlogPushErr(NewHandshakeError(
+			err,
+			addr,
+			peer_identity.ID(),
+			true,
+			HS_Handshake1,
+			HS_Fail_CryptoFail,
+		))
+		return
 	}
+	handshake_1_message := &ahmp.RawHS1{
+		EncryptedCertificate: encrypted_cert,
+		EncryptedSecret:      aes_secret,
+	}
+	if err := ahmp_encoder.Encode(handshake_1_message); err != nil {
+		connection.CloseWithError(AbyssQuicAhmpStreamFail, "failed to transmit AHMP")
+		n.backlogPushErr(NewHandshakeError(
+			err,
+			addr,
+			peer_identity.ID(),
+			true,
+			HS_Handshake1,
+			HS_Fail_CryptoFail,
+		))
+		return
+	}
+
+	// (handshake 2)
+	// receive server-side tls-abyss binding and verify
+	var handshake_2_message []byte
+	if err := decodeWithContext(handshake_ctx, ahmp_decoder, &handshake_2_message); err != nil {
+		var cbor_err *cbor.SyntaxError
+		if errors.As(err, &cbor_err) {
+			connection.CloseWithError(AbyssQuicAhmpParseFail, "failed to parse AHMP message")
+			n.backlogPushErr(NewHandshakeError(
+				err,
+				addr,
+				peer_identity.ID(),
+				true,
+				HS_Handshake2,
+				HS_Fail_ParserFail,
+			))
+			return
+		} else {
+			connection.CloseWithError(AbyssQuicAhmpStreamFail, "failed to receive AHMP")
+			n.backlogPushErr(NewHandshakeError(
+				err,
+				addr,
+				peer_identity.ID(),
+				true,
+				HS_Handshake2,
+				HS_Fail_TransportFail,
+			))
+			return
+		}
+	}
+	handshake_2_payload_x509, err := x509.ParseCertificate(handshake_2_message)
+	if err != nil {
+		connection.CloseWithError(AbyssQuicAuthenticationFail, "failed to parse certificate")
+		n.backlogPushErr(NewHandshakeError(
+			err,
+			addr,
+			peer_identity.ID(),
+			true,
+			HS_Handshake2,
+			HS_Fail_InvalidCert,
+		))
+		return
+	}
+	if err := peer_identity.VerifyTLSBinding(handshake_2_payload_x509, client_tls_cert); err != nil {
+		connection.CloseWithError(AbyssQuicAuthenticationFail, "invalid certificate")
+		n.backlogPushErr(NewHandshakeError(
+			err,
+			addr,
+			peer_identity.ID(),
+			true,
+			HS_Handshake2,
+			HS_Fail_InvalidCert,
+		))
+		return
+	}
+
+	n.tryCompletePeer(
+		handshake_ctx,
+		true,
+		&AbyssPeer{
+			AbyssPeerIdentity: peer_identity,
+			origin:            n,
+			client_tls_cert:   client_tls_cert,
+			connection:        connection,
+			remote_addr:       addr,
+			ahmp_encoder:      ahmp_encoder,
+			ahmp_decoder:      ahmp_decoder,
+		})
 }
 
 func (n *AbyssNode) serveRoutine(connection quic.Connection) {
@@ -168,184 +207,234 @@ func (n *AbyssNode) serveRoutine(connection quic.Connection) {
 	// open ahmp stream
 	ahmp_stream, err := connection.AcceptStream(handshake_ctx)
 	if err != nil {
-		net_err := &HandshakeTransportError{
-			HandshakeError{
-				RemoteAddr: addr,
-				IsDialing:  false,
-				Stage:      HS_StreamSetup,
-				Underlying: err,
-			},
-		}
-		n.backlogPushErr(net_err)
-
 		connection.CloseWithError(AbyssQuicAhmpStreamFail, "failed to start AHMP")
+		n.backlogPushErr(NewHandshakeError(
+			err,
+			addr,
+			"",
+			false,
+			HS_StreamSetup,
+			HS_Fail_TransportFail,
+		))
 		return
 	}
 	ahmp_encoder := cbor.NewEncoder(ahmp_stream)
 	ahmp_decoder := cbor.NewDecoder(ahmp_stream)
 
-	// handle handshake timeout for non-contexted calls. This is somewhat lame, but is forced by the quic interface.
-	handshake_result := make(chan handshakeResult, 1)
-	go func() {
-		result := handshakeResult{}
-		defer func() {
-			handshake_result <- result
-		}()
-		// (handshake 1)
-		// receive and decrypt peer's tls-binding certificate
-		var handshake_1_message ahmp.RawHS1
-		if err := ahmp_decoder.Decode(&handshake_1_message); err != nil {
-			var stream_err *quic.StreamError
-			if errors.As(err, &stream_err) {
-				var net_err *HandshakeTransportError
-				net_err.RemoteAddr = addr
-				net_err.IsDialing = false
-				net_err.Stage = HS_Handshake1
-				net_err.Underlying = err
-				result.err = net_err
-
-				result.close_code = AbyssQuicAhmpStreamFail
-				result.close_msg = "failed to receive AHMP"
-			} else {
-				var proto_err *HandshakeProtocolError
-				proto_err.RemoteAddr = addr
-				proto_err.IsDialing = false
-				proto_err.Stage = HS_Handshake1
-				proto_err.Underlying = err
-				result.err = proto_err
-
-				result.close_code = AbyssQuicAhmpParseFail
-				result.close_msg = "failed to parse AHMP message"
-			}
+	// (handshake 1)
+	var handshake_1_message ahmp.RawHS1
+	if err := decodeWithContext(handshake_ctx, ahmp_decoder, &handshake_1_message); err != nil {
+		var cbor_err *cbor.SyntaxError
+		if errors.As(err, &cbor_err) {
+			connection.CloseWithError(AbyssQuicAhmpParseFail, "failed to parse AHMP message")
+			n.backlogPushErr(NewHandshakeError(
+				err,
+				addr,
+				"",
+				false,
+				HS_Handshake1,
+				HS_Fail_ParserFail,
+			))
 			return
-		}
-		tls_binding_cert_derBytes, err := n.DecryptHandshake(handshake_1_message.EncryptedCertificate, handshake_1_message.EncryptedSecret)
-		if err != nil {
-			result.err = err
-			result.do_timeout = true
-			return
-		}
-		tls_binding_cert, err := x509.ParseCertificate(tls_binding_cert_derBytes)
-		if err != nil {
-			result.err = err
-			result.do_timeout = true
-			return
-		}
-
-		// retrieve known identity
-		peer_id := tls_binding_cert.Issuer.CommonName
-		var peer_identity *sec.AbyssPeerIdentity
-		retry_time := time.Millisecond * 50
-		for { // exponential backoff (x1.5)
-			var err *DialError
-			peer_identity, err = n.registry.GetPeerIdentityIfAcceptable(peer_id)
-			if err == nil {
-				break
-			}
-			switch err.T {
-			case DE_Redundant:
-				// verify abyss-tls binding, to 1) quickly end connection,
-				// or 2) make it timeout if its malicious.
-				if err := peer_identity.VerifyTLSBinding(tls_binding_cert, client_tls_cert); err != nil {
-					result.err = err
-					result.do_timeout = true
-					return
-				} else {
-					result.err = &DialError{T: DE_Redundant}
-					result.close_code = AbyssQuicRedundantConnection
-					result.close_msg = "redundant connection"
-					return
-				}
-			case DE_UnknownPeer:
-				select {
-				case <-time.After(retry_time):
-					retry_time = retry_time * 3 / 2
-					continue
-				case <-handshake_ctx.Done():
-					result.err = handshake_ctx.Err()
-					result.close_code = AbyssQuicHandshakeTimeout
-					result.close_msg = "handshake timeout"
-					return
-				}
-			}
-		}
-
-		// verify abyss-tls binding
-		if err := peer_identity.VerifyTLSBinding(tls_binding_cert, client_tls_cert); err != nil {
-			result.err = err
-			result.do_timeout = true
-			return
-		}
-
-		// now, the opponent is valid, acceptable peer.
-
-		// (handshake 2)
-		// send local tls-abyss binding cert
-		if err = ahmp_encoder.Encode(n.TLSIdentity.AbyssBindingCertificate()); err != nil {
-			result.err = err
-			result.close_code = AbyssQuicAhmpStreamFail
-			result.close_msg = "failed to transmit AHMP"
-			return
-		}
-		result.received_identity = peer_identity
-	}()
-	select {
-	case result := <-handshake_result:
-		if result.err == nil {
-			n.backlogAppend(false,
-				&AbyssPeer{
-					AbyssPeerIdentity: result.received_identity,
-					origin:            n,
-					client_tls_cert:   client_tls_cert,
-					connection:        connection,
-					remote_addr:       addr,
-					ahmp_encoder:      ahmp_encoder,
-					ahmp_decoder:      ahmp_decoder,
-				})
-		} else if result.do_timeout {
-			<-handshake_ctx.Done()
-			connection.CloseWithError(AbyssQuicHandshakeTimeout, "handshake timeout")
-			n.backlogAppendError(addr, false, result.err)
 		} else {
-			connection.CloseWithError(result.close_code, result.close_msg)
-			n.backlogAppendError(addr, false, result.err)
+			connection.CloseWithError(AbyssQuicAhmpStreamFail, "failed to receive AHMP")
+			n.backlogPushErr(NewHandshakeError(
+				err,
+				addr,
+				"",
+				false,
+				HS_Handshake1,
+				HS_Fail_TransportFail,
+			))
+			return
 		}
-	case <-handshake_ctx.Done():
-		connection.CloseWithError(AbyssQuicHandshakeTimeout, "handshake timeout")
-		n.backlogAppendError(addr, false, handshake_ctx.Err())
 	}
+	tls_binding_cert_derBytes, err := n.DecryptHandshake(handshake_1_message.EncryptedCertificate, handshake_1_message.EncryptedSecret)
+	if err != nil {
+		n.backlogPushErr(NewHandshakeError(
+			err,
+			addr,
+			"",
+			false,
+			HS_Handshake1,
+			HS_Fail_CryptoFail,
+		))
+		<-handshake_ctx.Done()
+		connection.CloseWithError(AbyssQuicHandshakeTimeout, "handshake timeout")
+		return
+	}
+	tls_binding_cert, err := x509.ParseCertificate(tls_binding_cert_derBytes)
+	if err != nil {
+		n.backlogPushErr(NewHandshakeError(
+			err,
+			addr,
+			"",
+			false,
+			HS_Handshake1,
+			HS_Fail_InvalidCert,
+		))
+		<-handshake_ctx.Done()
+		connection.CloseWithError(AbyssQuicHandshakeTimeout, "handshake timeout")
+		return
+	}
+
+	// retrieve known identity with exponential backoff (x1.5)
+	peer_id := tls_binding_cert.Issuer.CommonName
+	var peer_identity *sec.AbyssPeerIdentity
+	retry_time := time.Millisecond * 50
+IDENTITY_RETRIEVE_LOOP:
+	for {
+		var registry_status RegistryEntryStatus
+		peer_identity, registry_status = n.registry.GetPeerIdentityIfAcceptable(peer_id)
+		switch registry_status {
+		case RE_OK: // just found peer_identity. Proceed.
+			break IDENTITY_RETRIEVE_LOOP
+		case RE_Redundant:
+			// verify abyss-tls binding, to 1) quickly end connection,
+			// or 2) make it timeout if its malicious.
+			if err := peer_identity.VerifyTLSBinding(tls_binding_cert, client_tls_cert); err != nil {
+				n.backlogPushErr(NewHandshakeError(
+					err,
+					addr,
+					"",
+					false,
+					HS_Handshake1,
+					HS_Fail_CryptoFail,
+				))
+				<-handshake_ctx.Done()
+				connection.CloseWithError(AbyssQuicHandshakeTimeout, "handshake timeout")
+				return
+			} else {
+				connection.CloseWithError(AbyssQuicRedundantConnection, "redundant connection")
+				n.backlogPushErr(NewHandshakeError(
+					err,
+					addr,
+					"",
+					false,
+					HS_Handshake1,
+					HS_Fail_Redundant,
+				))
+				return
+			}
+		case RE_UnknownPeer:
+			select {
+			case <-time.After(retry_time):
+				retry_time = retry_time * 3 / 2
+				continue
+			case <-handshake_ctx.Done():
+				n.backlogPushErr(NewHandshakeError(
+					err,
+					addr,
+					"",
+					false,
+					HS_Handshake1,
+					HS_Fail_UnknownPeer,
+				))
+				<-handshake_ctx.Done()
+				connection.CloseWithError(AbyssQuicHandshakeTimeout, "handshake timeout")
+				return
+			}
+		}
+	}
+
+	// verify abyss-tls binding
+	if err := peer_identity.VerifyTLSBinding(tls_binding_cert, client_tls_cert); err != nil {
+		n.backlogPushErr(NewHandshakeError(
+			err,
+			addr,
+			"",
+			false,
+			HS_Handshake1,
+			HS_Fail_CryptoFail,
+		))
+		<-handshake_ctx.Done()
+		connection.CloseWithError(AbyssQuicHandshakeTimeout, "handshake timeout")
+		return
+	}
+	// now, the opponent is valid, acceptable peer.
+
+	// (handshake 2)
+	// send local tls-abyss binding cert
+	if err = ahmp_encoder.Encode(n.TLSIdentity.AbyssBindingCertificate()); err != nil {
+		connection.CloseWithError(AbyssQuicAhmpStreamFail, "failed to transmit AHMP")
+		n.backlogPushErr(NewHandshakeError(
+			err,
+			addr,
+			"",
+			false,
+			HS_Handshake2,
+			HS_Fail_TransportFail,
+		))
+		return
+	}
+
+	n.tryCompletePeer(
+		handshake_ctx,
+		false,
+		&AbyssPeer{
+			AbyssPeerIdentity: peer_identity,
+			origin:            n,
+			client_tls_cert:   client_tls_cert,
+			connection:        connection,
+			remote_addr:       addr,
+			ahmp_encoder:      ahmp_encoder,
+			ahmp_decoder:      ahmp_decoder,
+		})
 }
 
 // Append blocks until 1) context cancels, or 2) abyss peer is constructed.
 // * Issue: it hard-blocks when BackLog is full.
 // should I let it accept context to prevent backlog blocking?
-func (n *AbyssNode) backlogAppend(is_dialing bool, pre_peer *AbyssPeer) {
+func (n *AbyssNode) tryCompletePeer(ctx context.Context, is_dialing bool, pre_peer *AbyssPeer) {
 	// check who's in control.
 	controller_id, err := TieBreak(n.ID(), pre_peer.ID())
 	if err != nil {
 		pre_peer.connection.CloseWithError(AbyssQuicCryptoFail, "abyss tie breaking fail") // this should never happen
-		n.backlogAppendError(pre_peer.remote_addr, is_dialing, err)
+		n.backlogPushErr(NewHandshakeError(
+			err,
+			pre_peer.remote_addr,
+			pre_peer.ID(),
+			is_dialing,
+			HS_TieBreak,
+			HS_Fail_TieBreakFail,
+		))
 		return
 	}
 	if n.ID() == controller_id {
-		n.backlogAppendMaster(is_dialing, pre_peer)
+		n.tryCompletePeerMaster(is_dialing, pre_peer)
 	} else {
-		n.backlogAppendSlave(is_dialing, pre_peer)
+		n.tryCompletePeerSlave(ctx, is_dialing, pre_peer)
 	}
 }
 
-func (n *AbyssNode) backlogAppendMaster(is_dialing bool, pre_peer *AbyssPeer) {
+func (n *AbyssNode) tryCompletePeerMaster(is_dialing bool, pre_peer *AbyssPeer) {
 	// Append peer only when there is no active connection.
 	// if this does not create a new peer, it is closed.
-	new_peer, dial_err := n.registry.TryCompletingPeer(pre_peer)
-	if dial_err != nil {
-		switch dial_err.T {
-		case DE_Redundant:
-			pre_peer.connection.CloseWithError(AbyssQuicRedundantConnection, "redundant connection")
-		case DE_UnknownPeer:
-			pre_peer.connection.CloseWithError(AbyssQuicAuthenticationFail, "just rejected")
-		}
-		n.backlogAppendError(pre_peer.remote_addr, is_dialing, dial_err)
+	new_peer, registry_status := n.registry.TryCompletingPeer(pre_peer)
+	switch registry_status {
+	case RE_OK:
+		// proceed
+	case RE_Redundant:
+		pre_peer.connection.CloseWithError(AbyssQuicRedundantConnection, "redundant connection")
+		n.backlogPushErr(NewHandshakeError(
+			errors.New("redundant connection"),
+			pre_peer.remote_addr,
+			"",
+			is_dialing,
+			HS_PeerCompletion,
+			HS_Fail_Redundant,
+		))
+		return
+	case RE_UnknownPeer:
+		pre_peer.connection.CloseWithError(AbyssQuicAuthenticationFail, "just rejected")
+		n.backlogPushErr(NewHandshakeError(
+			errors.New("redundant connection"),
+			pre_peer.remote_addr,
+			"",
+			is_dialing,
+			HS_PeerCompletion,
+			HS_Fail_UnknownPeer,
+		))
 		return
 	}
 
@@ -358,9 +447,16 @@ func (n *AbyssNode) backlogAppendMaster(is_dialing bool, pre_peer *AbyssPeer) {
 		// It is only allowed (and unavoidable) here as it is 1) ready for Accept(),
 		// but 2) not actually fetched to the backlog, and 3) the registry data for the peer must be cleaned up.
 		// Calling Close() is the only appropriate way to remove an established peer.
-		pre_peer.connection.CloseWithError(AbyssQuicAhmpStreamFail, "fail to send abyss confirmation")
+		pre_peer.connection.CloseWithError(AbyssQuicAhmpStreamFail, "failed to send abyss confirmation")
 		pre_peer.Close()
-		n.backlogAppendError(pre_peer.remote_addr, is_dialing, err)
+		n.backlogPushErr(NewHandshakeError(
+			err,
+			pre_peer.remote_addr,
+			"",
+			is_dialing,
+			HS_PeerCompletion,
+			HS_Fail_TransportFail,
+		))
 		return
 	}
 
@@ -370,45 +466,54 @@ func (n *AbyssNode) backlogAppendMaster(is_dialing bool, pre_peer *AbyssPeer) {
 	}
 }
 
-func (n *AbyssNode) backlogAppendSlave(is_dialing bool, pre_peer *AbyssPeer) {
+func (n *AbyssNode) tryCompletePeerSlave(ctx context.Context, is_dialing bool, pre_peer *AbyssPeer) {
 	// Opponent is in control.
 	// Wait for connection confirmation (handshake 3)
 	var code int
-	err := pre_peer.ahmp_decoder.Decode(&code)
-	if err != nil {
+	if err := decodeWithContext(ctx, pre_peer.ahmp_decoder, &code); err != nil {
 		// opponent killed the connection (or ahmp stream fail)
 		pre_peer.connection.CloseWithError(AbyssQuicAhmpStreamFail, "abyss confirmation fail")
-		n.backlogAppendError(pre_peer.remote_addr, is_dialing, err)
+		n.backlogPushErr(NewHandshakeError(
+			err,
+			pre_peer.remote_addr,
+			pre_peer.ID(),
+			is_dialing,
+			HS_Handshake3,
+			HS_Fail_TransportFail,
+		))
 		return
 	}
 
-	new_peer, dial_err := n.registry.TryCompletingPeer(pre_peer)
-	if dial_err != nil {
-		switch dial_err.T {
-		case DE_Redundant:
-			pre_peer.connection.CloseWithError(AbyssQuicRedundantConnection, "redundant connection")
-		case DE_UnknownPeer:
-			pre_peer.connection.CloseWithError(AbyssQuicAuthenticationFail, "just rejected")
-		}
-		n.backlogAppendError(pre_peer.remote_addr, is_dialing, dial_err)
+	new_peer, registry_status := n.registry.TryCompletingPeer(pre_peer)
+	switch registry_status {
+	case RE_OK:
+		// proceed
+	case RE_Redundant:
+		pre_peer.connection.CloseWithError(AbyssQuicRedundantConnection, "redundant connection")
+		n.backlogPushErr(NewHandshakeError(
+			errors.New("redundant connection"),
+			pre_peer.remote_addr,
+			"",
+			is_dialing,
+			HS_PeerCompletion,
+			HS_Fail_Redundant,
+		))
+		return
+	case RE_UnknownPeer:
+		pre_peer.connection.CloseWithError(AbyssQuicAuthenticationFail, "just rejected")
+		n.backlogPushErr(NewHandshakeError(
+			errors.New("redundant connection"),
+			pre_peer.remote_addr,
+			"",
+			is_dialing,
+			HS_PeerCompletion,
+			HS_Fail_UnknownPeer,
+		))
 		return
 	}
 
 	n.backlog <- backLogEntry{
 		peer: new_peer,
 		err:  nil,
-	}
-}
-
-func (n *AbyssNode) backlogAppendError(addr netip.AddrPort, is_dialing bool, err error) {
-	var direction string
-	if is_dialing {
-		direction = "(outbound)"
-	} else {
-		direction = "(inbound)"
-	}
-	n.backlog <- backLogEntry{
-		peer: nil,
-		err:  errors.New(addr.String() + direction + err.Error()),
 	}
 }

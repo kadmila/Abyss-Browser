@@ -67,37 +67,45 @@ func (r *AbyssPeerRegistry) RemovePeerIdentity(id string) {
 	}
 }
 
+type RegistryEntryStatus int
+
+const (
+	RE_Redundant RegistryEntryStatus = iota + 1
+	RE_UnknownPeer
+	RE_OK
+)
+
 // GetPeerIdentityIfAcceptable returns error if the dialing is considered redundant,
 // or the peer id is unknown.
-func (r *AbyssPeerRegistry) GetPeerIdentityIfAcceptable(id string) (*sec.AbyssPeerIdentity, *DialError) {
+func (r *AbyssPeerRegistry) GetPeerIdentityIfAcceptable(id string) (*sec.AbyssPeerIdentity, RegistryEntryStatus) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 
 	// Cannot accept if the peer is unknown.
 	identity, ok := r.known[id]
 	if !ok {
-		return nil, &DialError{T: DE_UnknownPeer}
+		return nil, RE_UnknownPeer
 	}
 
 	// There is no need to accept a connected peer
 	if peer, ok := r.connected[id]; ok {
-		return peer.AbyssPeerIdentity, &DialError{T: DE_Redundant}
+		return peer.AbyssPeerIdentity, RE_Redundant
 	}
 
-	return identity, nil
+	return identity, RE_OK
 }
 
 // GetPeerIdentityIfDialable behaves like GetPeerIdentityIfAcceptable.
 // As there is no occasion where a node binds to multiple ports in same host,
 // we only compare IP addresses.
-func (r *AbyssPeerRegistry) GetPeerIdentityIfDialable(id string, addr netip.Addr) (*sec.AbyssPeerIdentity, *DialError) {
+func (r *AbyssPeerRegistry) GetPeerIdentityIfDialable(id string, addr netip.Addr) (*sec.AbyssPeerIdentity, RegistryEntryStatus) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 
 	// Cannot dial if the peer is unknown.
 	identity, ok := r.known[id]
 	if !ok {
-		return nil, &DialError{T: DE_UnknownPeer}
+		return nil, RE_UnknownPeer
 	}
 
 	// There is no need to dial the same IP address twice.
@@ -105,17 +113,17 @@ func (r *AbyssPeerRegistry) GetPeerIdentityIfDialable(id string, addr netip.Addr
 	if ok {
 		for _, v := range history.addresses {
 			if v.Compare(addr) != 0 {
-				return nil, &DialError{T: DE_Redundant}
+				return nil, RE_Redundant
 			}
 		}
 	}
 
 	// There is no need to dial connected peer
 	if _, ok := r.connected[id]; ok {
-		return nil, &DialError{T: DE_Redundant}
+		return nil, RE_Redundant
 	}
 
-	return identity, nil
+	return identity, RE_OK
 }
 
 // ReportDialTermination removes entry from m.dialed map, allowing retry.
@@ -136,24 +144,24 @@ func (r *AbyssPeerRegistry) ReportDialTermination(identity *sec.AbyssPeerIdentit
 
 // TryCompletingPeer numbers the peer and registers it,
 // If there is no existing connection, and the peer is known.
-func (r *AbyssPeerRegistry) TryCompletingPeer(peer *AbyssPeer) (*AbyssPeer, *DialError) {
+func (r *AbyssPeerRegistry) TryCompletingPeer(peer *AbyssPeer) (*AbyssPeer, RegistryEntryStatus) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 
 	if _, ok := r.known[peer.ID()]; !ok {
-		return nil, &DialError{T: DE_UnknownPeer}
+		return nil, RE_UnknownPeer
 	}
 
 	_, ok := r.connected[peer.ID()]
 	if ok {
-		return nil, &DialError{T: DE_Redundant}
+		return nil, RE_Redundant
 	}
 
 	r.peer_id_cnt++
 	peer.internal_id = r.peer_id_cnt
 	r.connected[peer.ID()] = peer
 	r.tls_certs[sec.HashTlsCertificate(peer.client_tls_cert)] = peer.ID()
-	return peer, nil
+	return peer, RE_OK
 }
 
 // ReportPeerClose is called from AbyssPeer.

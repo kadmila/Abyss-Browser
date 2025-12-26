@@ -164,15 +164,18 @@ func (n *AbyssNode) Serve() error {
 		var connection quic.Connection
 		connection, err = n.listener.Accept(n.service_ctx)
 		if err != nil {
-			// QUIC handshake failure
-			var net_err HandshakeTransportError
+			var addr netip.AddrPort
 			if connection != nil {
-				net_err.RemoteAddr = connection.RemoteAddr().(*net.UDPAddr).AddrPort()
+				addr = connection.RemoteAddr().(*net.UDPAddr).AddrPort()
 			}
-			net_err.IsDialing = false
-			net_err.Stage = HS_Connection
-			net_err.Underlying = err
-			n.backlogPushErr(&net_err)
+			n.backlogPushErr(NewHandshakeError(
+				err,
+				addr,
+				"",
+				false,
+				HS_Connection,
+				HS_Fail_TransportFail,
+			))
 			break
 		}
 
@@ -224,9 +227,16 @@ func (n *AbyssNode) EraseKnownPeer(id string) {
 func (n *AbyssNode) Dial(id string, addr netip.AddrPort) error {
 	// query identity and dialing permission
 	// TODO: this should be separated.
-	peer_identity, err := n.registry.GetPeerIdentityIfDialable(id, addr.Addr())
-	if err != nil {
-		return err
+	peer_identity, registry_status := n.registry.GetPeerIdentityIfDialable(id, addr.Addr())
+	if registry_status != RE_OK {
+		return NewHandshakeError(
+			errors.New("unknown peer"),
+			addr,
+			id,
+			true,
+			HS_Connection,
+			HS_Fail_UnknownPeer,
+		)
 	}
 
 	go n.dialRoutine(addr, peer_identity)
