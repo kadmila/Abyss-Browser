@@ -87,14 +87,14 @@ func World_ObjectAppend(
 	// Parse peer handles array
 	peers := make([]ani.IAbyssPeer, peer_count)
 	h_peers_slice := (*[1 << 28]C.uintptr_t)(unsafe.Pointer(h_peers))[:peer_count]
-	for i := 0; i < int(peer_count); i++ {
+	for i := range int(peer_count) {
 		peers[i] = cgo.Handle(h_peers_slice[i]).Value().(ani.IAbyssPeer)
 	}
 
 	// Parse peer session IDs array (each is 16 bytes)
 	peer_session_ids := make([]uuid.UUID, peer_count)
 	peer_session_id_bufs_slice := (*[1 << 28]*C.char)(unsafe.Pointer(peer_session_id_bufs))[:peer_count]
-	for i := 0; i < int(peer_count); i++ {
+	for i := range int(peer_count) {
 		peer_session_id_bytes := (*[16]byte)(unsafe.Pointer(peer_session_id_bufs_slice[i]))[:]
 		peer_session_ids[i], _ = uuid.FromBytes(peer_session_id_bytes)
 	}
@@ -105,7 +105,7 @@ func World_ObjectAppend(
 	object_transform_bufs_slice := (*[1 << 28]*C.float)(unsafe.Pointer(object_transform_bufs))[:object_count]
 	object_addr_bufs_slice := (*[1 << 28]*C.char)(unsafe.Pointer(object_addr_bufs))[:object_count]
 
-	for i := 0; i < int(object_count); i++ {
+	for i := range int(object_count) {
 		// Parse object ID (16 bytes)
 		object_id_bytes := (*[16]byte)(unsafe.Pointer(object_id_bufs_slice[i]))[:]
 		objects[i].ID, _ = uuid.FromBytes(object_id_bytes)
@@ -138,7 +138,7 @@ func World_ObjectDelete(
 	// Parse peer handles array
 	peers := make([]ani.IAbyssPeer, peer_count)
 	h_peers_slice := (*[1 << 28]C.uintptr_t)(unsafe.Pointer(h_peers))[:peer_count]
-	for i := 0; i < int(peer_count); i++ {
+	for i := range int(peer_count) {
 		peers[i] = cgo.Handle(h_peers_slice[i]).Value().(ani.IAbyssPeer)
 	}
 
@@ -153,7 +153,7 @@ func World_ObjectDelete(
 	// Parse object IDs array (each is 16 bytes)
 	object_ids := make([]uuid.UUID, object_count)
 	object_id_bufs_slice := (*[1 << 28]*C.char)(unsafe.Pointer(object_id_bufs))[:object_count]
-	for i := 0; i < int(object_count); i++ {
+	for i := range int(object_count) {
 		object_id_bytes := (*[16]byte)(unsafe.Pointer(object_id_bufs_slice[i]))[:]
 		object_ids[i], _ = uuid.FromBytes(object_id_bytes)
 	}
