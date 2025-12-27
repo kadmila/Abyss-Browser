@@ -4,8 +4,10 @@ package ahost
 
 import (
 	"context"
+	"net/http"
 	"net/netip"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
@@ -73,19 +75,12 @@ func (h *AbyssHost) Main() error {
 				continue // TODO: log handshake errors for diagnosis
 			}
 			// other errors are fatal.
+			close(h.event_ch)
 			return err
 		}
 
 		go h.servePeer(peer)
 	}
-}
-
-func (h *AbyssHost) ExposeWorldForJoin(world *and.World, path string) {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
-	h.world_path_mapping[world.SessionID()] = path
-	h.exposed_worlds[path] = world
 }
 
 // GetEvent blocks until an event is raised.
@@ -101,6 +96,115 @@ and.EANDWorldLeave
 EPeerConnected
 EPeerDisconnected
 */
-func (h *AbyssHost) GetEvent() (any, error) {
-	return nil, nil
+func (h *AbyssHost) GetEventCh() <-chan any {
+	return h.event_ch
+}
+
+func (h *AbyssHost) ExposeWorldForJoin(world *and.World, path string) {
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
+	other_world, ok := h.exposed_worlds[path]
+	if ok {
+		delete(h.world_path_mapping, other_world.SessionID())
+	}
+	h.exposed_worlds[path] = world
+
+	old_path, ok := h.world_path_mapping[world.SessionID()]
+	if ok {
+		delete(h.exposed_worlds, old_path)
+	}
+	h.world_path_mapping[world.SessionID()] = path
+}
+
+func (h *AbyssHost) HideWorld(world *and.World) {
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
+	path, ok := h.world_path_mapping[world.SessionID()]
+	if !ok {
+		return
+	}
+	delete(h.world_path_mapping, world.SessionID())
+	delete(h.exposed_worlds, path)
+}
+
+func (h *AbyssHost) Close() {
+	h.service_cancelfunc()
+}
+
+//// AbyssNode APIs
+
+func (h *AbyssHost) LocalAddrCandidates() []netip.AddrPort { return h.net.LocalAddrCandidates() }
+func (h *AbyssHost) ID() string                            { return h.net.ID() }
+func (h *AbyssHost) RootCertificate() string               { return h.net.RootCertificate() }
+func (h *AbyssHost) HandshakeKeyCertificate() string       { return h.net.HandshakeKeyCertificate() }
+func (h *AbyssHost) IssueTime() time.Time                  { return h.net.IssueTime() }
+
+func (h *AbyssHost) AppendKnownPeer(root_cert string, handshake_key_cert string) error {
+	return h.net.AppendKnownPeer(root_cert, handshake_key_cert)
+}
+func (h *AbyssHost) EraseKnownPeer(id string)                  { h.net.EraseKnownPeer(id) }
+func (h *AbyssHost) Dial(id string, addr netip.AddrPort) error { return h.net.Dial(id, addr) }
+func (h *AbyssHost) ConfigAbystGateway(config string) error    { return h.net.ConfigAbystGateway(config) }
+func (h *AbyssHost) NewAbystClient() (ani.IAbystClient, error) { return h.net.NewAbystClient() }
+func (h *AbyssHost) NewCollocatedHttp3Client() (*http.Client, error) {
+	return h.net.NewCollocatedHttp3Client()
+}
+
+//// World Session APIs
+
+// AcceptWorldSession accepts a peer session request for a world.
+// This creates an event queue, calls World.AcceptSession, and processes resulting events.
+func (h *AbyssHost) AcceptWorldSession(world *and.World, peer ani.IAbyssPeer, peerSessionID uuid.UUID) {
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
+	events := and.NewANDEventQueue()
+	peer_session := and.ANDPeerSession{
+		Peer:      peer,
+		SessionID: peerSessionID,
+	}
+	world.AcceptSession(events, peer_session)
+	h.handleANDEvent(events)
+}
+
+// DeclineWorldSession declines a peer session request for a world.
+// This creates an event queue, calls World.DeclineSession, and processes resulting events.
+func (h *AbyssHost) DeclineWorldSession(world *and.World, peer ani.IAbyssPeer, peerSessionID uuid.UUID, code int, message string) {
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
+	events := and.NewANDEventQueue()
+	peer_session := and.ANDPeerSession{
+		Peer:      peer,
+		SessionID: peerSessionID,
+	}
+	world.DeclineSession(events, peer_session, code, message)
+	h.handleANDEvent(events)
+}
+
+// CloseWorld closes a world and broadcasts RST to all peers.
+// This also cleans up the world from the host's tracking maps.
+func (h *AbyssHost) CloseWorld(world *and.World) {
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
+	world.Close()
+
+	// Clean up world from host's tracking maps
+	world_lsid := world.SessionID()
+
+	// Remove world from all peers' participating worlds
+	remaining_peers := world.Peers()
+	for _, peer := range remaining_peers {
+		delete(h.peer_participating_worlds[peer.ID()], world_lsid)
+	}
+
+	delete(h.worlds, world_lsid)
+	join_path, ok := h.world_path_mapping[world_lsid]
+	if ok {
+		delete(h.world_path_mapping, world_lsid)
+		delete(h.exposed_worlds, join_path)
+	}
 }
