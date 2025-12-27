@@ -208,3 +208,31 @@ func (h *AbyssHost) CloseWorld(world *and.World) {
 		delete(h.exposed_worlds, join_path)
 	}
 }
+
+// WorldObjectAppend sends SOA message to the specified peers in the world.
+func (h *AbyssHost) WorldObjectAppend(world *and.World, peers []ani.IAbyssPeer, peerSessionIDs []uuid.UUID, objects []and.ObjectInfo) {
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
+	for i, peer := range peers {
+		peer_session := and.ANDPeerSession{
+			Peer:      peer,
+			SessionID: peerSessionIDs[i],
+		}
+		world.SendObjectAppend(peer_session, objects)
+	}
+}
+
+// WorldObjectDelete sends SOD message to the specified peers in the world.
+func (h *AbyssHost) WorldObjectDelete(world *and.World, peers []ani.IAbyssPeer, peerSessionIDs []uuid.UUID, objectIDs []uuid.UUID) {
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
+	for i, peer := range peers {
+		peer_session := and.ANDPeerSession{
+			Peer:      peer,
+			SessionID: peerSessionIDs[i],
+		}
+		world.SendObjectDelete(peer_session, objectIDs)
+	}
+}

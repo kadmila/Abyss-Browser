@@ -159,3 +159,63 @@ func SendJDN_NoWorld(peer_session ANDPeerSession, code int, message string) erro
 		Message:         message,
 	})
 }
+
+// sendSOA sends SOA (Shared Object Append) message to a specific peer.
+func (w *World) sendSOA(target *peerWorldSessionState, objects []ObjectInfo) error {
+	rawObjects := functional.Filter(objects, func(obj ObjectInfo) RawObjectInfo {
+		return RawObjectInfo{
+			ID:        obj.ID.String(),
+			Address:   obj.Addr,
+			Transform: obj.Transform,
+		}
+	})
+
+	return target.Peer.Send(ahmp.SOA_T, RawSOA{
+		SenderSessionID: w.lsid.String(),
+		RecverSessionID: target.SessionID.String(),
+		Objects:         rawObjects,
+	})
+}
+
+// sendSOD sends SOD (Shared Object Delete) message to a specific peer.
+func (w *World) sendSOD(target *peerWorldSessionState, objectIDs []uuid.UUID) error {
+	rawObjectIDs := functional.Filter(objectIDs, func(oid uuid.UUID) string {
+		return oid.String()
+	})
+
+	return target.Peer.Send(ahmp.SOD_T, RawSOD{
+		SenderSessionID: w.lsid.String(),
+		RecverSessionID: target.SessionID.String(),
+		ObjectIDs:       rawObjectIDs,
+	})
+}
+
+// SendObjectAppend sends SOA message to the specified peer.
+// The peer must be a member of this world.
+func (w *World) SendObjectAppend(peer_session ANDPeerSession, objects []ObjectInfo) {
+	if w.is_closed {
+		return
+	}
+
+	entry, ok := w.entries[peer_session.Peer.ID()]
+	if !ok || entry.SessionID != peer_session.SessionID || entry.state != WS_MEM {
+		return
+	}
+
+	w.sendSOA(entry, objects)
+}
+
+// SendObjectDelete sends SOD message to the specified peer.
+// The peer must be a member of this world.
+func (w *World) SendObjectDelete(peer_session ANDPeerSession, objectIDs []uuid.UUID) {
+	if w.is_closed {
+		return
+	}
+
+	entry, ok := w.entries[peer_session.Peer.ID()]
+	if !ok || entry.SessionID != peer_session.SessionID || entry.state != WS_MEM {
+		return
+	}
+
+	w.sendSOD(entry, objectIDs)
+}

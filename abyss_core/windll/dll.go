@@ -123,7 +123,7 @@ func Host_WaitForEvent(
 	host := cgo.Handle(h).Value().(*ahost.AbyssHost)
 	event, ok := <-host.GetEventCh()
 	if !ok {
-		return marshalError(errors.New("Host Event Channel Closed"))
+		return marshalError(errors.New("host event channel closed"))
 	}
 
 	*event_type_out = C.int(getEventType(event))
@@ -281,3 +281,5 @@ func CloseAbyssClientCollocatedHttp3Client(h C.uintptr_t) {
 	// TODO: cleanup (if required)
 	deleteHandle(handle)
 }
+
+func main() {}
