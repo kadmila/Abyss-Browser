@@ -1,12 +1,5 @@
-using AbyssCLI.AML.Event;
-using System;
-using System.Diagnostics.Contracts;
-using System.IO;
-using System.Reflection.Metadata;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using static AbyssCLI.AbyssLibB;
 
 #nullable enable
 namespace AbyssCLI;
@@ -23,6 +16,8 @@ public static class AbyssLibB
     public const int GeneralTextMaxLength = 1024;
 
     #region P/Invoke Declarations
+#pragma warning disable IDE0079 //stupid
+#pragma warning disable SYSLIB1054
 
     [DllImport(DllName)] private static extern int Init();
     [DllImport(DllName)] private static extern int GetErrorBodyLength(IntPtr h_error);
@@ -90,6 +85,8 @@ public static class AbyssLibB
     [DllImport(DllName)] private static extern unsafe int Event_PeerConnected_Query(IntPtr h_event, IntPtr* peer_handle_out, byte* peer_id_buf_ptr, int peer_id_buf_len);
     [DllImport(DllName)] private static extern unsafe int Event_PeerDisconnected_Query(IntPtr h_event, byte* peer_id_buf_ptr, int peer_id_buf_len);
 
+#pragma warning restore SYSLIB1054
+#pragma warning restore IDE0079
     #endregion
 
     #region Initialization
