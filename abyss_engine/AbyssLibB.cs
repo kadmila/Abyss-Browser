@@ -24,70 +24,71 @@ public static class AbyssLibB
 
     #region P/Invoke Declarations
 
-    [DllImport(DllName)] private static extern int Init();
-    [DllImport(DllName)] private static extern int GetErrorBodyLength(IntPtr h_error);
-    [DllImport(DllName)] private static extern unsafe int GetErrorBody(IntPtr h_error, byte* buf_ptr, int buf_len);
-    [DllImport(DllName)] private static extern void CloseError(IntPtr h_error);
+    [LibraryImport(DllName)] private static extern int Init();
+    [LibraryImport(DllName)] private static extern int GetErrorBodyLength(IntPtr h_error);
+    [LibraryImport(DllName)] private static extern unsafe int GetErrorBody(IntPtr h_error, byte* buf_ptr, int buf_len);
+    [LibraryImport(DllName)] private static extern void CloseError(IntPtr h_error);
 
-    [DllImport(DllName)] private static extern unsafe IntPtr NewHost(byte* root_key_ptr, int root_key_len, IntPtr* host_out);
-    [DllImport(DllName)] private static extern void CloseHost(IntPtr h);
-    [DllImport(DllName)] private static extern IntPtr Host_Bind(IntPtr h);
-    [DllImport(DllName)] private static extern void Host_Serve(IntPtr h);
-    [DllImport(DllName)] private static extern unsafe IntPtr Host_WaitForEvent(IntPtr h, int* event_type_out, IntPtr* event_handle_out);
-    [DllImport(DllName)] private static extern void CloseEvent(IntPtr h);
-    [DllImport(DllName)] private static extern unsafe IntPtr Host_OpenWorld(IntPtr h, byte* world_url_ptr, int world_url_len, IntPtr* world_handle_out);
-    [DllImport(DllName)] private static extern unsafe IntPtr Host_JoinWorld(IntPtr h, IntPtr h_peer, byte* path_ptr, int path_len, IntPtr* world_handle_out);
-    [DllImport(DllName)] private static extern unsafe IntPtr Host_ExposeWorldForJoin(IntPtr h, IntPtr h_world, byte* path_ptr, int path_len);
-    [DllImport(DllName)] private static extern void Host_HideWorld(IntPtr h, IntPtr h_world);
-    [DllImport(DllName)] private static extern unsafe int Host_LocalAddrCandidates(IntPtr h, byte* buf_ptr, int buf_len);
-    [DllImport(DllName)] private static extern unsafe int Host_ID(IntPtr h, byte* buf_ptr, int buf_len);
-    [DllImport(DllName)] private static extern unsafe int Host_RootCertificate(IntPtr h, byte* buf_ptr, int buf_len);
-    [DllImport(DllName)] private static extern unsafe int Host_HandshakeKeyCertificate(IntPtr h, byte* buf_ptr, int buf_len);
-    [DllImport(DllName)] private static extern unsafe IntPtr Host_AppendKnownPeer(IntPtr h, byte* root_cert_ptr, int root_cert_len, byte* handshake_info_cert_ptr, int handshake_info_cert_len);
-    [DllImport(DllName)] private static extern unsafe IntPtr Host_EraseKnownPeer(IntPtr h, byte* id_ptr, int id_len);
-    [DllImport(DllName)] private static extern unsafe IntPtr Host_Dial(IntPtr h, byte* id_ptr, int id_len);
-    [DllImport(DllName)] private static extern unsafe IntPtr Host_ConfigAbystGateway(IntPtr h, byte* config_ptr, int config_len);
-    [DllImport(DllName)] private static extern IntPtr Host_NewAbystClient(IntPtr h);
-    [DllImport(DllName)] private static extern void CloseAbyssClient(IntPtr h);
-    [DllImport(DllName)] private static extern IntPtr Host_NewCollocatedHttp3Client(IntPtr h);
-    [DllImport(DllName)] private static extern void CloseAbyssClientCollocatedHttp3Client(IntPtr h);
+    [LibraryImport(DllName)] private static extern unsafe IntPtr NewHost(byte* root_key_ptr, int root_key_len, IntPtr* host_out);
+    [LibraryImport(DllName)] private static extern void CloseHost(IntPtr h);
+    [LibraryImport(DllName)] private static extern IntPtr Host_Bind(IntPtr h);
+    [LibraryImport(DllName)] private static extern void Host_Serve(IntPtr h);
+    [LibraryImport(DllName)] private static extern unsafe IntPtr Host_WaitForEvent(IntPtr h, int* event_type_out, IntPtr* event_handle_out);
+    [LibraryImport(DllName)] private static extern void CloseEvent(IntPtr h);
+    [LibraryImport(DllName)] private static extern unsafe IntPtr Host_OpenWorld(IntPtr h, byte* world_url_ptr, int world_url_len, IntPtr* world_handle_out);
+    [LibraryImport(DllName)] private static extern unsafe IntPtr Host_JoinWorld(IntPtr h, IntPtr h_peer, byte* path_ptr, int path_len, IntPtr* world_handle_out);
+    [LibraryImport(DllName)] private static extern unsafe IntPtr Host_ExposeWorldForJoin(IntPtr h, IntPtr h_world, byte* path_ptr, int path_len);
+    [LibraryImport(DllName)] private static extern void Host_HideWorld(IntPtr h, IntPtr h_world);
+    [LibraryImport(DllName)] private static extern unsafe int Host_LocalAddrCandidates(IntPtr h, byte* buf_ptr, int buf_len);
+    [LibraryImport(DllName)] private static extern unsafe int Host_ID(IntPtr h, byte* buf_ptr, int buf_len);
+    [LibraryImport(DllName)] private static extern unsafe int Host_RootCertificate(IntPtr h, byte* buf_ptr, int buf_len);
+    [LibraryImport(DllName)] private static extern unsafe int Host_HandshakeKeyCertificate(IntPtr h, byte* buf_ptr, int buf_len);
+    [LibraryImport(DllName)] private static extern unsafe IntPtr Host_AppendKnownPeer(IntPtr h, byte* root_cert_ptr, int root_cert_len, byte* handshake_info_cert_ptr, int handshake_info_cert_len);
+    [LibraryImport(DllName)] private static extern unsafe IntPtr Host_EraseKnownPeer(IntPtr h, byte* id_ptr, int id_len);
+    [LibraryImport(DllName)] private static extern unsafe IntPtr Host_Dial(IntPtr h, byte* id_ptr, int id_len);
+    [LibraryImport(DllName)] private static extern unsafe IntPtr Host_ConfigAbystGateway(IntPtr h, byte* config_ptr, int config_len);
+    [LibraryImport(DllName)] private static extern IntPtr Host_NewAbystClient(IntPtr h);
+    [LibraryImport(DllName)] private static extern void CloseAbyssClient(IntPtr h);
+    [LibraryImport(DllName)] private static extern IntPtr Host_NewCollocatedHttp3Client(IntPtr h);
+    [LibraryImport(DllName)] private static extern void CloseAbyssClientCollocatedHttp3Client(IntPtr h);
 
-    [DllImport(DllName)] private static extern void ClosePeer(IntPtr h_peer);
+    [LibraryImport(DllName)] private static extern void ClosePeer(IntPtr h_peer);
 
-    [DllImport(DllName)] private static extern unsafe IntPtr AbystClient_Get(IntPtr h_client, byte* peer_id_ptr, int peer_id_len, byte* path_ptr, int path_len, IntPtr* result_handle_out, CompleteTaskCompletionSourceCallback waiter_callback, IntPtr waiter_callback_arg);
-    [DllImport(DllName)] private static extern unsafe IntPtr AbystClient_Post(IntPtr h_client, IntPtr h_event, byte* peer_id_ptr, int peer_id_len, byte* path_ptr, int path_len, byte* content_type_ptr, int content_type_len, byte* body_ptr, int body_len, IntPtr* result_handle_out);
-    [DllImport(DllName)] private static extern unsafe IntPtr AbystClient_Head(IntPtr h_client, IntPtr h_event, byte* peer_id_ptr, int peer_id_len, byte* path_ptr, int path_len, IntPtr* result_handle_out);
+    [LibraryImport(DllName)] private static extern unsafe IntPtr AbystClient_Get(IntPtr h_client, byte* peer_id_ptr, int peer_id_len, byte* path_ptr, int path_len, IntPtr* result_handle_out, CompleteTaskCompletionSourceCallback waiter_callback, IntPtr waiter_callback_arg);
+    [LibraryImport(DllName)] private static extern unsafe IntPtr AbystClient_Post(IntPtr h_client, IntPtr h_event, byte* peer_id_ptr, int peer_id_len, byte* path_ptr, int path_len, byte* content_type_ptr, int content_type_len, byte* body_ptr, int body_len, IntPtr* result_handle_out);
+    [LibraryImport(DllName)] private static extern unsafe IntPtr AbystClient_Head(IntPtr h_client, IntPtr h_event, byte* peer_id_ptr, int peer_id_len, byte* path_ptr, int path_len, IntPtr* result_handle_out);
 
-    [DllImport(DllName)] private static extern unsafe IntPtr Http3Client_Get(IntPtr h_client, byte* url_ptr, int url_len, IntPtr* result_handle_out, CompleteTaskCompletionSourceCallback waiter_callback, IntPtr waiter_callback_arg);
-    [DllImport(DllName)] private static extern unsafe IntPtr Http3Client_Post(IntPtr h_client, IntPtr h_event, byte* url_ptr, int url_len, byte* content_type_ptr, int content_type_len, byte* body_ptr, int body_len, IntPtr* result_handle_out);
-    [DllImport(DllName)] private static extern unsafe IntPtr Http3Client_Head(IntPtr h_client, IntPtr h_event, byte* url_ptr, int url_len, IntPtr* result_handle_out);
+    [LibraryImport(DllName)] private static extern unsafe IntPtr Http3Client_Get(IntPtr h_client, byte* url_ptr, int url_len, IntPtr* result_handle_out, CompleteTaskCompletionSourceCallback waiter_callback, IntPtr waiter_callback_arg);
+    [LibraryImport(DllName)] private static extern unsafe IntPtr Http3Client_Post(IntPtr h_client, IntPtr h_event, byte* url_ptr, int url_len, byte* content_type_ptr, int content_type_len, byte* body_ptr, int body_len, IntPtr* result_handle_out);
+    [LibraryImport(DllName)] private static extern unsafe IntPtr Http3Client_Head(IntPtr h_client, IntPtr h_event, byte* url_ptr, int url_len, IntPtr* result_handle_out);
 
-    [DllImport(DllName)] private static extern void CloseHttpIOResult(IntPtr h_result);
-    [DllImport(DllName)] private static extern unsafe IntPtr HttpIOResult_Unpack(IntPtr h_result, IntPtr* response_handle_out);
-    [DllImport(DllName)] private static extern int HttpResponse_StatusCode(IntPtr h_response);
-    [DllImport(DllName)] private static extern unsafe int HttpResponse_GetHeader(IntPtr h_response, byte* key_ptr, int key_len, byte* value_buf_ptr, int value_buf_len);
-    [DllImport(DllName)] private static extern unsafe int HttpResponse_GetAllHeaders(IntPtr h_response, byte* buf_ptr, int buf_len);
-    [DllImport(DllName)] private static extern unsafe int HttpResponse_ReadBody(IntPtr h_response, byte* buf_ptr, int buf_len);
-    [DllImport(DllName)] private static extern void CloseHttpResponse(IntPtr h_response);
+    [LibraryImport(DllName)] private static extern void CloseHttpIOResult(IntPtr h_result);
+    [LibraryImport(DllName)] private static extern unsafe IntPtr HttpIOResult_Unpack(IntPtr h_result, IntPtr* response_handle_out);
+    [LibraryImport(DllName)] private static extern int HttpResponse_StatusCode(IntPtr h_response);
+    [LibraryImport(DllName)] private static extern unsafe int HttpResponse_GetHeader(IntPtr h_response, byte* key_ptr, int key_len, byte* value_buf_ptr, int value_buf_len);
+    [LibraryImport(DllName)] private static extern unsafe int HttpResponse_GetAllHeaders(IntPtr h_response, byte* buf_ptr, int buf_len);
+    [LibraryImport(DllName)] private static extern unsafe int HttpResponse_ReadBody(IntPtr h_response, byte* buf_ptr, int buf_len);
+    [LibraryImport(DllName)] private static extern void CloseHttpResponse(IntPtr h_response);
 
-    [DllImport(DllName)] private static extern unsafe void World_AcceptSession(IntPtr h_host, IntPtr h_world, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf);
-    [DllImport(DllName)] private static extern unsafe void World_DeclineSession(IntPtr h_host, IntPtr h_world, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf, int code, byte* message_buf_ptr, int message_buf_len);
-    [DllImport(DllName)] private static extern void World_Close(IntPtr h_host, IntPtr h_world);
-    [DllImport(DllName)] private static extern unsafe void World_ObjectAppend(IntPtr h_host, IntPtr h_world, int peer_count, IntPtr* h_peers, byte** peer_session_id_bufs, int object_count, byte** object_id_bufs, float** object_transform_bufs, byte** object_addr_bufs, int* object_addr_buf_len);
-    [DllImport(DllName)] private static extern unsafe void World_ObjectDelete(IntPtr h_host, IntPtr h_world, int peer_count, IntPtr* h_peers, byte** peer_session_id_bufs, int object_count, byte** object_id_bufs);
+    [LibraryImport(DllName)] private static extern unsafe void World_AcceptSession(IntPtr h_host, IntPtr h_world, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf);
+    [LibraryImport(DllName)] private static extern unsafe void World_DeclineSession(IntPtr h_host, IntPtr h_world, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf, int code, byte* message_buf_ptr, int message_buf_len);
+    [LibraryImport(DllName)] private static extern void World_Close(IntPtr h_host, IntPtr h_world);
+    [LibraryImport(DllName)] private static extern unsafe void World_ObjectAppend(IntPtr h_host, IntPtr h_world, int peer_count, IntPtr* h_peers, byte** peer_session_id_bufs, int object_count, byte** object_id_bufs, float** object_transform_bufs, byte** object_addr_bufs, int* object_addr_buf_lens);
+    [LibraryImport(DllName)] private static extern unsafe void World_ObjectDelete(IntPtr h_host, IntPtr h_world, int peer_count, IntPtr* h_peers, byte** peer_session_id_bufs, int object_count, byte** object_id_bufs);
 
     // Event query functions
-    [DllImport(DllName)] private static extern unsafe int Event_WorldEnter_Query(IntPtr h_event, byte* world_session_id_buf, byte* url_buf_ptr, int url_buf_len);
-    [DllImport(DllName)] private static extern unsafe int Event_SessionRequest_Query(IntPtr h_event, byte* world_session_id_buf, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf);
-    [DllImport(DllName)] private static extern unsafe int Event_SessionReady_Query(IntPtr h_event, byte* world_session_id_buf, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf);
-    [DllImport(DllName)] private static extern unsafe int Event_SessionClose_Query(IntPtr h_event, byte* world_session_id_buf, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf);
-    [DllImport(DllName)] private static extern unsafe int Event_ObjectAppend_Query(IntPtr h_event, byte* world_session_id_buf, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf, int* object_count_out);
-    [DllImport(DllName)] private static extern unsafe int Event_ObjectAppend_GetObjects(IntPtr h_event, byte** object_id_bufs, float** object_transform_bufs, byte** object_addr_bufs, int object_addr_buf_len);
-    [DllImport(DllName)] private static extern unsafe int Event_ObjectDelete_Query(IntPtr h_event, byte* world_session_id_buf, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf, int* object_count_out);
-    [DllImport(DllName)] private static extern unsafe int Event_ObjectDelete_GetObjectIDs(IntPtr h_event, byte** object_id_bufs);
-    [DllImport(DllName)] private static extern unsafe int Event_WorldLeave_Query(IntPtr h_event, byte* world_session_id_buf, int* code_out, byte* message_buf_ptr, int message_buf_len);
-    [DllImport(DllName)] private static extern unsafe int Event_PeerConnected_Query(IntPtr h_event, IntPtr* peer_handle_out, byte* peer_id_buf_ptr, int peer_id_buf_len);
-    [DllImport(DllName)] private static extern unsafe int Event_PeerDisconnected_Query(IntPtr h_event, byte* peer_id_buf_ptr, int peer_id_buf_len);
+    [LibraryImport(DllName)] private static extern unsafe int Event_WorldEnter_Query(IntPtr h_event, byte* world_session_id_buf, byte* url_buf_ptr, int url_buf_len);
+    [LibraryImport(DllName)] private static extern unsafe int Event_SessionRequest_Query(IntPtr h_event, byte* world_session_id_buf, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf);
+    [LibraryImport(DllName)] private static extern unsafe int Event_SessionReady_Query(IntPtr h_event, byte* world_session_id_buf, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf);
+    [LibraryImport(DllName)] private static extern unsafe int Event_SessionClose_Query(IntPtr h_event, byte* world_session_id_buf, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf);
+    [LibraryImport(DllName)] private static extern unsafe int Event_ObjectAppend_Query(IntPtr h_event, byte* world_session_id_buf, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf, int* object_count_out);
+    [LibraryImport(DllName)] private static extern unsafe int Event_ObjectAppend_QueryObjectAddrLength(IntPtr h_event, int* object_addr_length_buf);
+    [LibraryImport(DllName)] private static extern unsafe int Event_ObjectAppend_GetObjects(IntPtr h_event, byte** object_id_bufs, float** object_transform_bufs, byte** object_addr_bufs, int* object_addr_buf_lens);
+    [LibraryImport(DllName)] private static extern unsafe int Event_ObjectDelete_Query(IntPtr h_event, byte* world_session_id_buf, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf, int* object_count_out);
+    [LibraryImport(DllName)] private static extern unsafe int Event_ObjectDelete_GetObjectIDs(IntPtr h_event, byte** object_id_bufs);
+    [LibraryImport(DllName)] private static extern unsafe int Event_WorldLeave_Query(IntPtr h_event, byte* world_session_id_buf, int* code_out, byte* message_buf_ptr, int message_buf_len);
+    [LibraryImport(DllName)] private static extern unsafe int Event_PeerConnected_Query(IntPtr h_event, IntPtr* peer_handle_out, byte* peer_id_buf_ptr, int peer_id_buf_len);
+    [LibraryImport(DllName)] private static extern unsafe int Event_PeerDisconnected_Query(IntPtr h_event, byte* peer_id_buf_ptr, int peer_id_buf_len);
 
     #endregion
 
@@ -191,7 +192,7 @@ public static class AbyssLibB
 
         public void Serve() => Host_Serve(_handle);
 
-        public (EventType Type, dynamic? Event, Error?) WaitForEvent()
+        public (dynamic? Event, Error?) WaitForEvent()
         {
             unsafe
             {
@@ -199,7 +200,7 @@ public static class AbyssLibB
                 IntPtr eventHandle;
                 IntPtr errHandle = Host_WaitForEvent(_handle, &eventType, &eventHandle);
                 if (errHandle != IntPtr.Zero)
-                    return (EventType.None, null, new Error(errHandle));
+                    return (null, new Error(errHandle));
 
                 dynamic? ev = (EventType)eventType switch
                 {
@@ -214,7 +215,7 @@ public static class AbyssLibB
                     EventType.PeerDisconnected => new EPeerDisconnected(eventHandle),
                     _ => null
                 };
-                return ((EventType)eventType, ev, null);
+                return (ev, null);
             }
         }
 
@@ -555,45 +556,65 @@ public static class AbyssLibB
                     PeerID = Encoding.UTF8.GetString(peerIdBuf, 0, peerIdLen);
                     Objects = new ObjectInfo[objectCount];
                 }
+            }
 
-                var objectIdBuffers = new byte[16 * objectCount];
-                var transformBuffers = new float[16 * objectCount];
-                var objectAddrBuffers = new byte[(UrlMaxLength+1) * objectCount];
+            int[] objectAddrLen = new int[objectCount];
+            int objectAddrLenTotal;
+            unsafe
+            {
+                fixed(int* objAdrLenPtr =  objectAddrLen)
+                {
+                    objectAddrLenTotal = Event_ObjectAppend_QueryObjectAddrLength(handle, objAdrLenPtr);
+                }
+            }
 
+            var objectIdBuffers = new byte[16 * objectCount];
+            var transformBuffers = new float[7 * objectCount];
+            var objectAddrBuffers = new byte[objectAddrLenTotal];
+            unsafe
+            {
                 fixed (byte* objIdPtr = objectIdBuffers)
                 fixed (float* trPtr = transformBuffers)
-                fixed (byte* objUrlPtr = objectAddrBuffers)
+                fixed (byte* objAddrPtr = objectAddrBuffers)
                 {
                     var objIdDp = new byte*[objectCount];
                     var trDp = new float*[objectCount];
-                    var objUrlDp = new byte*[objectCount];
+                    var objAddrDp = new byte*[objectCount];
 
+                    var objAddrPos = 0;
                     for (int i = 0; i < objectCount; i++)
                     {
                         objIdDp[i] = objIdPtr + (16 * i);
-                        trDp[i] = trPtr + (16 * i);
-                        objUrlDp[i] = objUrlPtr + ((UrlMaxLength + 1) * i);
+                        trDp[i] = trPtr + (7 * i);
+                        objAddrDp[i] = objAddrPtr + objAddrPos;
+                        objAddrPos += objectAddrLen[i];
                     }
 
                     fixed (byte** objIdDpPtr = objIdDp)
                     fixed (float** trDpPtr = trDp)
-                    fixed (byte** objUrlDpPtr = objUrlDp)
+                    fixed (byte** objAddrDpPtr = objAddrDp)
+                    fixed (int* objAddrLenPtr =  objectAddrLen)
                     {
-                        var result = Event_ObjectAppend_GetObjects(handle, objIdDpPtr, trDpPtr, objUrlDpPtr, UrlMaxLength);
-                        if (result != 0) {
+                        var result = Event_ObjectAppend_GetObjects(handle, objIdDpPtr, trDpPtr, objAddrDpPtr, objAddrLenPtr);
+                        if (result != 0)
+                        {
                             throw new InternalBufferOverflowException("Event_ObjectAppend_GetObjects");
                         }
                     }
                 }
 
-                for (int i = 0; i < objectCount; i++)
                 {
-                    Objects[i] = new ObjectInfo
+                    var objAddrPos = 0;
+                    for (int i = 0; i < objectCount; i++)
                     {
-                        Id = new Guid(new ReadOnlySpan<byte>(objectIdBuffers, i * 16, 16)),
-                        Transform = transformBuffers.AsSpan(i * 16, 16).ToArray(),
-                        Address = Encoding.UTF8.GetString(objectAddrBuffers, i * (UrlMaxLength + 1), UrlMaxLength).TrimEnd('\0')
-                    };
+                        Objects[i] = new ObjectInfo
+                        {
+                            Id = new Guid(new ReadOnlySpan<byte>(objectIdBuffers, i * 16, 16)),
+                            Transform = transformBuffers.AsSpan(i * 7, 7).ToArray(),
+                            Address = Encoding.UTF8.GetString(objectAddrBuffers, objAddrPos, objectAddrLen[i]).TrimEnd('\0'),
+                        };
+                        objAddrPos += objectAddrLen[i];
+                    }
                 }
             }
             CloseEvent(handle);
@@ -961,7 +982,7 @@ public static class AbyssLibB
 
     internal class EventWaiter
     {
-        TaskCompletionSource<bool> tcs;
+        readonly TaskCompletionSource<bool> tcs;
         GCHandle handle;
         public IntPtr HandlePtr { get; }
         public EventWaiter()

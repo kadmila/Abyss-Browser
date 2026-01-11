@@ -17,6 +17,7 @@ public class AbystResponseHeaderJson
     public Dictionary<string, string[]> Header { get; set; } = [];
 }
 
+[Obsolete("AbyssLib is deprecated, please use AbyssLibB instead.")]
 public static class AbyssLib
 {
     public enum ErrorCode : int

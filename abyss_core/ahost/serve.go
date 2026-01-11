@@ -2,15 +2,12 @@ package ahost
 
 import (
 	"errors"
-	"fmt"
-	"time"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/google/uuid"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ahmp"
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
-	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
 )
 
 type parsibleAhmp[T any] interface {
@@ -53,7 +50,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer, participating_worlds map[uuid
 			if err != nil {
 				return err
 			}
-			fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4])
+			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4])
 			if err := h.onJN(events, JN, and.ANDPeerSession{Peer: peer, SessionID: JN.SenderSessionID}, participating_worlds); err != nil {
 				return err
 			}
@@ -62,7 +59,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer, participating_worlds map[uuid
 			if err != nil {
 				return err
 			}
-			fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4])
+			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4])
 			peer_session := and.ANDPeerSession{Peer: peer, SessionID: JOK.SenderSessionID}
 			if err := h.onJOK(events, JOK, peer_session, participating_worlds); err != nil {
 				return err
@@ -72,7 +69,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer, participating_worlds map[uuid
 			if err != nil {
 				return err
 			}
-			fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4])
+			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4])
 			if err := h.onJDN(events, JDN, peer, participating_worlds); err != nil {
 				return err
 			}
@@ -81,7 +78,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer, participating_worlds map[uuid
 			if err != nil {
 				return err
 			}
-			fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4])
+			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4])
 			peer_session := and.ANDPeerSession{Peer: peer, SessionID: JNI.SenderSessionID}
 			if err := h.onJNI(events, JNI, peer_session, participating_worlds, JNI.Neighbor); err != nil {
 				return err
@@ -91,7 +88,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer, participating_worlds map[uuid
 			if err != nil {
 				return err
 			}
-			fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4])
+			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4])
 			peer_session := and.ANDPeerSession{Peer: peer, SessionID: MEM.SenderSessionID}
 			if err := h.onMEM(events, MEM, peer_session, participating_worlds); err != nil {
 				return err
@@ -101,7 +98,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer, participating_worlds map[uuid
 			if err != nil {
 				return err
 			}
-			fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4], functional.Accum_all(SJN.MemberInfos, "", func(entry and.ANDPeerSessionIdentity, str string) string { return entry.PeerID[:4] + " " + str }))
+			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4], functional.Accum_all(SJN.MemberInfos, "", func(entry and.ANDPeerSessionIdentity, str string) string { return entry.PeerID[:4] + " " + str }))
 			peer_session := and.ANDPeerSession{Peer: peer, SessionID: SJN.SenderSessionID}
 			if err := h.onSJN(events, SJN, peer_session, participating_worlds); err != nil {
 				return err
@@ -111,7 +108,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer, participating_worlds map[uuid
 			if err != nil {
 				return err
 			}
-			fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4], functional.Accum_all(CRR.MemberInfos, "", func(entry and.ANDPeerSessionIdentity, str string) string { return entry.PeerID[:4] + " " + str }))
+			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4], functional.Accum_all(CRR.MemberInfos, "", func(entry and.ANDPeerSessionIdentity, str string) string { return entry.PeerID[:4] + " " + str }))
 			peer_session := and.ANDPeerSession{Peer: peer, SessionID: CRR.SenderSessionID}
 			if err := h.onCRR(events, CRR, peer_session, participating_worlds); err != nil {
 				return err
@@ -121,7 +118,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer, participating_worlds map[uuid
 			if err != nil {
 				return err
 			}
-			fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4])
+			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4])
 			peer_session := and.ANDPeerSession{Peer: peer, SessionID: RST.SenderSessionID}
 			if err := h.onRST(events, RST, peer_session, participating_worlds); err != nil {
 				return err

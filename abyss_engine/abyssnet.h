@@ -142,7 +142,8 @@ extern __declspec(dllexport) int Event_SessionRequest_Query(uintptr_t h_event, c
 extern __declspec(dllexport) int Event_SessionReady_Query(uintptr_t h_event, char* world_session_id_buf, char* peer_id_buf_ptr, int peer_id_buf_len, char* peer_session_id_buf);
 extern __declspec(dllexport) int Event_SessionClose_Query(uintptr_t h_event, char* world_session_id_buf, char* peer_id_buf_ptr, int peer_id_buf_len, char* peer_session_id_buf);
 extern __declspec(dllexport) int Event_ObjectAppend_Query(uintptr_t h_event, char* world_session_id_buf, char* peer_id_buf_ptr, int peer_id_buf_len, char* peer_session_id_buf, int* object_count_out);
-extern __declspec(dllexport) int Event_ObjectAppend_GetObjects(uintptr_t h_event, char** object_id_bufs, float** object_transform_bufs, char** object_addr_bufs, int object_addr_buf_len);
+extern __declspec(dllexport) int Event_ObjectAppend_QueryObjectAddrLength(uintptr_t h_event, int* object_addr_length_buf);
+extern __declspec(dllexport) int Event_ObjectAppend_GetObjects(uintptr_t h_event, char** object_id_bufs, float** object_transform_bufs, char** object_addr_bufs, int* object_addr_buf_lens);
 extern __declspec(dllexport) int Event_ObjectDelete_Query(uintptr_t h_event, char* world_session_id_buf, char* peer_id_buf_ptr, int peer_id_buf_len, char* peer_session_id_buf, int* object_count_out);
 extern __declspec(dllexport) int Event_ObjectDelete_GetObjectIDs(uintptr_t h_event, char** object_id_bufs);
 extern __declspec(dllexport) int Event_WorldLeave_Query(uintptr_t h_event, char* world_session_id_buf, int* code_out, char* message_buf_ptr, int message_buf_len);

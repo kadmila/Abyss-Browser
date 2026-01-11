@@ -1,12 +1,15 @@
-using AbyssCLI.Client;
 using AbyssCLI;
+using AbyssCLI.AML.Event;
+using AbyssCLI.Client;
 using System.IO;
+using System.Text;
+using static AbyssCLI.AbyssLibB;
 
 internal class Program
 {
     public static async Task Main()
     {
-        await Test();
+        await TestObjectAppend();
 
         try
         {
@@ -123,21 +126,128 @@ internal class Program
                 }
             }
         }
-        catch (FileNotFoundException ex)
+        catch (Exception ex)
         {
-            Client.CerrWriteLine($"File not found: {ex.Message}");
-            Environment.Exit(1);
+            Console.WriteLine(ex);
         }
-        catch (IOException ex)
+
+        Environment.Exit(0);
+    }
+
+    public static async Task TestObjectAppend()
+    {
+        try
         {
-            Client.CerrWriteLine($"IO error: {ex.Message}");
-            Environment.Exit(1);
+            // 1) Initialize library
+            _ = AbyssLibB.Initialize();
+
+            // 2) Create host from testkey.pem
+            string pemPath = "../../../testkey.pem";
+            string pemPath2 = "../../../testkey2.pem";
+
+            byte[] keyBytes = File.ReadAllBytes(pemPath);
+            byte[] keyBytes2 = File.ReadAllBytes(pemPath2);
+
+            var (host, _) = AbyssLibB.Host.Create(keyBytes);
+            var (host2, _) = AbyssLibB.Host.Create(keyBytes2);
+
+            using (host)
+            using (host2)
+            {
+                host.Bind();
+                host.Serve();
+
+                host2.Bind();
+                host2.Serve();
+
+                host.AppendKnownPeer(Encoding.UTF8.GetBytes(host2.RootCertificate), Encoding.UTF8.GetBytes(host2.GetHandshakeKeyCertificate()));
+                host2.AppendKnownPeer(Encoding.UTF8.GetBytes(host.RootCertificate), Encoding.UTF8.GetBytes(host.GetHandshakeKeyCertificate()));
+
+                var host_task = Task.Run(() =>
+                {
+                    var (world, error_wo) = host.OpenWorld("https://world.com");
+                    if (error_wo != null)
+                    {
+                        Console.WriteLine(error_wo);
+                        Environment.Exit(1);
+                    }
+                    host.ExposeWorldForJoin(world, "/");
+
+                    var (evnt, evnt_error) = host.WaitForEvent();
+                    if (evnt_error != null)
+                    {
+                        Console.WriteLine(evnt_error);
+                        Environment.Exit(1);
+                    }
+                    if (evnt is not EWorldEnter)
+                    {
+                        Console.WriteLine("invalid event object");
+                        Environment.Exit(1);
+                    }
+                    var e_we = evnt as EWorldEnter;
+                    Console.WriteLine("Opened world: " + e_we.URL);
+
+                    var error = host.Dial(host2.ID);
+                    if (error != null)
+                    {
+                        Console.WriteLine(error);
+                        Environment.Exit(1);
+                    }
+
+                    (evnt, evnt_error) = host.WaitForEvent();
+                    var e_pc = evnt as EPeerConnected;
+
+                    (evnt, evnt_error) = host.WaitForEvent();
+                    var e_srq = evnt as ESessionRequest;
+                    world.AcceptSession(e_srq.PeerID, e_srq.PeerWSID);
+                   
+                    (evnt, evnt_error) = host.WaitForEvent();
+                    var e_srd = evnt as ESessionReady;
+
+                    (evnt, evnt_error) = host.WaitForEvent();
+                    var e_oa = evnt as EObjectAppend;
+
+                    Console.WriteLine(e_oa.Objects[0].Address);
+                });
+
+                var host2_task = Task.Run(() =>
+                {
+                    var (evnt, evnt_error) = host2.WaitForEvent();
+                    if (evnt_error != null)
+                    {
+                        Console.WriteLine(evnt_error);
+                        Environment.Exit(1);
+                    }
+                    if (evnt is not EPeerConnected)
+                    {
+                        Console.WriteLine("invalid event object");
+                        Environment.Exit(1);
+                    }
+                    var e_pc = evnt as EPeerConnected;
+
+                    var (world, join_error) = host2.JoinWorld(e_pc.Peer, "/");
+                    (evnt, evnt_error) = host2.WaitForEvent();
+                    var e_we = evnt as EWorldEnter;
+
+                    (evnt, evnt_error) = host2.WaitForEvent();
+                    var e_srd = evnt as ESessionReady;
+
+                    var obj = new ObjectInfo()
+                    {
+                        Id = Guid.NewGuid(),
+                        Transform = [1, 2, 3, 4, 5, 6, 7, 8],
+                        Address = "https://some-object.com",
+                    };
+                    world.ObjectAppend([(e_pc.Peer, e_srd.PeerWSID)], [obj]);
+                });
+
+                await host_task;
+                await host2_task;
+            }
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
-            Client.CerrWriteLine($"Unexpected error: {ex.GetType().Name}: {ex.Message}");
-            Client.CerrWriteLine($"Stack trace: {ex.StackTrace}");
-            Environment.Exit(1);
+            Console.WriteLine(ex);
         }
 
         Environment.Exit(0);

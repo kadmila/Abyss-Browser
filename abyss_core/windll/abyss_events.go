@@ -175,19 +175,38 @@ func Event_ObjectAppend_Query(
 	return TryMarshalBytes(peer_id_buf_ptr, peer_id_buf_len, peer_id_bytes)
 }
 
+//export Event_ObjectAppend_QueryObjectAddrLength
+func Event_ObjectAppend_QueryObjectAddrLength(
+	h_event C.uintptr_t,
+	object_addr_length_buf *C.int,
+) C.int {
+	event := cgo.Handle(h_event).Value().(*and.EANDObjectAppend)
+
+	object_addr_lenghth_slice := (*[1 << 28]C.int)(unsafe.Pointer(object_addr_length_buf))[:len(event.Objects)]
+
+	sum := 0
+	for i, entry := range event.Objects {
+		object_addr_lenghth_slice[i] = C.int(len(entry.Addr))
+		sum += len(entry.Addr)
+	}
+
+	return C.int(sum)
+}
+
 //export Event_ObjectAppend_GetObjects
 func Event_ObjectAppend_GetObjects(
 	h_event C.uintptr_t,
 	object_id_bufs **C.char,
 	object_transform_bufs **C.float,
-	object_addr_bufs **C.char, object_addr_buf_len C.int,
+	object_addr_bufs **C.char, object_addr_buf_lens *C.int,
 ) C.int {
 	event := cgo.Handle(h_event).Value().(*and.EANDObjectAppend)
 
 	count := len(event.Objects)
-	id_buf_ptrs := (*[1 << 20]*C.char)(unsafe.Pointer(object_id_bufs))[:count]
-	transform_buf_ptrs := (*[1 << 20]*C.float)(unsafe.Pointer(object_transform_bufs))[:count]
-	addr_buf_ptrs := (*[1 << 20]*C.char)(unsafe.Pointer(object_addr_bufs))[:count]
+	id_buf_ptrs := (*[1 << 28]*C.char)(unsafe.Pointer(object_id_bufs))[:count]
+	transform_buf_ptrs := (*[1 << 28]*C.float)(unsafe.Pointer(object_transform_bufs))[:count]
+	addr_buf_ptrs := (*[1 << 28]*C.char)(unsafe.Pointer(object_addr_bufs))[:count]
+	addr_buf_lens := (*[1 << 28]C.int)(unsafe.Pointer(object_addr_buf_lens))[:count]
 
 	for i, obj := range event.Objects {
 		// Copy UUID bytes (16 bytes)
@@ -200,9 +219,9 @@ func Event_ObjectAppend_GetObjects(
 
 		// Copy address to buffer
 		addr_bytes := []byte(obj.Addr)
-		result := TryMarshalBytes(addr_buf_ptrs[i], object_addr_buf_len, addr_bytes)
-		if result != 0 {
-			return BUFFER_OVERFLOW
+		result := TryMarshalBytes(addr_buf_ptrs[i], addr_buf_lens[i], addr_bytes)
+		if result < 0 {
+			return result
 		}
 	}
 
@@ -245,7 +264,7 @@ func Event_ObjectDelete_GetObjectIDs(
 	event := cgo.Handle(h_event).Value().(*and.EANDObjectDelete)
 
 	count := len(event.ObjectIDs)
-	id_buf_ptrs := (*[1 << 20]*C.char)(unsafe.Pointer(object_id_bufs))[:count]
+	id_buf_ptrs := (*[1 << 28]*C.char)(unsafe.Pointer(object_id_bufs))[:count]
 
 	for i, objID := range event.ObjectIDs {
 		// Copy UUID bytes (16 bytes)
