@@ -73,7 +73,7 @@ public static class AbyssLibB
     [DllImport(DllName)] private static extern unsafe void World_AcceptSession(IntPtr h_host, IntPtr h_world, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf);
     [DllImport(DllName)] private static extern unsafe void World_DeclineSession(IntPtr h_host, IntPtr h_world, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf, int code, byte* message_buf_ptr, int message_buf_len);
     [DllImport(DllName)] private static extern void World_Close(IntPtr h_host, IntPtr h_world);
-    [DllImport(DllName)] private static extern unsafe void World_ObjectAppend(IntPtr h_host, IntPtr h_world, int peer_count, IntPtr* h_peers, byte** peer_session_id_bufs, int object_count, byte** object_id_bufs, float** object_transform_bufs, byte** object_addr_bufs, int object_addr_buf_len);
+    [DllImport(DllName)] private static extern unsafe void World_ObjectAppend(IntPtr h_host, IntPtr h_world, int peer_count, IntPtr* h_peers, byte** peer_session_id_bufs, int object_count, byte** object_id_bufs, float** object_transform_bufs, byte** object_addr_bufs, int* object_addr_buf_len);
     [DllImport(DllName)] private static extern unsafe void World_ObjectDelete(IntPtr h_host, IntPtr h_world, int peer_count, IntPtr* h_peers, byte** peer_session_id_bufs, int object_count, byte** object_id_bufs);
 
     // Event query functions
@@ -796,6 +796,147 @@ public static class AbyssLibB
                 fixed (byte* msgPtr = msgBytes)
                 {
                     World_DeclineSession(_host.Handle, _handle, pidPtr, pidBytes.Length, psidPtr, code, msgPtr, msgBytes.Length);
+                }
+            }
+        }
+
+        public void ObjectAppend((Peer, Guid)[] targets, ObjectInfo[] info)
+        {
+            unsafe
+            {
+                var peerCount = targets.Length;
+                var objectCount = info.Length;
+
+                // Prepare peer handles and session IDs
+                var peerHandles = new IntPtr[peerCount];
+                var peerSessionIdBytes = new byte[16 * peerCount];
+                for (int i = 0; i < peerCount; i++)
+                {
+                    peerHandles[i] = targets[i].Item1.Handle;
+                    var sessionIdBytes = targets[i].Item2.ToByteArray();
+                    Array.Copy(sessionIdBytes, 0, peerSessionIdBytes, i * 16, 16);
+                }
+
+                // Prepare object data
+                var objectIdBytes = new byte[16 * objectCount];
+                var transformBytes = new float[7 * objectCount];
+                var objectAddrBytes = new byte[objectCount][];
+                var objectAddrBytesTotal = 0;
+                for (int i = 0; i < objectCount; i++)
+                {
+                    var idBytes = info[i].Id.ToByteArray();
+                    Array.Copy(idBytes, 0, objectIdBytes, i * 16, 16);
+
+                    var transform = info[i].Transform;
+                    Array.Copy(transform, 0, transformBytes, i * 7, 7);
+
+                    var addrBytes = Encoding.UTF8.GetBytes(info[i].Address);
+                    if (addrBytes.Length > UrlMaxLength)
+                        throw new ArgumentException($"Object address too long: {addrBytes.Length} > {UrlMaxLength}");
+                    objectAddrBytes[i] = addrBytes;
+                    objectAddrBytesTotal += addrBytes.Length;
+                }
+
+                // Second iteration - concatenate address utf-8 bytes
+                var objectAddrBytesCombined = new byte[objectAddrBytesTotal];
+                var currentPos = 0;
+                foreach (var item in objectAddrBytes)
+                {
+                    Array.Copy(item, 0, objectAddrBytesCombined, currentPos, item.Length);
+                }
+
+                // Pin and create pointer arrays
+                fixed (IntPtr* peerPtrs = peerHandles)
+                fixed (byte* sessionIdPtr = peerSessionIdBytes)
+                fixed (byte* objIdPtr = objectIdBytes)
+                fixed (float* trPtr = transformBytes)
+                fixed (byte* objAddrPtr = objectAddrBytesCombined)
+                {
+                    var sessionIdDp = new byte*[peerCount];
+                    var objIdDp = new byte*[objectCount];
+                    var trDp = new float*[objectCount];
+                    var objAddrDp = new byte*[objectCount];
+                    var objAddrLenSp = new int[objectCount];
+
+                    for (int i = 0; i < peerCount; i++)
+                    {
+                        sessionIdDp[i] = sessionIdPtr + (16 * i);
+                    }
+
+                    var objectAddrPos = 0;
+                    for (int i = 0; i < objectCount; i++)
+                    {
+                        objIdDp[i] = objIdPtr + (16 * i);
+                        trDp[i] = trPtr + (16 * i);
+                        objAddrDp[i] = objAddrPtr + objectAddrPos;
+
+                        var objAddrLength = objectAddrBytes[i].Length;
+                        objAddrLenSp[i] = objAddrLength;
+                        objectAddrPos += objAddrLength;
+                    }
+
+                    fixed (byte** sessionIdDpPtr = sessionIdDp)
+                    fixed (byte** objIdDpPtr = objIdDp)
+                    fixed (float** trDpPtr = trDp)
+                    fixed (byte** objAddrDpPtr = objAddrDp)
+                    fixed (int* objAddrLenSpPtr = objAddrLenSp)
+                    {
+                        World_ObjectAppend(_host.Handle, _handle, peerCount, peerPtrs, sessionIdDpPtr, 
+                                         objectCount, objIdDpPtr, trDpPtr, objAddrDpPtr, objAddrLenSpPtr);
+                    }
+                }
+            }
+        }
+
+        public void ObjectDelete((Peer, Guid)[] targets, Guid[] info)
+        {
+            unsafe
+            {
+                var peerCount = targets.Length;
+                var objectCount = info.Length;
+
+                // Prepare peer handles and session IDs
+                var peerHandles = new IntPtr[peerCount];
+                var peerSessionIdBytes = new byte[16 * peerCount];
+                for (int i = 0; i < peerCount; i++)
+                {
+                    peerHandles[i] = targets[i].Item1.Handle;
+                    var sessionIdBytes = targets[i].Item2.ToByteArray();
+                    Array.Copy(sessionIdBytes, 0, peerSessionIdBytes, i * 16, 16);
+                }
+
+                // Prepare object IDs
+                var objectIdBytes = new byte[16 * objectCount];
+                for (int i = 0; i < objectCount; i++)
+                {
+                    var idBytes = info[i].ToByteArray();
+                    Array.Copy(idBytes, 0, objectIdBytes, i * 16, 16);
+                }
+
+                // Pin and create pointer arrays
+                fixed (IntPtr* peerPtrs = peerHandles)
+                fixed (byte* sessionIdPtr = peerSessionIdBytes)
+                fixed (byte* objIdPtr = objectIdBytes)
+                {
+                    var sessionIdDp = new byte*[peerCount];
+                    var objIdDp = new byte*[objectCount];
+
+                    for (int i = 0; i < peerCount; i++)
+                    {
+                        sessionIdDp[i] = sessionIdPtr + (16 * i);
+                    }
+
+                    for (int i = 0; i < objectCount; i++)
+                    {
+                        objIdDp[i] = objIdPtr + (16 * i);
+                    }
+
+                    fixed (byte** sessionIdDpPtr = sessionIdDp)
+                    fixed (byte** objIdDpPtr = objIdDp)
+                    {
+                        World_ObjectDelete(_host.Handle, _handle, peerCount, peerPtrs, sessionIdDpPtr, 
+                                        objectCount, objIdDpPtr);
+                    }
                 }
             }
         }

@@ -87,7 +87,7 @@ func World_ObjectAppend(
 	object_count C.int,
 	object_id_bufs **C.char,
 	object_transform_bufs **C.float,
-	object_addr_bufs **C.char, object_addr_buf_len C.int,
+	object_addr_bufs **C.char, object_addr_buf_lens *C.int,
 ) {
 	host := cgo.Handle(h_host).Value().(*ahost.AbyssHost)
 	world := cgo.Handle(h_world).Value().(*and.World)
@@ -112,6 +112,7 @@ func World_ObjectAppend(
 	object_id_bufs_slice := (*[1 << 28]*C.char)(unsafe.Pointer(object_id_bufs))[:object_count]
 	object_transform_bufs_slice := (*[1 << 28]*C.float)(unsafe.Pointer(object_transform_bufs))[:object_count]
 	object_addr_bufs_slice := (*[1 << 28]*C.char)(unsafe.Pointer(object_addr_bufs))[:object_count]
+	object_addr_buf_lens_slice := (*[1 << 28]C.int)(unsafe.Pointer(object_addr_buf_lens))[:object_count]
 
 	for i := range int(object_count) {
 		// Parse object ID (16 bytes)
@@ -123,7 +124,7 @@ func World_ObjectAppend(
 		objects[i].Transform = *transform_ptr
 
 		// Parse address (aurl)
-		addr_bytes, _ := TryUnmarshalBytes(object_addr_bufs_slice[i], object_addr_buf_len)
+		addr_bytes, _ := TryUnmarshalBytes(object_addr_bufs_slice[i], object_addr_buf_lens_slice[i])
 		objects[i].Addr = string(addr_bytes)
 	}
 

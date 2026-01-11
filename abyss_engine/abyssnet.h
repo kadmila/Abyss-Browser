@@ -192,7 +192,7 @@ extern __declspec(dllexport) void CloseHttpResponse(uintptr_t h_response);
 extern __declspec(dllexport) void World_AcceptSession(uintptr_t h_host, uintptr_t h_world, char* peer_id_buf_ptr, int peer_id_buf_len, char* peer_session_id_buf);
 extern __declspec(dllexport) void World_DeclineSession(uintptr_t h_host, uintptr_t h_world, char* peer_id_buf_ptr, int peer_id_buf_len, char* peer_session_id_buf, int code, char* message_buf_ptr, int message_buf_len);
 extern __declspec(dllexport) void World_Close(uintptr_t h_host, uintptr_t h_world);
-extern __declspec(dllexport) void World_ObjectAppend(uintptr_t h_host, uintptr_t h_world, int peer_count, uintptr_t* h_peers, char** peer_session_id_bufs, int object_count, char** object_id_bufs, float** object_transform_bufs, char** object_addr_bufs, int object_addr_buf_len);
+extern __declspec(dllexport) void World_ObjectAppend(uintptr_t h_host, uintptr_t h_world, int peer_count, uintptr_t* h_peers, char** peer_session_id_bufs, int object_count, char** object_id_bufs, float** object_transform_bufs, char** object_addr_bufs, int* object_addr_buf_lens);
 extern __declspec(dllexport) void World_ObjectDelete(uintptr_t h_host, uintptr_t h_world, int peer_count, uintptr_t* h_peers, char** peer_session_id_bufs, int object_count, char** object_id_bufs);
 
 #ifdef __cplusplus
