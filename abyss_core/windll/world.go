@@ -71,10 +71,10 @@ func World_Close(
 ) {
 	host := cgo.Handle(h_host).Value().(*ahost.AbyssHost)
 	handle := cgo.Handle(h_world)
-	deleteHandle(handle)
 	world := handle.Value().(*and.World)
 
 	host.CloseWorld(world)
+	deleteHandle(handle)
 }
 
 //export World_ObjectAppend
