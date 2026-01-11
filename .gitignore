@@ -12,7 +12,6 @@ abyss_engine/.vs/
 *.vsidx
 *cache.v2
 *.suo
-*.json
 *.bin
 *copilot-chat*
 *.vsconfig
