@@ -26,3 +26,5 @@ AGENTS.md
 
 */CLAUDE.md
 *.claude/
+
+.vscode/
