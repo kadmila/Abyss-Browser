@@ -6,7 +6,7 @@ public static partial class Client
 {
 	public static void SwapMainWorld(AbyssURL url) //can also be called from javascript API.
 	{
-		lock (_world_move_lock)
+		lock (_worldMoveLock)
 		{
 			AbyssLibB.World? net_world;
 			AbyssURL world_url;
@@ -30,15 +30,15 @@ public static partial class Client
 				world_url = url;
 			}
 
-			_current_world?.Leave();
+			_currentWorld?.Leave();
 			try
 			{
-				_current_world = new World(Host, net_world, world_url);
+				_currentWorld = new World(Host, net_world, world_url);
 			}
 			catch (Exception ex)
 			{
 				CerrWriteLine("world creation failed: " + ex.Message);
-				_current_world = null;
+				_currentWorld = null;
 			}
 		}
 	}

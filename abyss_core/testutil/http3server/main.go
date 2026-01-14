@@ -15,6 +15,15 @@ import (
 	"github.com/quic-go/quic-go/http3"
 )
 
+func cacheHandler(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=120, stale-while-revalidate=30")
+	w.Header().Set("ETag", "\"a1b2c3d4\"")
+	w.Header().Set("Expires", "Thu, 01 Dec 2027 16:00:00 GMT")
+
+	w.Write([]byte("This content should be cached"))
+}
+
 func main() {
 	// Generate self-signed certificate
 	cert, err := generateSelfSignedCert()
@@ -25,6 +34,7 @@ func main() {
 	// Serve current directory
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir(".")))
+	mux.Handle("/c/", http.StripPrefix("/c/", http.HandlerFunc(cacheHandler)))
 
 	// Configure HTTP/3 server
 	server := &http3.Server{

@@ -5,12 +5,11 @@ internal class Program
 {
     public static async Task Main()
     {
-        await Basics.TestObjectAppend();
+        await Cache.TestAbystClientWithCacheCow();
         Environment.Exit(0);
 
         try
         {
-            Client.Init();
             await Client.Run();
             Client.CerrWriteLine("AbyssCLI terminated peacefully");
         }

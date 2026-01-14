@@ -23,9 +23,9 @@ public static partial class Client
 			CerrWriteLine("OnShareContent: failed to parse address: " + args.Url);
 			return;
 		}
-		_current_world.ShareItem(new Guid(args.Uuid.ToByteArray()), content_url, [args.Pos.X, args.Pos.Y, args.Pos.Z, args.Rot.W, args.Rot.X, args.Rot.Y, args.Rot.Z]);
+		_currentWorld.ShareItem(new Guid(args.Uuid.ToByteArray()), content_url, [args.Pos.X, args.Pos.Y, args.Pos.Z, args.Rot.W, args.Rot.X, args.Rot.Y, args.Rot.Z]);
 	}
-	private static void OnUnshareContent(UIAction.Types.UnshareContent args) => _current_world.UnshareItem(new Guid(args.Uuid.ToByteArray()));
+	private static void OnUnshareContent(UIAction.Types.UnshareContent args) => _currentWorld.UnshareItem(new Guid(args.Uuid.ToByteArray()));
 	private static void OnConnectPeer(UIAction.Types.ConnectPeer args)
 	{
 		// In AbyssLibB, use Dial() instead of OpenOutboundConnection
@@ -40,7 +40,7 @@ public static partial class Client
         Client.RenderWriter.ConsolePrint("console input: " + args.Text);
         if (args.ElementId == 0) //world environment content
         {
-            if (!_current_world._environment.Document.TryEnqueueJavaScript("<console>", args.Text))
+            if (!_currentWorld._environment.Document.TryEnqueueJavaScript("<console>", args.Text))
             {
                 Client.CerrWriteLine("too many javascripts in queue");
             }

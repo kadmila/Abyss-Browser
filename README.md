@@ -47,7 +47,7 @@ The codes are only for reference.
 ## Initial Setup
 
 Before starting the project setup, you must follow the initial setup procedure below.
-1) In visual studio C#, install the latest version of Protobuf and ClearScript addons.
+1) In visual studio C#, install the latest version of Protobuf, ClearScript, and CacheCow.Client addons.
 2) Create a Unity 3D project named "AbyssUI", in the project root directory. Also, you need "AbyssUIBuild" folder in the project root directory, but this will be also created as default when you build the unity project.
 3) In the Unity project, install Runtime OBJ Importer package from unity store (free), and also import Input System package.
 4) Close the Unity project, and open powershell in project root directory. Run ./import_unity.ps1. This copies unity project codes from the abyss_unity folder to the AbyssUI unity project.
