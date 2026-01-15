@@ -1,3 +1,4 @@
+using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -64,7 +65,8 @@ public static class AbyssLibB
     [DllImport(DllName)] private static extern unsafe int HttpResponse_GetAllHeaders(IntPtr h_response, byte* buf_ptr, int buf_len);
     [DllImport(DllName)] private static extern unsafe int HttpResponse_ReadBody(IntPtr h_response, byte* buf_ptr, int buf_len);
     [DllImport(DllName)] private static extern void CloseHttpResponse(IntPtr h_response);
-
+    
+    [DllImport(DllName)] private static extern unsafe void World_Query(IntPtr h_world, byte* world_session_id_buf);
     [DllImport(DllName)] private static extern unsafe void World_AcceptSession(IntPtr h_host, IntPtr h_world, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf);
     [DllImport(DllName)] private static extern unsafe void World_DeclineSession(IntPtr h_host, IntPtr h_world, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf, int code, byte* message_buf_ptr, int message_buf_len);
     [DllImport(DllName)] private static extern void World_Close(IntPtr h_host, IntPtr h_world);
@@ -97,11 +99,11 @@ public static class AbyssLibB
 
     #region Error
 
-    public class Error
+    public class AbyssLibError
     {
         public string Message { get; }
 
-        public Error(IntPtr handle)
+        public AbyssLibError(IntPtr handle)
         {
             if (handle == IntPtr.Zero)
             {
@@ -164,7 +166,7 @@ public static class AbyssLibB
             }
         }
 
-        public static (Host?, Error?) Create(byte[] rootKey)
+        public static (Host?, AbyssLibError?) Create(byte[] rootKey)
         {
             unsafe
             {
@@ -173,23 +175,23 @@ public static class AbyssLibB
                     IntPtr hostHandle;
                     IntPtr errHandle = NewHost(keyPtr, rootKey.Length, &hostHandle);
                     if (errHandle != IntPtr.Zero)
-                        return (null, new Error(errHandle));
+                        return (null, new AbyssLibError(errHandle));
                     return (new Host(hostHandle), null);
                 }
             }
         }
 
-        public Error? Bind()
+        public AbyssLibError? Bind()
         {
             IntPtr errHandle = Host_Bind(_handle);
             if (errHandle != IntPtr.Zero)
-                return new Error(errHandle);
+                return new AbyssLibError(errHandle);
             return null;
         }
 
         public void Serve() => Host_Serve(_handle);
 
-        public (dynamic? Event, Error?) WaitForEvent()
+        public (dynamic? Event, AbyssLibError?) WaitForEvent()
         {
             unsafe
             {
@@ -197,7 +199,7 @@ public static class AbyssLibB
                 IntPtr eventHandle;
                 IntPtr errHandle = Host_WaitForEvent(_handle, &eventType, &eventHandle);
                 if (errHandle != IntPtr.Zero)
-                    return (null, new Error(errHandle));
+                    return (null, new AbyssLibError(errHandle));
 
                 dynamic? ev = (EventType)eventType switch
                 {
@@ -216,7 +218,7 @@ public static class AbyssLibB
             }
         }
 
-        public (World?, Error?) OpenWorld(string worldUrl)
+        public (World?, AbyssLibError?) OpenWorld(string worldUrl)
         {
             byte[] urlBytes = Encoding.UTF8.GetBytes(worldUrl);
             unsafe
@@ -226,13 +228,13 @@ public static class AbyssLibB
                     IntPtr worldHandle;
                     IntPtr errHandle = Host_OpenWorld(_handle, urlPtr, urlBytes.Length, &worldHandle);
                     if (errHandle != IntPtr.Zero)
-                        return (null, new Error(errHandle));
+                        return (null, new AbyssLibError(errHandle));
                     return (new World(worldHandle, this), null);
                 }
             }
         }
 
-        public (World?, Error?) JoinWorld(Peer peer, string path)
+        public (World?, AbyssLibError?) JoinWorld(Peer peer, string path)
         {
             byte[] pathBytes = Encoding.UTF8.GetBytes(path);
             unsafe
@@ -242,13 +244,13 @@ public static class AbyssLibB
                     IntPtr worldHandle;
                     IntPtr errHandle = Host_JoinWorld(_handle, peer.Handle, pathPtr, pathBytes.Length, &worldHandle);
                     if (errHandle != IntPtr.Zero)
-                        return (null, new Error(errHandle));
+                        return (null, new AbyssLibError(errHandle));
                     return (new World(worldHandle, this), null);
                 }
             }
         }
 
-        public Error? ExposeWorldForJoin(World world, string path)
+        public AbyssLibError? ExposeWorldForJoin(World world, string path)
         {
             byte[] pathBytes = Encoding.UTF8.GetBytes(path);
             unsafe
@@ -257,7 +259,7 @@ public static class AbyssLibB
                 {
                     IntPtr errHandle = Host_ExposeWorldForJoin(_handle, world.Handle, pathPtr, pathBytes.Length);
                     if (errHandle != IntPtr.Zero)
-                        return new Error(errHandle);
+                        return new AbyssLibError(errHandle);
                     return null;
                 }
             }
@@ -291,7 +293,7 @@ public static class AbyssLibB
             }
         }
 
-        public Error? AppendKnownPeer(byte[] rootCert, byte[] handshakeInfoCert)
+        public AbyssLibError? AppendKnownPeer(byte[] rootCert, byte[] handshakeInfoCert)
         {
             unsafe
             {
@@ -300,13 +302,13 @@ public static class AbyssLibB
                 {
                     IntPtr errHandle = Host_AppendKnownPeer(_handle, rootPtr, rootCert.Length, hsPtr, handshakeInfoCert.Length);
                     if (errHandle != IntPtr.Zero)
-                        return new Error(errHandle);
+                        return new AbyssLibError(errHandle);
                     return null;
                 }
             }
         }
 
-        public Error? EraseKnownPeer(string id)
+        public AbyssLibError? EraseKnownPeer(string id)
         {
             byte[] idBytes = Encoding.UTF8.GetBytes(id);
             unsafe
@@ -315,13 +317,13 @@ public static class AbyssLibB
                 {
                     IntPtr errHandle = Host_EraseKnownPeer(_handle, idPtr, idBytes.Length);
                     if (errHandle != IntPtr.Zero)
-                        return new Error(errHandle);
+                        return new AbyssLibError(errHandle);
                     return null;
                 }
             }
         }
 
-        public Error? Dial(string id)
+        public AbyssLibError? Dial(string id)
         {
             byte[] idBytes = Encoding.UTF8.GetBytes(id);
             unsafe
@@ -330,13 +332,13 @@ public static class AbyssLibB
                 {
                     IntPtr errHandle = Host_Dial(_handle, idPtr, idBytes.Length);
                     if (errHandle != IntPtr.Zero)
-                        return new Error(errHandle);
+                        return new AbyssLibError(errHandle);
                     return null;
                 }
             }
         }
 
-        public Error? ConfigAbystGateway(string config)
+        public AbyssLibError? ConfigAbystGateway(string config)
         {
             byte[] configBytes = Encoding.UTF8.GetBytes(config);
             unsafe
@@ -345,7 +347,7 @@ public static class AbyssLibB
                 {
                     IntPtr errHandle = Host_ConfigAbystGateway(_handle, configPtr, configBytes.Length);
                     if (errHandle != IntPtr.Zero)
-                        return new Error(errHandle);
+                        return new AbyssLibError(errHandle);
                     return null;
                 }
             }
@@ -357,10 +359,10 @@ public static class AbyssLibB
             return new AbystClient(clientHandle);
         }
 
-        public Http3Client NewCollocatedHttp3Client()
+        public CollocatedH3Client NewCollocatedHttp3Client()
         {
             IntPtr clientHandle = Host_NewCollocatedHttp3Client(_handle);
-            return new Http3Client(clientHandle);
+            return new CollocatedH3Client(clientHandle);
         }
 
         internal IntPtr Handle => _handle;
@@ -776,11 +778,23 @@ public static class AbyssLibB
 
     public class World : IDisposable
     {
+        public readonly Guid WSID;
+
         private IntPtr _handle;
         private readonly Host _host;
 
         internal World(IntPtr handle, Host host)
         {
+            unsafe
+            {
+                byte[] worldSessionId = new byte[16];
+                fixed (byte* wsidPtr = worldSessionId)
+                {
+                    World_Query(handle, wsidPtr);
+                }
+                WSID = new Guid(worldSessionId);
+            }
+
             _handle = handle;
             _host = host;
         }
@@ -996,9 +1010,7 @@ public static class AbyssLibB
         public static void Callback(IntPtr h_tcs)
         {
             var handle = GCHandle.FromIntPtr(h_tcs);
-            var tcs = (TaskCompletionSource<bool>?)handle.Target
-                ?? throw new NullReferenceException("CompleteTaskCompletionSource: TaskCompletionSource is null");
-
+            var tcs = (TaskCompletionSource<bool>)handle.Target!;
             tcs.SetResult(true);
         }
     }
@@ -1016,7 +1028,7 @@ public static class AbyssLibB
 
         public bool IsValid => _handle != IntPtr.Zero;
 
-        public async Task<(HttpResponse?, Error?)> Get(string peerId, string path)
+        public async Task<(HttpResponse?, AbyssLibError?)> Get(string peerId, string path)
         {
             var waiter = new EventWaiter();
 
@@ -1031,7 +1043,7 @@ public static class AbyssLibB
             return (response, error);
         }
 
-        private (HttpIOResult?, Error?) Get_nowait(string peerId, string path, IntPtr waiterHandle)
+        private (HttpIOResult?, AbyssLibError?) Get_nowait(string peerId, string path, IntPtr waiterHandle)
         {
             byte[] peerIdBytes = Encoding.UTF8.GetBytes(peerId);
             byte[] pathBytes = Encoding.UTF8.GetBytes(path);
@@ -1043,7 +1055,7 @@ public static class AbyssLibB
                     IntPtr resultHandle;
                     IntPtr errHandle = AbystClient_Get(_handle, peerIdPtr, peerIdBytes.Length, pathPtr, pathBytes.Length, &resultHandle, EventWaiter.Callback, waiterHandle);
                     if (errHandle != IntPtr.Zero)
-                        return (null, new Error(errHandle));
+                        return (null, new AbyssLibError(errHandle));
                     return (new HttpIOResult(resultHandle), null);
                 }
             }
@@ -1064,15 +1076,15 @@ public static class AbyssLibB
 
     #region Http3Client
 
-    public class Http3Client : IDisposable
+    public class CollocatedH3Client : IDisposable
     {
         private IntPtr _handle;
 
-        internal Http3Client(IntPtr handle) => _handle = handle;
+        internal CollocatedH3Client(IntPtr handle) => _handle = handle;
 
         public bool IsValid => _handle != IntPtr.Zero;
 
-        public async Task<(HttpResponse?, Error?)> Get(string url)
+        public async Task<(HttpResponse?, AbyssLibError?)> Get(string url)
         {
             var waiter = new EventWaiter();
 
@@ -1086,7 +1098,7 @@ public static class AbyssLibB
 
             return (response, error);
         }
-        private (HttpIOResult?, Error?) Get_nowait(string url, IntPtr waiterHandle)
+        private (HttpIOResult?, AbyssLibError?) Get_nowait(string url, IntPtr waiterHandle)
         {
             byte[] urlBytes = Encoding.UTF8.GetBytes(url);
             unsafe
@@ -1096,13 +1108,13 @@ public static class AbyssLibB
                     IntPtr resultHandle;
                     IntPtr errHandle = Http3Client_Get(_handle, urlPtr, urlBytes.Length, &resultHandle, EventWaiter.Callback, waiterHandle);
                     if (errHandle != IntPtr.Zero)
-                        return (null, new Error(errHandle));
+                        return (null, new AbyssLibError(errHandle));
                     return (new HttpIOResult(resultHandle), null);
                 }
             }
         }
 
-        public (HttpIOResult?, Error?) Post(IntPtr hEvent, string url, string contentType, byte[] body)
+        public (HttpIOResult?, AbyssLibError?) Post(IntPtr hEvent, string url, string contentType, byte[] body)
         {
             byte[] urlBytes = Encoding.UTF8.GetBytes(url);
             byte[] contentTypeBytes = Encoding.UTF8.GetBytes(contentType);
@@ -1115,13 +1127,13 @@ public static class AbyssLibB
                     IntPtr resultHandle;
                     IntPtr errHandle = Http3Client_Post(_handle, hEvent, urlPtr, urlBytes.Length, ctPtr, contentTypeBytes.Length, bodyPtr, body.Length, &resultHandle);
                     if (errHandle != IntPtr.Zero)
-                        return (null, new Error(errHandle));
+                        return (null, new AbyssLibError(errHandle));
                     return (new HttpIOResult(resultHandle), null);
                 }
             }
         }
 
-        public (HttpIOResult?, Error?) Head(IntPtr hEvent, string url)
+        public (HttpIOResult?, AbyssLibError?) Head(IntPtr hEvent, string url)
         {
             byte[] urlBytes = Encoding.UTF8.GetBytes(url);
             unsafe
@@ -1131,7 +1143,7 @@ public static class AbyssLibB
                     IntPtr resultHandle;
                     IntPtr errHandle = Http3Client_Head(_handle, hEvent, urlPtr, urlBytes.Length, &resultHandle);
                     if (errHandle != IntPtr.Zero)
-                        return (null, new Error(errHandle));
+                        return (null, new AbyssLibError(errHandle));
                     return (new HttpIOResult(resultHandle), null);
                 }
             }
@@ -1145,7 +1157,7 @@ public static class AbyssLibB
             GC.SuppressFinalize(this);
         }
 
-        ~Http3Client() => Dispose();
+        ~CollocatedH3Client() => Dispose();
     }
 
     #endregion
@@ -1160,14 +1172,14 @@ public static class AbyssLibB
 
         public bool IsValid => _handle != IntPtr.Zero;
 
-        public (HttpResponse?, Error?) Unpack()
+        public (HttpResponse?, AbyssLibError?) Unpack()
         {
             unsafe
             {
                 IntPtr responseHandle;
                 IntPtr errHandle = HttpIOResult_Unpack(_handle, &responseHandle);
                 if (errHandle != IntPtr.Zero)
-                    return (null, new Error(errHandle));
+                    return (null, new AbyssLibError(errHandle));
                 return (new HttpResponse(responseHandle), null);
             }
         }

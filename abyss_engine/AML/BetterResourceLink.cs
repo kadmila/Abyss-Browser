@@ -1,4 +1,5 @@
-﻿using AbyssCLI.Tool;
+﻿using AbyssCLI.HL;
+using AbyssCLI.Tool;
 
 #nullable enable
 namespace AbyssCLI.AML;
@@ -10,12 +11,12 @@ public abstract class BetterResourceLink : IDisposable
     private readonly TaskCompletionSource<byte> _tcs = new();
     private readonly Task _inner_task;
     protected Cache.CachedResource? Resource;
-    public BetterResourceLink(string src)
+    public BetterResourceLink(Cache.Cache shared_cache, string src)
     {
         Src = src;
         _inner_task = Task.Run(async () =>
         {
-            using TaskCompletionReference<Cache.CachedResource> cache_rsc_ref = Client.Client.Cache.GetReference(src);
+            using TaskCompletionReference<Cache.CachedResource> cache_rsc_ref = shared_cache.GetReference(src);
 
             if (await Task.WhenAny(cache_rsc_ref.Task, _tcs.Task)
             is not Task<Cache.CachedResource> resource_task) //cancelled

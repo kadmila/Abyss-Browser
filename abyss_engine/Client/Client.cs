@@ -1,72 +1,43 @@
+// Bypasses initialization message listening, setup for debugging
+//#define	TESTING_SETUP
+
 using AbyssCLI.ABI;
-using AbyssCLI.Tool;
+using CacheCow.Client;
+using System.Diagnostics.Metrics;
+using System.Threading.Channels;
 
 namespace AbyssCLI.Client;
 
+#pragma warning disable CS8618 // analyzer bug in static constructor
+
 public static partial class Client
 {
-	public static readonly AbyssLibB.Host Host;
-	public static readonly SingleThreadTaskRunner CachedResourceWorker = new();
+    public static readonly AbyssLibB.Host Host;
 	public static readonly RenderActionWriter RenderWriter = new(Console.OpenStandardOutput())
 	{
 		AutoFlush = true
 	};
-	public static readonly HttpClient HttpClient = new()
-	{
-		Timeout = TimeSpan.FromSeconds(10)
-	};
-    public static readonly AbyssLibB.AbystClient AbystClient;
-    public static readonly AbyssLibB.Http3Client CollocatedHttp3Client;
-    public static readonly Cache.Cache Cache;
+    public static readonly StreamWriter Cerr = new(Stream.Synchronized(Console.OpenStandardError()))
+    {
+        AutoFlush = true
+    };
+    public static readonly HttpClient HttpClient; // normal web fetch
+	public static readonly HttpClient AbystClient; // abyst:// scheme
+	public static readonly HttpClient CollocatedHttp3Client; // collocated http/3 fetch
+    public static void CerrWriteLine(string message) => Cerr.WriteLine(message);
 
     private static readonly BinaryReader _cin = new(Console.OpenStandardInput());
-	private static readonly StreamWriter _cerr = new(Stream.Synchronized(Console.OpenStandardError()))
-	{
-		AutoFlush = true
-	};
-    private static readonly Thread _hostEventThread;
-    private static World _currentWorld;
+    private static World? _currentWorld;
 	private static readonly object _worldMoveLock = new();
 
-	const bool _manual_construction = true; // for debugging purpose, bypasses initialization message listening
+    // For client-level call serialization (UI/JavaScript APIs)
+    private static readonly Channel<UIAction> _client_operations = Channel.CreateUnbounded<UIAction>(new UnboundedChannelOptions
+    {
+        SingleReader = true,
+        SingleWriter = false
+    });
 
-	public static void CerrWriteLine(string message) => _cerr.WriteLine(message);
-	
-	// Host event loop - dispatches events to appropriate world
-	private static void HostEventLoop()
-	{
-		while (true)
-		{
-			var (evnt, error) = Host.WaitForEvent();
-			if (error != null)
-			{
-				CerrWriteLine("Host event error: " + error.Message);
-				return;
-			}
-			
-			// Handle peer connection events at host level
-			if (evnt is AbyssLibB.EPeerConnected peerConnected)
-			{
-				CerrWriteLine($"Peer connected: {peerConnected.Peer.ID}");
-				// We could store the peer handle here if needed
-				continue;
-			}
-			
-			if (evnt is AbyssLibB.EPeerDisconnected peerDisconnected)
-			{
-				CerrWriteLine($"Peer disconnected: {peerDisconnected.PeerID}");
-				continue;
-			}
-			
-			// Dispatch world events to current world
-			lock (_worldMoveLock)
-			{
-				_currentWorld?.HandleEvent(evnt);
-			}
-		}
-	}
-
-	static Client()
+    static Client()
 	{
 		if (AbyssLibB.Initialize() != 0)
         {
@@ -74,46 +45,43 @@ public static partial class Client
             return;
 		}
 
-		if (_manual_construction) // debug
+#if TESTING_SETUP
+        RenderWriter = new(NoOpStream.Instance);
+
+        string pemPath = "testkey.pem";
+        if (!File.Exists(pemPath))
         {
-            RenderWriter = new(NoOpStream.Instance);
-
-            string pemPath = "testkey.pem";
-            if (!File.Exists(pemPath))
-            {
-                Console.WriteLine($"Error: {pemPath} not found in project root directory");
-                Environment.Exit(1);
-            }
-
-            byte[] keyBytes = File.ReadAllBytes(pemPath);
-            var (host, hostErr) = AbyssLibB.Host.Create(keyBytes);
-            if (hostErr != null)
-            {
-                CerrWriteLine("host creation failed: " + hostErr.Message);
-                return;
-            }
-            Host = host!;
+            Console.WriteLine($"Error: {pemPath} not found in project root directory");
+            Environment.Exit(1);
         }
-		else
+
+        byte[] keyBytes = File.ReadAllBytes(pemPath);
+        var (host, hostErr) = AbyssLibB.Host.Create(keyBytes);
+        if (hostErr != null)
         {
-            //Host Initialization
-            UIAction initMsg = ReadProtoMessage();
-            if (initMsg.InnerCase != UIAction.InnerOneofCase.Init)
-            {
-                CerrWriteLine("host not initialized");
-                return;
-            }
-
-            var (host, hostErr) = AbyssLibB.Host.Create(initMsg.Init.RootKey.ToByteArray());
-            if (hostErr != null)
-            {
-                CerrWriteLine("host creation failed: " + hostErr.Message);
-                return;
-            }
-            Host = host!;
+            CerrWriteLine("host creation failed: " + hostErr.Message);
+            return;
         }
-		
-		var bindErr = Host.Bind();
+        Host = host!;
+#else
+        //Host Initialization
+        UIAction initMsg = ReadProtoMessage();
+        if (initMsg.InnerCase != UIAction.InnerOneofCase.Init)
+        {
+            CerrWriteLine("host not initialized");
+            return;
+        }
+
+        var (host, hostErr) = AbyssLibB.Host.Create(initMsg.Init.RootKey.ToByteArray());
+        if (hostErr != null)
+        {
+            CerrWriteLine("host creation failed: " + hostErr.Message);
+            return;
+        }
+        Host = host!;
+#endif
+
+        var bindErr = Host.Bind();
 		if (bindErr != null)
 		{
 			CerrWriteLine("host bind failed: " + bindErr.Message);
@@ -122,97 +90,42 @@ public static partial class Client
 
         // Start serving in background
         Host.Serve();
-		
-		// Start host event loop thread
-		_hostEventThread = new Thread(HostEventLoop)
-		{
-			IsBackground = true,
-			Name = "HostEventLoop"
-		};
-		_hostEventThread.Start();
+
+		// Create reusable HttpClient;
+		HttpClient = ClientExtensions.CreateClient();
 		
 		// Create reusable AbystClient
-		AbystClient = Host.NewAbystClient();
+		AbystClient = ClientExtensions.CreateClient(new AbyssHttp.AbystHttpMessageHandler(Host.NewAbystClient()));
 
-        // Create reusable CollocatedHttp3Client
-        CollocatedHttp3Client = Host.NewCollocatedHttp3Client();
+		// Create reusable CollocatedHttp3Client
+		CollocatedHttp3Client = ClientExtensions.CreateClient(new AbyssHttp.CollocatedH3HttpMessageHandler(Host.NewCollocatedHttp3Client()));
 
         // Register local info for rendering engine
         RenderWriter.LocalInfo("abyss://" + Host.ID, Host.ID);
+    }
+    public static async Task Run()
+    {
+        // HostEventLoop requires a dedicated thread (hot path)
+        var host_th = new Thread(HostEventLoop)
+        {
+            IsBackground = true,
+            Name = "HostEventLoop"
+        };
+        host_th.Start();
 
-		Cache = new(
-			http_request => Task.Run(async () =>
-			{
-				HttpResponseMessage result = await HttpClient.SendAsync(http_request, HttpCompletionOption.ResponseHeadersRead);
-
-				string? mime = result.Content.Headers.ContentType?.MediaType;
-				Cache!.Patch(http_request.RequestUri!.ToString(), mime switch
-				{
-					"model/obj" or "image/png" => new Cache.StaticSimpleResource(result),
-					"image/jpeg" => new Cache.StaticResource(result),
-					_ when mime != null && mime.StartsWith("text/") => new Cache.Text(result),
-					_ => new Cache.StaticSimpleResource(result),
-				});
-			}),
-			abyst_request => Task.Run(async () =>
-			{
-				var (response, error) = await AbystClient.Get(abyst_request.AbyssURL.Id, abyst_request.AbyssURL.Path);
-				if (error != null)
-				{
-					CerrWriteLine("abyst request failed: " + error.Message);
-					return;
-				}
-
-                byte[] body = response!.ReadAllBody();
-				HttpResponseMessage result = new((System.Net.HttpStatusCode)response.StatusCode)
-				{
-                    Content = new ByteArrayContent(body)
-				};
-				
-				var mime = response.GetHeader("Content-Type") ?? "unknown";
-				{//remove charset/format suffix
-					int index = mime.IndexOf(';');
-					if (index >= 0)
-						mime = mime[..index];
-				}
-				CerrWriteLine("abyst patch: " + abyst_request.AbyssURL.ToString());
-
-				Cache!.Patch(abyst_request.AbyssURL.ToString(), mime switch
-				{
-					"model/obj" or "image/png" => new Cache.StaticSimpleResource(result),
-					"image/jpeg" => new Cache.StaticResource(result),
-					_ when mime.StartsWith("text/") => new Cache.Text(result),
-					_ => new Cache.StaticSimpleResource(result),
-				});
-				CerrWriteLine("abyst patch done: " + abyst_request.AbyssURL.ToString());
-				
-				response.Dispose();
-			})
-		);
-		CachedResourceWorker.Start();
-
-		//string default_world_url_raw = "abyst:" + Host.ID;
-		string default_world_url_raw = "http://127.0.0.1:7777/";
-		if (!AbyssURLParser.TryParse(default_world_url_raw, out AbyssURL default_world_url))
-		{
-			CerrWriteLine("default world url parsing failed");
-			return;
-		}
-		
-		//var (net_world, worldError) = Host.OpenWorld(default_world_url_raw);
-		//if (worldError != null)
-		//{
-		//	CerrWriteLine("failed to open default world: " + worldError.Message);
-		//	return;
-		//}
-		//_currentWorld = new World(Host, net_world!, default_world_url);
-	}
+        var ui_read_task = Task.Run(UIReadLoop); // Should we assign native thread for this? IDK
+        
+        // main loop
+        await UIActionLoop();
+        
+        await ui_read_task;
+        host_th.Join();
+    }
 }
-
 
 public sealed class NoOpStream : Stream
 {
-    public static readonly NoOpStream Instance = new NoOpStream();
+    public static readonly NoOpStream Instance = new();
 
     private NoOpStream()
     {
@@ -231,32 +144,20 @@ public sealed class NoOpStream : Stream
         }
     }
 
-    public override void Flush()
-    {
-    }
-
+    public override void Flush() { }
     public override int Read(byte[] buffer, int offset, int count)
     {
-        // EOF immediately
         return 0;
     }
-
     public override long Seek(long offset, SeekOrigin origin)
     {
         return 0;
     }
-
-    public override void SetLength(long value)
-    {
-    }
-
-    public override void Write(byte[] buffer, int offset, int count)
-    {
-        // discard
-    }
-
+    public override void SetLength(long value) { }
+    public override void Write(byte[] buffer, int offset, int count) { }
     protected override void Dispose(bool disposing)
     {
         // no resources to release
+        base.Dispose(disposing);
     }
 }

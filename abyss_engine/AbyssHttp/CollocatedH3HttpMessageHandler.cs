@@ -1,9 +1,8 @@
 using System.Net;
 
 namespace AbyssCLI.AbyssHttp;
-public class CollocatedH3HttpMessageHandler : HttpMessageHandler
+public class CollocatedH3HttpMessageHandler(AbyssLibB.CollocatedH3Client _collocated_h3_client) : HttpMessageHandler
 {
-    
     protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         Console.WriteLine("this is fucked up");
@@ -33,11 +32,11 @@ public class CollocatedH3HttpMessageHandler : HttpMessageHandler
 
         // Make the request via Http3Client
         AbyssLibB.HttpResponse? response;
-        AbyssLibB.Error? http3_err;
+        AbyssLibB.AbyssLibError? http3_err;
         switch (request.Method.Method)
         {
         case "GET":
-            (response, http3_err) = await Client.Client.CollocatedHttp3Client.Get(url);
+            (response, http3_err) = await _collocated_h3_client.Get(url);
             break;
         default:
             return new HttpResponseMessage(HttpStatusCode.MethodNotAllowed)

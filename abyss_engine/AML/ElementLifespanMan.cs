@@ -77,9 +77,9 @@ public class ElementLifespanMan(Body body)
     }
     private void RecursiveElementDelete(int root_element_id)
     {
-        _ = _all.Remove(root_element_id, out Element root_element);
-        RecursiveElementDeleteHelper(root_element);
-        root_element.IsDeleteElementRequired = true;
+        _ = _all.Remove(root_element_id, out Element? root_element);
+        RecursiveElementDeleteHelper(root_element!);
+        root_element!.IsDeleteElementRequired = true;
         root_element.Dispose();
     }
     private void RecursiveElementDeleteHelper(Element element)
@@ -115,7 +115,7 @@ public class ElementLifespanMan(Body body)
         }
     }
 
-    public void GetStatistics(StringBuilder sb, string prefix)
+    public void GetStatistics(StringBuilder sb)
     {
         _ = sb.AppendLine($"elements total: {_all.Count}");
         _ = sb.AppendLine($"isolated root elements: {_isolated.Count}");

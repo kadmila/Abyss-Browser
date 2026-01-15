@@ -1,12 +1,10 @@
 ﻿using AbyssCLI.Cache;
-using AbyssCLI.Tool;
+using AbyssCLI.HL;
 using Microsoft.ClearScript.V8;
 using System.Text;
 
 namespace AbyssCLI.AML;
 
-#nullable enable
-#pragma warning disable IDE1006 //naming convension
 /// <summary>
 /// [MEMO]
 /// When disposing elements in _detached_elements,
@@ -15,26 +13,27 @@ namespace AbyssCLI.AML;
 /// </summary>
 public class Document
 {
+    public ElementLifespanMan ElementLifespanManager;
+    public readonly AmlMetadata Metadata;
+
+    private readonly ContentB _origin;
     private int _ui_element_id = 0;
-    private readonly DeallocStack _dealloc_stack;
-    public ElementLifespanMan _elem_lifespan_man;
+    private readonly Deallocator _dealloc_stack;
     private readonly JavaScriptDispatcher _js_dispatcher;
-    public bool IsUiInitialized => _ui_element_id != 0;
-    public AmlMetadata Metadata
-    {
-        get;
-    }
+    private bool IsUiInitialized => _ui_element_id != 0;
 
     //document constructor must not allocate any resource that needs to be deallocated.
-    public Document(AmlMetadata metadata)
+    public Document(ContentB origin, AmlMetadata metadata)
     {
+        _origin = origin;
         Metadata = metadata;
-        _dealloc_stack = new();
+
         head = new();
-        body = new(this);
-        _elem_lifespan_man = new(body);
-        var js_engine_constraints = new V8RuntimeConstraints();
-        _js_dispatcher = new(js_engine_constraints, this, new Console(), new(_elem_lifespan_man));
+        body = new(origin);
+        ElementLifespanManager = new(body);
+
+        _dealloc_stack = new();
+        _js_dispatcher = new(new V8RuntimeConstraints(), this, new(ElementLifespanManager));
         _title = string.Empty;
     }
     /// <summary>
@@ -89,7 +88,7 @@ public class Document
         _js_dispatcher.TryEnqueue(filename, script);
 
     public void ScheduleOphanedElementCleanup() =>
-        _js_dispatcher.TryEnqueue(string.Empty, new Action(_elem_lifespan_man.CleanupOrphans));
+        _js_dispatcher.TryEnqueue(string.Empty, new Action(ElementLifespanManager.CleanupOrphans));
 
     /// <summary>
     /// Interrupt javascript execution and deactivates document. 
@@ -112,7 +111,7 @@ public class Document
         _js_dispatcher.Join();
         _iconSrc?.Dispose();
         _dealloc_stack.FreeAll();
-        _elem_lifespan_man.ClearAll();
+        ElementLifespanManager.ClearAll();
         if (IsUiInitialized)
             Client.Client.RenderWriter.DeleteItem(_ui_element_id);
     }
@@ -150,10 +149,10 @@ public class Document
                 _iconSrc.IsRemovalRequired = false;
                 _iconSrc.Dispose();
             }
-            _iconSrc = new(_ui_element_id, value);
+            _iconSrc = new(_origin.Cache, _ui_element_id, value);
         }
     }
-    private class DocumentIconResourceLink(int ui_element_id, string src) : BetterResourceLink(src)
+    private class DocumentIconResourceLink(Cache.Cache shared_cache, int ui_element_id, string src) : BetterResourceLink(shared_cache, src)
     {
         public override void Deploy()
         {
@@ -177,13 +176,13 @@ public class Document
     {
         Element result = tag switch
         {
-            "o" => new Transform(this, tag, options),
-            "obj" => new StaticMesh(this, options),
-            "pbrm" => new PbrMaterial(this, options),
-            "bcol" => new BoxCollider(this, options),
+            "o" => new Transform(_origin, tag, options),
+            "obj" => new StaticMesh(_origin, options),
+            "pbrm" => new PbrMaterial(_origin, options),
+            "bcol" => new BoxCollider(_origin, options),
             _ => throw new ArgumentException("invalid tag")
         };
-        _elem_lifespan_man.Add(result);
+        ElementLifespanManager.Add(result);
         return result;
     }
     public Element? getElementById(string id)
@@ -246,7 +245,7 @@ public class Document
         _ = sb.AppendLine(prefix + "  sharer_hash: " + Metadata.sharer_hash);
         _ = sb.AppendLine(prefix + "  uuid: " + Metadata.uuid.ToString());
         _ = sb.AppendLine(prefix + "ElementLifespanMan:");
-        _elem_lifespan_man.GetStatistics(sb, prefix + "  ");
+        ElementLifespanManager.GetStatistics(sb);
         return sb.ToString();
     }
 }

@@ -1,4 +1,4 @@
-﻿#nullable enable
+﻿using AbyssCLI.HL;
 
 namespace AbyssCLI.AML;
 
@@ -6,7 +6,7 @@ namespace AbyssCLI.AML;
 public class StaticMesh : Transform
 {
     public StaticMeshResourceLink? _mesh = null;
-    public StaticMesh(Document document, object? options) : base(document, "obj", options)
+    public StaticMesh(ContentB origin, object? options) : base(origin, "obj", options)
     {
         if (!Attributes.TryGetValue("src", out string? mesh_src))
             return;
@@ -26,10 +26,10 @@ public class StaticMesh : Transform
                 _mesh = null;
                 return;
             }
-            _mesh = new(value, ElementId);
+            _mesh = new(Origin.Cache, value, ElementId);
         }
     }
-    public class StaticMeshResourceLink(string src, int element_id) : BetterResourceLink(src)
+    public class StaticMeshResourceLink(Cache.Cache shared_cache, string src, int element_id) : BetterResourceLink(shared_cache, src)
     {
         public override void Deploy()
         {

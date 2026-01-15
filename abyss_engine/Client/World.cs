@@ -1,71 +1,27 @@
-using AbyssCLI.Tool;
 using System.Numerics;
 
 namespace AbyssCLI.Client;
 
-public class World
+public class World : IDisposable
 {
-	private readonly AbyssLibB.Host _host;
+    public Guid WSID; // set when WorldEnter event arrives
+
+    private readonly AbyssLibB.Host _host;
 	private readonly AbyssLibB.World _world;
-	private Guid _worldSessionId; // Not readonly - will be set when WorldEnter event arrives
-	internal readonly HL.ContentB _environment;
+	private HL.ContentB? _environment;
 	private readonly Dictionary<string, HL.Member> _members = []; //peer ID - Member
 	private readonly Dictionary<Guid, HL.Item> _local_items = []; //UUID - item
 	private readonly object _lock = new();
 	private bool _active = true;
 
-	public World(AbyssLibB.Host host, AbyssLibB.World world, AbyssURL URL)
+	public World(AbyssLibB.Host host, AbyssLibB.World world)
 	{
 		_host = host;
 		_world = world;
-		_worldSessionId = Guid.Empty; // Will be set when we receive WorldEnter event
-		_environment = new(URL, new()
-		{
-			title = URL.ToString()
-		});
-	}
-	
-	// Called by Client event loop when event is for this world
-	public void HandleEvent(dynamic evnt)
-	{
-		if (!_active) return;
-		
-		switch (evnt)
-		{
-		case AbyssLibB.EWorldEnter worldEnter:
-			_worldSessionId = worldEnter.WSID;
-			break;
-		case AbyssLibB.ESessionRequest sessionRequest:
-			if (sessionRequest.WSID == _worldSessionId)
-				OnMemberRequest(sessionRequest);
-			break;
-		case AbyssLibB.ESessionReady sessionReady:
-			if (sessionReady.WSID == _worldSessionId)
-				OnMemberReady(sessionReady);
-			break;
-		case AbyssLibB.ESessionClose sessionClose:
-			if (sessionClose.WSID == _worldSessionId)
-				OnMemberLeave(sessionClose.PeerID);
-			break;
-		case AbyssLibB.EObjectAppend objectAppend:
-			if (objectAppend.WSID == _worldSessionId)
-				OnMemberObjectAppend(objectAppend);
-			break;
-		case AbyssLibB.EObjectDelete objectDelete:
-			if (objectDelete.WSID == _worldSessionId)
-				OnMemberObjectDelete(objectDelete);
-			break;
-		case AbyssLibB.EWorldLeave worldLeave:
-			if (worldLeave.WSID == _worldSessionId)
-			{
-				Client.CerrWriteLine($"World leave: code={worldLeave.Code}, msg={worldLeave.Message}");
-				_active = false;
-			}
-			break;
-		}
+		WSID = world.WSID;
 	}
 
-	public void ShareItem(Guid uuid, AbyssURL url, float[] transform)
+    public void ShareItem(Guid uuid, string url, float[] transform)
 	{
 		var item = new HL.Item(_host.ID, uuid, url,
 			new(transform[0], transform[1], transform[2]),
@@ -76,13 +32,13 @@ public class World
 			_local_items[uuid] = item;
 			
 			// Convert members to targets for ObjectAppend
-			var targets = _members.Select(m => (m.Value.Peer, m.Value.PeerWSID)).ToArray();
+			var targets = _members.Select(m => (m.Value.Peer!, m.Value.PeerWSID)).ToArray();
 			if (targets.Length > 0)
 			{
 				var objectInfo = new AbyssLibB.ObjectInfo
 				{
 					Id = uuid,
-					Address = url.Raw,
+					Address = url,
 					Transform = transform
 				};
 				_world.ObjectAppend(targets, [objectInfo]);
@@ -90,52 +46,39 @@ public class World
 		}
 	}
 
-	public void UnshareItem(Guid guid)
+	public void UnshareItem(Guid item_id)
 	{
 		lock (_lock)
 		{
-			HL.Item item = _local_items[guid];
-			item.Stop();
-			_ = _local_items.Remove(guid);
+			HL.Item item = _local_items[item_id];
+			item.Dispose();
+			_ = _local_items.Remove(item_id);
 			
 			// Convert members to targets for ObjectDelete
-			var targets = _members.Select(m => (m.Value.Peer, m.Value.PeerWSID)).ToArray();
+			var targets = _members.Select(m => (m.Value.Peer!, m.Value.PeerWSID)).ToArray();
 			if (targets.Length > 0)
 			{
-				_world.ObjectDelete(targets, [guid]);
+				_world.ObjectDelete(targets, [item_id]);
 			}
 		}
-	}
-
-	public void Leave()
-	{
-		_active = false;
-		_environment.Dispose();
-		_world.Dispose();
-
-		foreach (KeyValuePair<string, HL.Member> member in _members)
-		{
-			foreach (HL.Item item in member.Value.remote_items.Values)
-			{
-				item.Stop();
-			}
-		}
-		foreach (HL.Item item in _local_items.Values)
-		{
-			item.Stop();
-		}
-		_members.Clear();
-		_local_items.Clear();
 	}
 
 	//internals
-	private void OnMemberRequest(AbyssLibB.ESessionRequest evnt)
+	public void OnWorldEnter(AbyssLibB.EWorldEnter evnt)
+    {
+        Client.CerrWriteLine($"OnWorldEnter: {evnt.URL}");
+		var metadata = new AML.AmlMetadata()
+		{
+			title = evnt.URL.ToString()
+		};
+        _environment = new(evnt.URL, metadata);
+    }
+	public void OnMemberRequest(AbyssLibB.ESessionRequest evnt)
 	{
 		Client.CerrWriteLine($"OnMemberRequest from {evnt.PeerID}");
 		_world.AcceptSession(evnt.PeerID, evnt.PeerWSID);
 	}
-	
-	private void OnMemberReady(AbyssLibB.ESessionReady evnt)
+	public void OnMemberReady(AbyssLibB.ESessionReady evnt)
 	{
 		Client.CerrWriteLine($"OnMemberReady: {evnt.PeerID}");
 		lock (_lock)
@@ -171,8 +114,7 @@ public class World
 			}
 		}
 	}
-
-	private void OnMemberObjectAppend(AbyssLibB.EObjectAppend evnt)
+	public void OnMemberObjectAppend(AbyssLibB.EObjectAppend evnt)
 	{
 		Client.CerrWriteLine($"OnMemberObjectAppend from {evnt.PeerID}");
 
@@ -186,14 +128,8 @@ public class World
 
 			foreach (var obj in evnt.Objects)
 			{
-				if (!AbyssURLParser.TryParse(obj.Address, out AbyssURL? abyss_url))
-				{
-					Client.CerrWriteLine("failed to parse object url: " + obj.Address);
-					continue;
-				}
-				
-				Client.CerrWriteLine("member object: " + abyss_url.ToString());
-				var item = new HL.Item(evnt.PeerID, obj.Id, abyss_url,
+				Client.CerrWriteLine("member object: " + obj.Address);
+				var item = new HL.Item(evnt.PeerID, obj.Id, obj.Address,
 					new(obj.Transform[0], obj.Transform[1], obj.Transform[2]),
 					new(obj.Transform[4], obj.Transform[5], obj.Transform[6], obj.Transform[3]));
 				if (!member.remote_items.TryAdd(obj.Id, item))
@@ -204,8 +140,7 @@ public class World
 			}
 		}
 	}
-	
-	private void OnMemberObjectDelete(AbyssLibB.EObjectDelete evnt)
+	public void OnMemberObjectDelete(AbyssLibB.EObjectDelete evnt)
 	{
 		Client.CerrWriteLine($"OnMemberObjectDelete from {evnt.PeerID}");
 		lock (_lock)
@@ -223,11 +158,11 @@ public class World
 					Client.CerrWriteLine("peer tried to delete unshared objects");
 					continue;
 				}
-				item.Stop();
+				item.Dispose();
 			}
 		}
 	}
-	private void OnMemberLeave(string peerID)
+	public void OnMemberLeave(string peerID)
 	{
 		Client.CerrWriteLine($"OnMemberLeave: {peerID}");
 		lock (_lock)
@@ -241,8 +176,42 @@ public class World
 
 			foreach (HL.Item item in value.remote_items.Values)
 			{
-				item.Stop();
+				item.Dispose();
 			}
 		}
-	}
+    }
+	public bool TryExecuteJavascript(string javascript)
+    {
+		if (_environment == null)
+			return false;
+		return _environment.Document.TryEnqueueJavaScript("<console>", javascript);
+    }
+
+    public void Dispose()
+    {
+        _active = false;
+        _environment?.Dispose();
+        _world.Dispose();
+
+        foreach (KeyValuePair<string, HL.Member> member in _members)
+        {
+            foreach (HL.Item item in member.Value.remote_items.Values)
+            {
+                item.Dispose();
+            }
+        }
+        foreach (HL.Item item in _local_items.Values)
+        {
+            item.Dispose();
+        }
+        _members.Clear();
+        _local_items.Clear();
+
+		GC.SuppressFinalize(this);
+    }
+	~World()
+    {
+        Client.Cerr.WriteLine("Warning:::World must be manually disposed. This is a bug");
+        Dispose();
+    }
 }

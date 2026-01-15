@@ -1,12 +1,3 @@
-using AbyssCLI.AML.JavaScriptAPI;
-using Google.Protobuf.WellKnownTypes;
-using System.Net.Http;
-using System.Net.Mime;
-using System.Security.Cryptography;
-using System.Text;
-using System.Xml.Linq;
-using static Google.Protobuf.Reflection.SourceCodeInfo.Types;
-
 namespace AbyssCLI.AbyssHttp;
 
 public static class HttpHeaderHelpers

@@ -4,20 +4,19 @@ using Microsoft.ClearScript;
 using Microsoft.ClearScript.JavaScript;
 using Microsoft.ClearScript.V8;
 using System.Collections.Concurrent;
-using System.Text;
 
-#nullable enable
 namespace AbyssCLI.AML;
 
+#pragma warning disable IDE1006
 public class JavaScriptGcCallback(ElementLifespanMan elem_lifespan_man)
 {
     public void on_gc(int element_id)
     {
         Element elem = elem_lifespan_man.Find(element_id);
         elem.RefCount--;
-        //Client.Client.RenderWriter.ConsolePrint("+++ JsEngine returned an element handle: " + element_id);
     }
 }
+#pragma warning restore IDE1006
 public class JavaScriptDispatcher
 {
     private readonly V8ScriptEngine _engine;
@@ -25,25 +24,22 @@ public class JavaScriptDispatcher
     private readonly Thread _thread;
 
     private readonly JavaScriptAPI.Timer _timer = new();
-    private readonly JavaScriptAPI.FetchApi _fetch;
 
-    public JavaScriptDispatcher(V8RuntimeConstraints constraints, Document document, Console console, JavaScriptGcCallback gc_callback)
+    public JavaScriptDispatcher(V8RuntimeConstraints constraints, Document document, JavaScriptGcCallback gc_callback)
     {
         _engine = new V8ScriptEngine(constraints, V8ScriptEngineFlags.DisableGlobalMembers);
-        _fetch = new(_engine);
 
         _engine.AddHostType("Vector3", typeof(Vector3));
         _engine.AddHostType("Quaternion", typeof(Quaternion));
-
-        _engine.AddHostObject("document", new JavaScriptAPI.Document(this, document));
-        _engine.AddHostObject("console", console);
-        _engine.AddHostObject("setTimeout", new Action<ScriptObject, int>(_timer.SetTimeout));
-        _engine.AddHostObject("__fetch_api", _fetch);
-        _engine.AddHostObject("sleep", new Func<int, object>(t=>JavaScriptExtensions.ToPromise(Task.Delay(t))));
-        _engine.AddHostObject("host", new JavaScriptAPI.Host());
-
         _engine.AddHostType("Event", typeof(Event.Event));
         _engine.AddHostType("KeyboardEvent", typeof(Event.KeyboardEvent));
+
+        _engine.AddHostObject("document", new JavaScriptAPI.Document(this, document));
+        _engine.AddHostObject("console", new JavaScriptAPI.Console());
+        _engine.AddHostObject("setTimeout", new Action<ScriptObject, int>(_timer.SetTimeout));
+        _engine.AddHostObject("__fetch_api", new JavaScriptAPI.FetchApi(_engine));
+        _engine.AddHostObject("sleep", new Func<int, object>(t=>JavaScriptExtensions.ToPromise(Task.Delay(t))));
+        _engine.AddHostObject("host", new JavaScriptAPI.Host());
 
         _engine.AddHostObject("elem_gc_callback", gc_callback);
 

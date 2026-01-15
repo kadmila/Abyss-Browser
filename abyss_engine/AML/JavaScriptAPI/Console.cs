@@ -1,4 +1,4 @@
-﻿namespace AbyssCLI.AML;
+﻿namespace AbyssCLI.AML.JavaScriptAPI;
 #pragma warning disable IDE1006 //naming convension
 public class Console
 {

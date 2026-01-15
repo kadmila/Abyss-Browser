@@ -1,8 +1,9 @@
-﻿namespace AbyssCLI.AML;
+﻿using AbyssCLI.HL;
 
-public class Body : Transform
+namespace AbyssCLI.AML;
+
+public class Body(ContentB origin) : Transform(origin, "body", null)
 {
-    public Body(Document document) : base(document, "body", null) {}
     public void Init()
     {
         Client.Client.RenderWriter.MoveElement(ElementId, 0);

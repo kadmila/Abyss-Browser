@@ -1,20 +1,21 @@
-﻿using System.Xml;
+﻿using AbyssCLI.HL;
+using System.Xml;
 
 namespace AbyssCLI.AML;
 
 internal static class ParseUtil
 {
-    internal static void ParseAMLDocument(Document target, string document, CancellationToken token)
+    internal static void ParseAMLDocument(ContentB origin, Document target, string document, CancellationToken token)
     {
         XmlDocument xml_document = new();
         xml_document.LoadXml(document);
         string doctype = xml_document.DocumentType?.Name ?? string.Empty;
         if (doctype != "aml")
-            throw new Exception("doctype mismatch: " + doctype);
+            throw new ArgumentException("doctype mismatch: " + doctype);
 
-        XmlElement aml_elem = xml_document.DocumentElement;
+        XmlElement? aml_elem = xml_document.DocumentElement;
         if (aml_elem == null || aml_elem.NodeType != XmlNodeType.Element || aml_elem.Name != "aml")
-            throw new Exception("no <aml> : " + aml_elem?.Name ?? "");
+            throw new ArgumentException("no <aml> : " + aml_elem?.Name ?? "");
 
         bool is_head_parsed = false;
         bool is_body_parsed = false;
@@ -25,12 +26,12 @@ internal static class ParseUtil
                 continue;
             switch (node.Name)
             {
-            case "head" when !is_head_parsed && !is_body_parsed: // head must be parsed before body
-                ParseHead(target, node as XmlElement);
+            case "head" when !is_head_parsed && !is_body_parsed && node is XmlElement node_elem: // head must be parsed before body
+                ParseHead(origin, target, node_elem);
                 is_head_parsed = true;
                 break;
-            case "body" when !is_body_parsed:
-                ParseBody(target, node as XmlElement, token);
+            case "body" when !is_body_parsed && node is XmlElement node_elem:
+                ParseBody(target, node_elem, token);
                 is_body_parsed = true;
                 break;
             default:
@@ -43,7 +44,7 @@ internal static class ParseUtil
             }
         }
     }
-    private static void ParseHead(Document document, XmlElement head_elem)
+    private static void ParseHead(ContentB origin, Document document, XmlElement head_elem)
     {
         foreach (XmlNode child in head_elem.ChildNodes)
         {
@@ -52,7 +53,7 @@ internal static class ParseUtil
             switch (child.Name)
             {
             case "script":
-                ParseScript(document, child as XmlElement);
+                ParseScript(origin, document, child as XmlElement);
                 break;
             case "title":
             {
@@ -75,13 +76,13 @@ internal static class ParseUtil
             }
         }
     }
-    private static void ParseScript(Document document, XmlElement script_elem)
+    private static void ParseScript(ContentB origin, Document document, XmlElement script_elem)
     {
         // src - defer is the default behavior.
         string src = script_elem.GetAttribute("src");
         if (src != null && src.Length > 0)
         {
-            Tool.TaskCompletionReference<Cache.CachedResource> script_src = Client.Client.Cache.GetReference(src);
+            Tool.TaskCompletionReference<Cache.CachedResource> script_src = origin.Cache.GetReference(src);
             document.AddToDeallocStack(new(script_src));
 
             if (!document.TryEnqueueJavaScript(src, script_src))

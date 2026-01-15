@@ -1,4 +1,5 @@
-﻿using Microsoft.ClearScript;
+﻿using AbyssCLI.HL;
+using Microsoft.ClearScript;
 using System.Xml;
 
 namespace AbyssCLI.AML;
@@ -7,7 +8,7 @@ namespace AbyssCLI.AML;
 #pragma warning disable IDE1006 //naming convension
 public class Element : IDisposable
 {
-    private readonly Document _document;
+    public readonly ContentB Origin;
     public int RefCount;
     public readonly int ElementId = RenderID.ElementId;
     public readonly string tagName;
@@ -15,9 +16,9 @@ public class Element : IDisposable
     public Element? Parent;
     public readonly List<Element> Children = [];
     public bool IsDeleteElementRequired = false; // this can be set to false when its parent is deleted in rendering engine.
-    public Element(Document document, string tag, object? options)
+    public Element(ContentB origin, string tag, object? options)
     {
-        _document = document;
+        Origin = origin;
         RefCount = 0;
         Client.Client.RenderWriter.CreateElement(-1, ElementId, tag switch
         {
@@ -84,7 +85,7 @@ public class Element : IDisposable
             return child;
 
         if (child.Parent == null)
-            _document._elem_lifespan_man.Connect(child);
+            Origin.Document.ElementLifespanManager.Connect(child);
         else
             _ = child.Parent.Children.Remove(child);
 
@@ -100,7 +101,7 @@ public class Element : IDisposable
 
         _ = Parent.Children.Remove(this);
         Parent = null;
-        _document._elem_lifespan_man.Isolate(this);
+        Origin.Document.ElementLifespanManager.Isolate(this);
 
         Client.Client.RenderWriter.MoveElement(ElementId, -1);
         return;

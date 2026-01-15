@@ -190,6 +190,7 @@ extern __declspec(dllexport) int HttpResponse_GetHeader(uintptr_t h_response, ch
 extern __declspec(dllexport) int HttpResponse_GetAllHeaders(uintptr_t h_response, char* buf_ptr, int buf_len);
 extern __declspec(dllexport) int HttpResponse_ReadBody(uintptr_t h_response, char* buf_ptr, int buf_len);
 extern __declspec(dllexport) void CloseHttpResponse(uintptr_t h_response);
+extern __declspec(dllexport) void World_Query(uintptr_t h_world, char* world_session_id_buf);
 extern __declspec(dllexport) void World_AcceptSession(uintptr_t h_host, uintptr_t h_world, char* peer_id_buf_ptr, int peer_id_buf_len, char* peer_session_id_buf);
 extern __declspec(dllexport) void World_DeclineSession(uintptr_t h_host, uintptr_t h_world, char* peer_id_buf_ptr, int peer_id_buf_len, char* peer_session_id_buf, int code, char* message_buf_ptr, int message_buf_len);
 extern __declspec(dllexport) void World_Close(uintptr_t h_host, uintptr_t h_world);

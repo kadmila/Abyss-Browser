@@ -57,7 +57,7 @@ namespace AbyssCLI.Test
                         }
                         else
                         {
-                            Console.WriteLine(response.GetAllHeaders());
+                            Console.WriteLine(response!.GetAllHeaders());
                         }
                     }
 
@@ -136,10 +136,10 @@ namespace AbyssCLI.Test
                 using (host)
                 using (host2)
                 {
-                    host.Bind();
+                    host!.Bind();
                     host.Serve();
 
-                    host2.Bind();
+                    host2!.Bind();
                     host2.Serve();
 
                     host.AppendKnownPeer(Encoding.UTF8.GetBytes(host2.RootCertificate), Encoding.UTF8.GetBytes(host2.GetHandshakeKeyCertificate()));
@@ -153,7 +153,7 @@ namespace AbyssCLI.Test
                             Console.WriteLine(error_wo);
                             Environment.Exit(1);
                         }
-                        host.ExposeWorldForJoin(world, "/");
+                        host.ExposeWorldForJoin(world!, "/");
 
                         var (evnt, evnt_error) = host.WaitForEvent();
                         if (evnt_error != null)
@@ -167,7 +167,7 @@ namespace AbyssCLI.Test
                             Environment.Exit(1);
                         }
                         var e_we = evnt as EWorldEnter;
-                        Console.WriteLine("Opened world: " + e_we.URL);
+                        Console.WriteLine("Opened world: " + e_we!.URL);
 
                         var error = host.Dial(host2.ID);
                         if (error != null)
@@ -181,7 +181,7 @@ namespace AbyssCLI.Test
 
                         (evnt, evnt_error) = host.WaitForEvent();
                         var e_srq = evnt as ESessionRequest;
-                        world.AcceptSession(e_srq.PeerID, e_srq.PeerWSID);
+                        world!.AcceptSession(e_srq!.PeerID, e_srq.PeerWSID);
 
                         (evnt, evnt_error) = host.WaitForEvent();
                         var e_srd = evnt as ESessionReady;
@@ -189,7 +189,7 @@ namespace AbyssCLI.Test
                         (evnt, evnt_error) = host.WaitForEvent();
                         var e_oa = evnt as EObjectAppend;
 
-                        Console.WriteLine(e_oa.Objects[0].Address);
+                        Console.WriteLine(e_oa!.Objects[0].Address);
                     });
 
                     var host2_task = Task.Run(() =>
@@ -207,7 +207,7 @@ namespace AbyssCLI.Test
                         }
                         var e_pc = evnt as EPeerConnected;
 
-                        var (world, join_error) = host2.JoinWorld(e_pc.Peer, "/");
+                        var (world, join_error) = host2.JoinWorld(e_pc!.Peer, "/");
                         (evnt, evnt_error) = host2.WaitForEvent();
                         var e_we = evnt as EWorldEnter;
 
@@ -220,7 +220,7 @@ namespace AbyssCLI.Test
                             Transform = [1, 2, 3, 4, 5, 6, 7, 8],
                             Address = "https://some-object.com",
                         };
-                        world.ObjectAppend([(e_pc.Peer, e_srd.PeerWSID)], [obj]);
+                        world!.ObjectAppend([(e_pc.Peer, e_srd!.PeerWSID)], [obj]);
                     });
 
                     await host_task;

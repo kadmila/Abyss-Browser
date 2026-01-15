@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "AbyssCLI": {
+      "commandName": "Project",
+      "commandLineArgs": "Join"
+    }
+  }
+}

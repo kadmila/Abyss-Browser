@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 
 namespace AbyssCLI.AbyssHttp;
-public class AbystHttpMessageHandler : HttpMessageHandler
+public class AbystHttpMessageHandler(AbyssLibB.AbystClient _abyst_client) : HttpMessageHandler
 {
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
@@ -24,11 +24,11 @@ public class AbystHttpMessageHandler : HttpMessageHandler
 
         // Make the request via AbystClient
         AbyssLibB.HttpResponse? response;
-        AbyssLibB.Error? abyst_err;
+        AbyssLibB.AbyssLibError? abyst_err;
         switch (request.Method.Method)
         {
         case "GET":
-            (response, abyst_err) = await Client.Client.AbystClient.Get(peerId, path);
+            (response, abyst_err) = await _abyst_client.Get(peerId, path);
             break;
         default:
             return new HttpResponseMessage(HttpStatusCode.MethodNotAllowed)

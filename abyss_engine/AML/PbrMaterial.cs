@@ -1,4 +1,6 @@
 ﻿#nullable enable
+using AbyssCLI.HL;
+
 namespace AbyssCLI.AML;
 
 #pragma warning disable IDE1006 //naming convension
@@ -12,7 +14,7 @@ public class PbrMaterial : Element
     private PbrTextureResourceLink? _opacity;
     private PbrTextureResourceLink? _emission;
 
-    internal PbrMaterial(Document document, object? options) : base(document, "pbrm", options)
+    internal PbrMaterial(ContentB origin, object? options) : base(origin, "pbrm", options)
     {
         if (!Attributes.TryGetValue("albedo", out string? albedo_src))
             return;
@@ -96,11 +98,11 @@ public class PbrMaterial : Element
             target.Dispose();
         }
 
-        target = new PbrTextureResourceLink(value, ElementId, role);
+        target = new PbrTextureResourceLink(Origin.Cache, value, ElementId, role);
     }
 
-    private sealed class PbrTextureResourceLink(string src, int element_id, ResourceRole role)
-        : BetterResourceLink(src)
+    private sealed class PbrTextureResourceLink(Cache.Cache shared_cache, string src, int element_id, ResourceRole role)
+        : BetterResourceLink(shared_cache, src)
     {
         public override void Deploy()
         {

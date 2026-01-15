@@ -12,14 +12,11 @@ public class Cache
 		{
 			Console.WriteLine("=== CacheCow + AbystClient Integration Test ===\n");
 
-            var collocatedH3Handler = new AbyssHttp.CollocatedH3HttpMessageHandler();
-            using var httpClient = ClientExtensions.CreateClient(collocatedH3Handler);
-
             var testUrl = "https://localhost:4433/c/";
 
             // 1) First request - should miss cache and fetch via AbystClient
             Console.WriteLine("--- FIRST REQUEST (should fetch) ---");
-            var firstResponse = await httpClient.GetAsync(testUrl);
+            var firstResponse = await Client.Client.CollocatedHttp3Client.GetAsync(testUrl);
             Console.WriteLine($"First Response: {firstResponse}||");
 
 
@@ -28,7 +25,7 @@ public class Cache
 
             // 8) Second request - should retrieve from cache
             Console.WriteLine("--- SECOND REQUEST (should come from cache) ---");
-            var secondResponse = await httpClient.GetAsync(testUrl);
+            var secondResponse = await Client.Client.CollocatedHttp3Client.GetAsync(testUrl);
             Console.WriteLine($"Second Response: {secondResponse}||");
 
             string secondBody = await secondResponse.Content.ReadAsStringAsync();

@@ -1,27 +1,26 @@
 ﻿using AbyssCLI.AML;
-using AbyssCLI.Tool;
 
 #nullable enable
 namespace AbyssCLI.HL;
-internal class ContentB : IDisposable
+public class ContentB : IDisposable
 {
-    private readonly AbyssURL _url;
+    public readonly Cache.Cache Cache = new();
+
+    private readonly string _url;
     internal readonly Document Document;
     private readonly CancellationTokenSource _cts;
     private readonly Task _content_task;
-    internal ContentB(AbyssURL url, AmlMetadata metadata)
+    internal ContentB(string url, AmlMetadata metadata)
     {
         _url = url;
-        Document = new(metadata);
+        Document = new(this, metadata);
         _cts = new();
 
         //TODO: properly handle all exceptions from content task.
         _content_task = Task.Run(async() =>
         {
             Document.Init();
-            using var _document_cache_ref = Client.Client.Cache.GetReference(_url.ToString());
-
-            Client.Client.CerrWriteLine("getting document cache: " + _url);
+            using var _document_cache_ref = Cache.GetReference(_url);
 
             Cache.CachedResource? doc_resource;
             try
@@ -35,19 +34,27 @@ internal class ContentB : IDisposable
                 return;
             }
 
-            Client.Client.CerrWriteLine("document loaded: " + _url);
-
             if (doc_resource is not Cache.Text doc_text) //relaxed from text/aml, Cache.Text allows text/* - for compatibility
             {
-                throw new Exception("fatal:::MIME mismatch: " + (doc_resource.MIMEType == "" ? "<unspecified>" : doc_resource.MIMEType));
+                Client.Client.Cerr.WriteLine("fatal:::MIME mismatch: " + (doc_resource.MIMEType == "" ? "<unspecified>" : doc_resource.MIMEType));
+                return;
             }
-            string raw_document = await doc_text.ReadAsync(_cts.Token);
-            Client.Client.CerrWriteLine(raw_document);
 
-            ParseUtil.ParseAMLDocument(Document, raw_document, _cts.Token);
+            string raw_document;
+            try
+            {
+                raw_document = await doc_text.ReadAsync(_cts.Token);
+            } 
+            catch
+            {
+                Client.Client.CerrWriteLine("failed to read document: " + _url);
+                return;
+            }
+
+            Client.Client.CerrWriteLine("document loaded: " + _url);
+
+            ParseUtil.ParseAMLDocument(this, Document, raw_document, _cts.Token);
             Document.StartJavaScript(_cts.Token);
-
-            Client.Client.CerrWriteLine("document started: " + _url);
 
             while (true)
             { //temporary: fixed duration cleanup
@@ -83,5 +90,7 @@ internal class ContentB : IDisposable
         Document.Join();
 
         is_disposed = true;
+        GC.SuppressFinalize(this);
     }
+    ~ContentB() => Dispose();
 }

@@ -1,51 +1,26 @@
-﻿using AbyssCLI.Abyst;
-using AbyssCLI.Tool;
-using System;
+﻿using AbyssCLI.Tool;
 
 namespace AbyssCLI.Cache;
 
 /// <summary>
-/// In abyss browser, we cache abyst resources according to the Cache-Control header.
-/// We have monolithic cache, which entry contains 1) resource 2) origin 3) response headers. (and more)
-/// However, non-semantic response header fields are excluded.
+/// Cache operates per content, suppressing redundant network fetch.
+/// Regardless of HTTP Cache-Control, this content-wide cache is absolute.
 /// </summary>
-public class Cache(Action<HttpRequestMessage> http_requester, Action<AbystRequestMessage> abyst_requester)
+public class Cache
 {
-    public static (object, string) InterpreURIText(string uri)
-    {
-        object requestMessage = uri switch
-        {
-            string s when s.StartsWith("http") => new HttpRequestMessage(HttpMethod.Get, uri),
-            string s when s.StartsWith("abyst") => new AbystRequestMessage(HttpMethod.Get, uri),
-            _ => throw new Exception("invalid address: " + uri),
-        };
-        string normalized_key = requestMessage switch
-        {
-            HttpRequestMessage hrm => hrm.RequestUri.ToString(),
-            AbystRequestMessage arm => arm.AbyssURL.Raw,
-            _ => throw new Exception("invalid address: " + uri),
-        };
-        return (requestMessage, normalized_key);
-    }
-
-    private readonly Action<HttpRequestMessage> _http_requester = http_requester;
-    private readonly Action<AbystRequestMessage> _abyst_requester = abyst_requester;
     private readonly Dictionary<string, RcTaskCompletionSource<CachedResource>> _inner = []; //lock this.
     private readonly LinkedList<RcTaskCompletionSource<CachedResource>> _outdated_inner = [];
     public void Patch(string key, CachedResource value)
     {
         lock (_inner)
         {
-            Client.Client.CerrWriteLine("Patch:" + key + "|");
-            if (_inner.TryGetValue(key, out RcTaskCompletionSource<CachedResource> entry))
+            Client.Client.Cerr.WriteLine("Patch:" + key + "|");
+            if (_inner.TryGetValue(key, out RcTaskCompletionSource<CachedResource>? entry))
             {
-                Client.Client.RenderWriter.DebugEnter("patch A");
                 if (entry.TrySetResult(value))
                 {
-                    Client.Client.RenderWriter.DebugLeave("patch A");
                     return;
                 }
-                Client.Client.RenderWriter.DebugLeave("patch A");
 
                 // we are updating.
                 _ = _inner.Remove(key);
@@ -57,14 +32,12 @@ public class Cache(Action<HttpRequestMessage> http_requester, Action<AbystReques
             }
         }
     }
-    public TaskCompletionReference<CachedResource> GetReference(string uri)
+    public TaskCompletionReference<CachedResource> GetReference(string url)
     {
-        (object requestMessage, string normalized_key) = InterpreURIText(uri);
-
-        lock (_inner) //not releasing
+        lock (_inner)
         {
-            Client.Client.CerrWriteLine("GetReference: " + normalized_key + "|");
-            if (_inner.TryGetValue(normalized_key, out RcTaskCompletionSource<CachedResource> entry))
+            Client.Client.Cerr.WriteLine($"GetReference:{url}|");
+            if (_inner.TryGetValue(url, out RcTaskCompletionSource<CachedResource>? entry))
             {
                 _ = entry.TryGetReference(out TaskCompletionReference<CachedResource> reference);
                 return reference;
@@ -72,30 +45,32 @@ public class Cache(Action<HttpRequestMessage> http_requester, Action<AbystReques
 
             RcTaskCompletionSource<CachedResource> new_entry = new();
             _ = new_entry.TryGetReference(out TaskCompletionReference<CachedResource> new_reference);
-            _inner.Add(normalized_key, new_entry);
-            ThreadUnsafeRequestAny(requestMessage);
+            _inner.Add(url, new_entry);
+
+            Task.Run(() => Fetch(url));
             return new_reference;
         }
     }
-    private void ThreadUnsafeRequestAny(object requestMessage)
+    private async Task Fetch(string url)
     {
-        switch (requestMessage)
+        HttpResponseMessage response = url.StartsWith("abyst:") ?
+            await Client.Client.AbystClient.GetAsync(url) :
+            await Client.Client.HttpClient.GetAsync(url);
+
+        string mime = response.Content.Headers.ContentType?.MediaType ?? "application/octet-stream";
+        Patch(url, mime switch
         {
-        case HttpRequestMessage hrm:
-            _http_requester.Invoke(hrm);
-            break;
-        case AbystRequestMessage arm:
-            _abyst_requester.Invoke(arm);
-            break;
-        default:
-            throw new Exception("invalid request message type");
-        }
+            "model/obj" or "image/png" => new StaticSimpleResource(response),
+            "image/jpeg" => new StaticResource(response),
+            _ when mime != null && mime.StartsWith("text/") => new Text(response),
+            _ => new StaticSimpleResource(response),
+        });
     }
     public void Remove(string key)
     {
         lock (_inner)
         {
-            if (_inner.TryGetValue(key, out RcTaskCompletionSource<CachedResource> old))
+            if (_inner.TryGetValue(key, out RcTaskCompletionSource<CachedResource>? old))
             {
                 _ = _inner.Remove(key);
                 _ = old.TrySetResult(CachedResource.DefaultFailedResource);
@@ -122,13 +97,13 @@ public class Cache(Action<HttpRequestMessage> http_requester, Action<AbystReques
             }
             foreach (string old in olds)
             {
-                _ = _inner.Remove(old, out RcTaskCompletionSource<CachedResource> value);
-                value.Dispose();
+                _ = _inner.Remove(old, out RcTaskCompletionSource<CachedResource>? value);
+                value!.Dispose();
             }
 
-            for (LinkedListNode<RcTaskCompletionSource<CachedResource>> node = _outdated_inner.First; node != null;)
+            for (LinkedListNode<RcTaskCompletionSource<CachedResource>>? node = _outdated_inner.First; node != null;)
             {
-                LinkedListNode<RcTaskCompletionSource<CachedResource>> next = node.Next;
+                LinkedListNode<RcTaskCompletionSource<CachedResource>>? next = node.Next;
                 if (node.Value.TryClose())
                 {
                     node.Value.Dispose();

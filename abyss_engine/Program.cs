@@ -5,8 +5,8 @@ internal class Program
 {
     public static async Task Main()
     {
-        await Cache.TestAbystClientWithCacheCow();
-        Environment.Exit(0);
+        //await Cache.TestAbystClientWithCacheCow();
+        //Environment.Exit(0);
 
         try
         {

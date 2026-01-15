@@ -1,4 +1,5 @@
 ﻿#nullable enable
+using AbyssCLI.HL;
 
 namespace AbyssCLI.AML;
 
@@ -6,7 +7,7 @@ namespace AbyssCLI.AML;
 public class Transform : Element
 {
     public (Vector3, Quaternion) _transform = (new(), new()); //TODO: dynamic transform
-    public Transform(Document document, string tag, object? options) : base(document, tag, options)
+    public Transform(ContentB origin, string tag, object? options) : base(origin, tag, options)
     {
         //apply attributes
         foreach (KeyValuePair<string, string> entry in Attributes)
@@ -24,7 +25,7 @@ public class Transform : Element
             }
         }
     }
-    public override bool IsParentAllowed(Element parent) => parent is Transform;
+    public override bool IsParentAllowed(Element element) => element is Transform;
 
     //Javascript APIs
     public string pos

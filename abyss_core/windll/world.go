@@ -16,6 +16,17 @@ import (
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
 )
 
+//export World_Query
+func World_Query(
+	h_world C.uintptr_t,
+	world_session_id_buf *C.char,
+) {
+	world := cgo.Handle(h_world).Value().(*and.World)
+	world_session_id_slice := (*[16]byte)(unsafe.Pointer(world_session_id_buf))[:]
+	wsid := world.SessionID()
+	copy(world_session_id_slice, wsid[:])
+}
+
 //export World_AcceptSession
 func World_AcceptSession(
 	h_host C.uintptr_t,

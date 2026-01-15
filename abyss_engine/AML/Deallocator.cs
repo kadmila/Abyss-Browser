@@ -2,7 +2,7 @@
 /// <summary>
 /// Manual resource deallocation stack. This is not thread safe.
 /// </summary>
-public class DeallocStack
+public class Deallocator
 {
     public LinkedList<DeallocEntry> stack = new();
     public void Add(DeallocEntry entry)
@@ -20,7 +20,7 @@ public class DeallocStack
             entry = next; // Move to the next node
         }
     }
-    ~DeallocStack()
+    ~Deallocator()
     {
         if (stack.Count != 0)
         {

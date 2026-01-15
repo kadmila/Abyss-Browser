@@ -81,5 +81,7 @@ public class StaticSimpleResource : CachedResource
         base.Dispose();
 
         _disposed = true;
+        GC.SuppressFinalize(this);
     }
+    ~StaticSimpleResource() => Dispose();
 }
