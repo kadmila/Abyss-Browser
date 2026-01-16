@@ -137,7 +137,15 @@ message RenderAction {
 	message PeerConnected {
 		string peer_id = 1;
 	}
-	message PeerDisconneted {
+	message PeerDisconnected {
+		string peer_id = 1;
+	}
+
+	// peer information
+	message PeerFound {
+		string peer_id = 1;
+	}
+	message PeerForgot {
 		string peer_id = 1;
 	}
 
@@ -180,7 +188,9 @@ message RenderAction {
 		InfoContentDeleted info_content_deleted = 602;
 
 		PeerConnected peer_connected = 700;
-		PeerDisconneted peer_disconnected = 701;
+		PeerDisconnected peer_disconnected = 701;
+		PeerFound peer_found = 702;
+		PeerForgot peer_forgot = 703;
 
 		DebugEnter debug_enter = 800;
 		DebugEnter debug_leave = 801;

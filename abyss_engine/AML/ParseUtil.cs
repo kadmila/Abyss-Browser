@@ -37,7 +37,7 @@ internal static class ParseUtil
             default:
                 if (!is_warned)
                 {
-                    Client.Client.CerrWriteLine("Warning: found <" + node.Name + ">: <aml> may only have a <head> and a <body>, where <head> must come before <body>");
+                    Client.Client.Cerr.WriteLine("Warning: found <" + node.Name + ">: <aml> may only have a <head> and a <body>, where <head> must come before <body>");
                     is_warned = true;
                 }
                 break;
@@ -62,7 +62,7 @@ internal static class ParseUtil
                     continue;
                 if (text_node.NodeType != XmlNodeType.Text)
                 {
-                    Client.Client.CerrWriteLine("Warning: <title> tag must only have text content");
+                    Client.Client.Cerr.WriteLine("Warning: <title> tag must only have text content");
                     continue;
                 }
                 document.title = text_node.Value;
@@ -87,7 +87,7 @@ internal static class ParseUtil
 
             if (!document.TryEnqueueJavaScript(src, script_src))
             {
-                Client.Client.CerrWriteLine("Ignored: too many scripts");
+                Client.Client.Cerr.WriteLine("Ignored: too many scripts");
             }
             return;
         }
@@ -96,16 +96,16 @@ internal static class ParseUtil
         XmlNode text_node = script_elem.FirstChild;
         if (text_node == null)
         {
-            Client.Client.CerrWriteLine("Warning: empty <script>");
+            Client.Client.Cerr.WriteLine("Warning: empty <script>");
         }
         if (text_node.NodeType != XmlNodeType.Text)
         {
-            Client.Client.CerrWriteLine("Error: text <script> should only have text");
+            Client.Client.Cerr.WriteLine("Error: text <script> should only have text");
             return;
         }
         if (!document.TryEnqueueJavaScript(string.Empty, text_node.Value))
         {
-            Client.Client.CerrWriteLine("Ignored: too many scripts");
+            Client.Client.Cerr.WriteLine("Ignored: too many scripts");
         }
     }
     private static void ParseLink(Document document, XmlElement link_elem)

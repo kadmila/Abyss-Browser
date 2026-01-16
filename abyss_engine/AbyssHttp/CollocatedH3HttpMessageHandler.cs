@@ -23,7 +23,7 @@ public class CollocatedH3HttpMessageHandler(AbyssLibB.CollocatedH3Client _colloc
             {
                 Content = new StringContent($"Unsupported scheme: {request.RequestUri?.Scheme}"),
                 RequestMessage = request,
-                //Version = HttpVersion.Version30,
+                Version = HttpVersion.Version30,
             };
         }
 
@@ -43,7 +43,7 @@ public class CollocatedH3HttpMessageHandler(AbyssLibB.CollocatedH3Client _colloc
             {
                 Content = new StringContent($"Unsupported Method: {request.Method.Method}"),
                 RequestMessage = request,
-                //Version = HttpVersion.Version30,
+                Version = HttpVersion.Version30,
             };
         }
         if (http3_err != null)
@@ -52,7 +52,7 @@ public class CollocatedH3HttpMessageHandler(AbyssLibB.CollocatedH3Client _colloc
             {
                 Content = new StringContent($"Internal error: {http3_err.Message}"),
                 RequestMessage = request,
-                //Version = HttpVersion.Version30,
+                Version = HttpVersion.Version30,
             };
         }
 
@@ -62,7 +62,7 @@ public class CollocatedH3HttpMessageHandler(AbyssLibB.CollocatedH3Client _colloc
         {
             Content = new ByteArrayContent(bodyBytes),
             RequestMessage = request,
-            //Version = HttpVersion.Version30,
+            Version = HttpVersion.Version30,
         };
 
         // Sets header - requires httpResponse.Content.

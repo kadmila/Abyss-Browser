@@ -24,7 +24,7 @@ public class Deallocator
     {
         if (stack.Count != 0)
         {
-            Client.Client.CerrWriteLine("DeallocStack was not empty on finalization. This is a bug");
+            Client.Client.Cerr.WriteLine("DeallocStack was not empty on finalization. This is a bug");
         }
     }
 }

@@ -13,7 +13,6 @@ import (
 
 	"github.com/kadmila/Abyss-Browser/abyss_core/ahost"
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
-	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
 	"github.com/kadmila/Abyss-Browser/abyss_core/sec"
 	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
 	"github.com/kadmila/Abyss-Browser/abyss_core/watchdog"
@@ -169,18 +168,21 @@ func Host_OpenWorld(
 //export Host_JoinWorld
 func Host_JoinWorld(
 	h C.uintptr_t,
-	h_peer C.uintptr_t,
+	peer_id_ptr *C.char, peer_id_len C.int,
 	path_ptr *C.char, path_len C.int,
 	world_handle_out *C.uintptr_t,
 ) C.uintptr_t {
 	host := cgo.Handle(h).Value().(*ahost.AbyssHost)
-	peer := cgo.Handle(h_peer).Value().(ani.IAbyssPeer)
+	peer_id, ok := TryUnmarshalBytes(peer_id_ptr, peer_id_len)
+	if !ok {
+		return marshalError(errors.New("nil arguments"))
+	}
 	path, ok := TryUnmarshalBytes(path_ptr, path_len)
 	if !ok {
 		return marshalError(errors.New("nil arguments"))
 	}
 
-	world, err := host.JoinWorld(peer, string(path))
+	world, err := host.JoinWorld(string(peer_id), string(path))
 	if err != nil {
 		return marshalError(err)
 	}
@@ -304,8 +306,8 @@ func Host_NewAbystClient(h C.uintptr_t) C.uintptr_t {
 	return C.uintptr_t(cgo.NewHandle(client))
 }
 
-//export CloseAbyssClient
-func CloseAbyssClient(h C.uintptr_t) {
+//export CloseAbystClient
+func CloseAbystClient(h C.uintptr_t) {
 	handle := cgo.Handle(h)
 	// TODO: cleanup (if required)
 	deleteHandle(handle)
@@ -320,8 +322,8 @@ func Host_NewCollocatedHttp3Client(h C.uintptr_t) C.uintptr_t {
 	return C.uintptr_t(cgo.NewHandle(client))
 }
 
-//export CloseAbyssClientCollocatedHttp3Client
-func CloseAbyssClientCollocatedHttp3Client(h C.uintptr_t) {
+//export CloseCollocatedHttp3Client
+func CloseCollocatedHttp3Client(h C.uintptr_t) {
 	handle := cgo.Handle(h)
 	// TODO: cleanup (if required)
 	deleteHandle(handle)

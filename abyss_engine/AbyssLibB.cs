@@ -32,7 +32,7 @@ public static class AbyssLibB
     [DllImport(DllName)] private static extern unsafe IntPtr Host_WaitForEvent(IntPtr h, int* event_type_out, IntPtr* event_handle_out);
     [DllImport(DllName)] private static extern void CloseEvent(IntPtr h);
     [DllImport(DllName)] private static extern unsafe IntPtr Host_OpenWorld(IntPtr h, byte* world_url_ptr, int world_url_len, IntPtr* world_handle_out);
-    [DllImport(DllName)] private static extern unsafe IntPtr Host_JoinWorld(IntPtr h, IntPtr h_peer, byte* path_ptr, int path_len, IntPtr* world_handle_out);
+    [DllImport(DllName)] private static extern unsafe IntPtr Host_JoinWorld(IntPtr h, byte* peer_id_ptr, int peer_id_len, byte* path_ptr, int path_len, IntPtr* world_handle_out);
     [DllImport(DllName)] private static extern unsafe IntPtr Host_ExposeWorldForJoin(IntPtr h, IntPtr h_world, byte* path_ptr, int path_len);
     [DllImport(DllName)] private static extern void Host_HideWorld(IntPtr h, IntPtr h_world);
     [DllImport(DllName)] private static extern unsafe int Host_LocalAddrCandidates(IntPtr h, byte* buf_ptr, int buf_len);
@@ -44,11 +44,9 @@ public static class AbyssLibB
     [DllImport(DllName)] private static extern unsafe IntPtr Host_Dial(IntPtr h, byte* id_ptr, int id_len);
     [DllImport(DllName)] private static extern unsafe IntPtr Host_ConfigAbystGateway(IntPtr h, byte* config_ptr, int config_len);
     [DllImport(DllName)] private static extern IntPtr Host_NewAbystClient(IntPtr h);
-    [DllImport(DllName)] private static extern void CloseAbyssClient(IntPtr h);
+    [DllImport(DllName)] private static extern void CloseAbystClient(IntPtr h);
     [DllImport(DllName)] private static extern IntPtr Host_NewCollocatedHttp3Client(IntPtr h);
-    [DllImport(DllName)] private static extern void CloseAbyssClientCollocatedHttp3Client(IntPtr h);
-
-    [DllImport(DllName)] private static extern void ClosePeer(IntPtr h_peer);
+    [DllImport(DllName)] private static extern void CloseCollocatedHttp3Client(IntPtr h);
 
     [DllImport(DllName)] private static extern unsafe IntPtr AbystClient_Get(IntPtr h_client, byte* peer_id_ptr, int peer_id_len, byte* path_ptr, int path_len, IntPtr* result_handle_out, CompleteTaskCompletionSourceCallback waiter_callback, IntPtr waiter_callback_arg);
     [DllImport(DllName)] private static extern unsafe IntPtr AbystClient_Post(IntPtr h_client, IntPtr h_event, byte* peer_id_ptr, int peer_id_len, byte* path_ptr, int path_len, byte* content_type_ptr, int content_type_len, byte* body_ptr, int body_len, IntPtr* result_handle_out);
@@ -70,8 +68,8 @@ public static class AbyssLibB
     [DllImport(DllName)] private static extern unsafe void World_AcceptSession(IntPtr h_host, IntPtr h_world, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf);
     [DllImport(DllName)] private static extern unsafe void World_DeclineSession(IntPtr h_host, IntPtr h_world, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf, int code, byte* message_buf_ptr, int message_buf_len);
     [DllImport(DllName)] private static extern void World_Close(IntPtr h_host, IntPtr h_world);
-    [DllImport(DllName)] private static extern unsafe void World_ObjectAppend(IntPtr h_host, IntPtr h_world, int peer_count, IntPtr* h_peers, byte** peer_session_id_bufs, int object_count, byte** object_id_bufs, float** object_transform_bufs, byte** object_addr_bufs, int* object_addr_buf_lens);
-    [DllImport(DllName)] private static extern unsafe void World_ObjectDelete(IntPtr h_host, IntPtr h_world, int peer_count, IntPtr* h_peers, byte** peer_session_id_bufs, int object_count, byte** object_id_bufs);
+    [DllImport(DllName)] private static extern unsafe void World_ObjectAppend(IntPtr h_host, IntPtr h_world, int peer_count, byte** peer_id_bufs, int* peer_id_buf_lens, byte** peer_session_id_bufs, int object_count, byte** object_id_bufs, float** object_transform_bufs, byte** object_addr_bufs, int* object_addr_buf_lens);
+    [DllImport(DllName)] private static extern unsafe void World_ObjectDelete(IntPtr h_host, IntPtr h_world, int peer_count, byte** peer_id_bufs, int* peer_id_buf_lens, byte** peer_session_id_bufs, int object_count, byte** object_id_bufs);
 
     // Event query functions
     [DllImport(DllName)] private static extern unsafe int Event_WorldEnter_Query(IntPtr h_event, byte* world_session_id_buf, byte* url_buf_ptr, int url_buf_len);
@@ -84,7 +82,7 @@ public static class AbyssLibB
     [DllImport(DllName)] private static extern unsafe int Event_ObjectDelete_Query(IntPtr h_event, byte* world_session_id_buf, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf, int* object_count_out);
     [DllImport(DllName)] private static extern unsafe int Event_ObjectDelete_GetObjectIDs(IntPtr h_event, byte** object_id_bufs);
     [DllImport(DllName)] private static extern unsafe int Event_WorldLeave_Query(IntPtr h_event, byte* world_session_id_buf, int* code_out, byte* message_buf_ptr, int message_buf_len);
-    [DllImport(DllName)] private static extern unsafe int Event_PeerConnected_Query(IntPtr h_event, IntPtr* peer_handle_out, byte* peer_id_buf_ptr, int peer_id_buf_len);
+    [DllImport(DllName)] private static extern unsafe int Event_PeerConnected_Query(IntPtr h_event, byte* peer_id_buf_ptr, int peer_id_buf_len);
     [DllImport(DllName)] private static extern unsafe int Event_PeerDisconnected_Query(IntPtr h_event, byte* peer_id_buf_ptr, int peer_id_buf_len);
 
 #pragma warning restore SYSLIB1054
@@ -1064,7 +1062,7 @@ public static class AbyssLibB
         public void Dispose()
         {
             if (_handle == IntPtr.Zero) return;
-            CloseAbyssClient(_handle);
+            CloseAbystClient(_handle);
             _handle = IntPtr.Zero;
             GC.SuppressFinalize(this);
         }
@@ -1152,7 +1150,7 @@ public static class AbyssLibB
         public void Dispose()
         {
             if (_handle == IntPtr.Zero) return;
-            CloseAbyssClientCollocatedHttp3Client(_handle);
+            CloseCollocatedHttp3Client(_handle);
             _handle = IntPtr.Zero;
             GC.SuppressFinalize(this);
         }

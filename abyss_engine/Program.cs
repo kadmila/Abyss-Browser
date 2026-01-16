@@ -11,11 +11,11 @@ internal class Program
         try
         {
             await Client.Run();
-            Client.CerrWriteLine("AbyssCLI terminated peacefully");
+            Client.Cerr.WriteLine("AbyssCLI terminated peacefully");
         }
         catch (Exception ex)
         {
-            Client.CerrWriteLine("***FATAL::ABYSS_CLI TERMINATED***\n" + ex.ToString());
+            Client.Cerr.WriteLine("***FATAL::ABYSS_CLI TERMINATED***\n" + ex.ToString());
         }
     }
 }

@@ -87,7 +87,7 @@ const fetch = (a, b) => __fetch_api.FetchAsync(a, b)
             }
             catch (ScriptEngineException ex)
             {
-                Client.Client.CerrWriteLine($"javascript error: {ex.ErrorDetails}");
+                Client.Client.Cerr.WriteLine($"javascript error: {ex.ErrorDetails}");
             }
             catch (OperationCanceledException) //token cancellation
             {
@@ -95,7 +95,7 @@ const fetch = (a, b) => __fetch_api.FetchAsync(a, b)
             }
             catch (Exception ex)
             {
-                Client.Client.CerrWriteLine($"fatal::: {ex}");
+                Client.Client.Cerr.WriteLine($"fatal::: {ex}");
             }
         }
     }
@@ -123,13 +123,13 @@ const fetch = (a, b) => __fetch_api.FetchAsync(a, b)
             //Client.Client.RenderWriter.ConsolePrint("JsDispatcher: running " + file_name);
             if (script_resource is not Cache.Text)
             {
-                Client.Client.CerrWriteLine(script_resource.MIMEType);
-                Client.Client.CerrWriteLine("invalid javascript resource");
+                Client.Client.Cerr.WriteLine(script_resource.MIMEType);
+                Client.Client.Cerr.WriteLine("invalid javascript resource");
                 return;
             }
             if (script_resource.MIMEType != "text/javascript")
             {
-                Client.Client.CerrWriteLine("javascript MIME mismatch: " + script_resource.MIMEType);
+                Client.Client.Cerr.WriteLine("javascript MIME mismatch: " + script_resource.MIMEType);
                 return;
             }
             string remote_script_text = await (script_resource as Cache.Text)!.ReadAsync(token);

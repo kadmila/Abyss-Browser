@@ -12,7 +12,6 @@ import (
 
 	"github.com/kadmila/Abyss-Browser/abyss_core/ahost"
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
-	"github.com/kadmila/Abyss-Browser/abyss_core/watchdog"
 )
 
 // Event type constants matching C enum values
@@ -29,6 +28,8 @@ const (
 	// Host Events
 	AbyssEvent_PeerConnected
 	AbyssEvent_PeerDisconnected
+	AbyssEvent_PeerFound
+	AbyssEvent_PeerForgot
 )
 
 // getEventType maps Go event types to C enum values
@@ -52,6 +53,10 @@ func getEventType(event any) int {
 		return AbyssEvent_PeerConnected
 	case *ahost.EPeerDisconnected:
 		return AbyssEvent_PeerDisconnected
+	case *ahost.EPeerFound:
+		return AbyssEvent_PeerFound
+	case *ahost.EPeerForgot:
+		return AbyssEvent_PeerForgot
 	default:
 		panic("unexpected Abyss event")
 	}
@@ -300,24 +305,13 @@ func Event_WorldLeave_Query(
 //export Event_PeerConnected_Query
 func Event_PeerConnected_Query(
 	h_event C.uintptr_t,
-	peer_handle_out *C.uintptr_t,
 	peer_id_buf_ptr *C.char, peer_id_buf_len C.int,
 ) C.int {
 	event := cgo.Handle(h_event).Value().(*ahost.EPeerConnected)
 
-	// Create peer handle (only created here)
-	watchdog.CountHandleExport()
-	*peer_handle_out = C.uintptr_t(cgo.NewHandle(event.Peer))
-
 	// Copy peer ID to buffer
-	peer_id_bytes := []byte(event.Peer.ID())
+	peer_id_bytes := []byte(event.PeerID)
 	return TryMarshalBytes(peer_id_buf_ptr, peer_id_buf_len, peer_id_bytes)
-}
-
-//export ClosePeer
-func ClosePeer(h_peer C.uintptr_t) {
-	handle := cgo.Handle(h_peer)
-	deleteHandle(handle)
 }
 
 //export Event_PeerDisconnected_Query
@@ -326,6 +320,30 @@ func Event_PeerDisconnected_Query(
 	peer_id_buf_ptr *C.char, peer_id_buf_len C.int,
 ) C.int {
 	event := cgo.Handle(h_event).Value().(*ahost.EPeerDisconnected)
+
+	// Copy peer ID to buffer
+	peer_id_bytes := []byte(event.PeerID)
+	return TryMarshalBytes(peer_id_buf_ptr, peer_id_buf_len, peer_id_bytes)
+}
+
+//export Event_PeerFound_Query
+func Event_PeerFound_Query(
+	h_event C.uintptr_t,
+	peer_id_buf_ptr *C.char, peer_id_buf_len C.int,
+) C.int {
+	event := cgo.Handle(h_event).Value().(*ahost.EPeerFound)
+
+	// Copy peer ID to buffer
+	peer_id_bytes := []byte(event.PeerID)
+	return TryMarshalBytes(peer_id_buf_ptr, peer_id_buf_len, peer_id_bytes)
+}
+
+//export Event_PeerForgot_Query
+func Event_PeerForgot_Query(
+	h_event C.uintptr_t,
+	peer_id_buf_ptr *C.char, peer_id_buf_len C.int,
+) C.int {
+	event := cgo.Handle(h_event).Value().(*ahost.EPeerForgot)
 
 	// Copy peer ID to buffer
 	peer_id_bytes := []byte(event.PeerID)

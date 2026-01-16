@@ -189,33 +189,3 @@ func (w *World) sendSOD(target *peerWorldSessionState, objectIDs []uuid.UUID) er
 		ObjectIDs:       rawObjectIDs,
 	})
 }
-
-// SendObjectAppend sends SOA message to the specified peer.
-// The peer must be a member of this world.
-func (w *World) SendObjectAppend(peer_session ANDPeerSession, objects []ObjectInfo) {
-	if w.is_closed {
-		return
-	}
-
-	entry, ok := w.entries[peer_session.Peer.ID()]
-	if !ok || entry.SessionID != peer_session.SessionID || entry.state != WS_MEM {
-		return
-	}
-
-	w.sendSOA(entry, objects)
-}
-
-// SendObjectDelete sends SOD message to the specified peer.
-// The peer must be a member of this world.
-func (w *World) SendObjectDelete(peer_session ANDPeerSession, objectIDs []uuid.UUID) {
-	if w.is_closed {
-		return
-	}
-
-	entry, ok := w.entries[peer_session.Peer.ID()]
-	if !ok || entry.SessionID != peer_session.SessionID || entry.state != WS_MEM {
-		return
-	}
-
-	w.sendSOD(entry, objectIDs)
-}

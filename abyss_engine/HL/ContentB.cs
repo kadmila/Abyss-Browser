@@ -30,7 +30,7 @@ public class ContentB : IDisposable
             catch
             {
                 //todo: show loading status/error in UI
-                Client.Client.CerrWriteLine("failed to load document body: " + _url);
+                Client.Client.Cerr.WriteLine("failed to load document body: " + _url);
                 return;
             }
 
@@ -47,11 +47,11 @@ public class ContentB : IDisposable
             } 
             catch
             {
-                Client.Client.CerrWriteLine("failed to read document: " + _url);
+                Client.Client.Cerr.WriteLine("failed to read document: " + _url);
                 return;
             }
 
-            Client.Client.CerrWriteLine("document loaded: " + _url);
+            Client.Client.Cerr.WriteLine("document loaded: " + _url);
 
             ParseUtil.ParseAMLDocument(this, Document, raw_document, _cts.Token);
             Document.StartJavaScript(_cts.Token);

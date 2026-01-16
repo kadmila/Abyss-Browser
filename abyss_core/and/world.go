@@ -684,6 +684,44 @@ func (w *World) DeclineSession(events *ANDEventQueue, peer_session_identity ANDP
 	w.removeEntry(events, entry, JNC_REJECTED, JNM_REJECTED)
 }
 
+func (w *World) ObjectAppend(peer_session_identities []ANDPeerSessionIdentity, objects []ObjectInfo) {
+	if w.is_closed {
+		return
+	}
+
+	for _, peer_session_identity := range peer_session_identities {
+		entry, ok := w.entries[peer_session_identity.PeerID]
+		if !ok {
+			// entry deleted
+			break
+		}
+		if entry.SessionID != peer_session_identity.SessionID {
+			// session expired
+			break
+		}
+		w.sendSOA(entry, objects)
+	}
+}
+
+func (w *World) ObjectDelete(peer_session_identities []ANDPeerSessionIdentity, objectIDs []uuid.UUID) {
+	if w.is_closed {
+		return
+	}
+
+	for _, peer_session_identity := range peer_session_identities {
+		entry, ok := w.entries[peer_session_identity.PeerID]
+		if !ok {
+			// entry deleted
+			break
+		}
+		if entry.SessionID != peer_session_identity.SessionID {
+			// session expired
+			break
+		}
+		w.sendSOD(entry, objectIDs)
+	}
+}
+
 func (w *World) TimerExpire(events *ANDEventQueue) {
 	if w.is_closed {
 		return

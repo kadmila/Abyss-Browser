@@ -66,7 +66,7 @@ public class World : IDisposable
 	//internals
 	public void OnWorldEnter(AbyssLibB.EWorldEnter evnt)
     {
-        Client.CerrWriteLine($"OnWorldEnter: {evnt.URL}");
+        Client.Cerr.WriteLine($"OnWorldEnter: {evnt.URL}");
 		var metadata = new AML.AmlMetadata()
 		{
 			title = evnt.URL.ToString()
@@ -75,12 +75,12 @@ public class World : IDisposable
     }
 	public void OnMemberRequest(AbyssLibB.ESessionRequest evnt)
 	{
-		Client.CerrWriteLine($"OnMemberRequest from {evnt.PeerID}");
+		Client.Cerr.WriteLine($"OnMemberRequest from {evnt.PeerID}");
 		_world.AcceptSession(evnt.PeerID, evnt.PeerWSID);
 	}
 	public void OnMemberReady(AbyssLibB.ESessionReady evnt)
 	{
-		Client.CerrWriteLine($"OnMemberReady: {evnt.PeerID}");
+		Client.Cerr.WriteLine($"OnMemberReady: {evnt.PeerID}");
 		lock (_lock)
 		{
 			// Note: In AbyssLibB, we don't have a Peer handle from session events
@@ -88,7 +88,7 @@ public class World : IDisposable
 			// For now, create a placeholder member
 			if (!_members.TryAdd(evnt.PeerID, new HL.Member(evnt.PeerID, evnt.PeerWSID)))
 			{
-				Client.CerrWriteLine("failed to append peer; old peer session pends");
+				Client.Cerr.WriteLine("failed to append peer; old peer session pends");
 				return;
 			}
 			Client.RenderWriter.MemberInfo(evnt.PeerID);
@@ -116,25 +116,25 @@ public class World : IDisposable
 	}
 	public void OnMemberObjectAppend(AbyssLibB.EObjectAppend evnt)
 	{
-		Client.CerrWriteLine($"OnMemberObjectAppend from {evnt.PeerID}");
+		Client.Cerr.WriteLine($"OnMemberObjectAppend from {evnt.PeerID}");
 
 		lock (_lock)
 		{
 			if (!_members.TryGetValue(evnt.PeerID, out HL.Member? member))
 			{
-				Client.CerrWriteLine("failed to find member");
+				Client.Cerr.WriteLine("failed to find member");
 				return;
 			}
 
 			foreach (var obj in evnt.Objects)
 			{
-				Client.CerrWriteLine("member object: " + obj.Address);
+				Client.Cerr.WriteLine("member object: " + obj.Address);
 				var item = new HL.Item(evnt.PeerID, obj.Id, obj.Address,
 					new(obj.Transform[0], obj.Transform[1], obj.Transform[2]),
 					new(obj.Transform[4], obj.Transform[5], obj.Transform[6], obj.Transform[3]));
 				if (!member.remote_items.TryAdd(obj.Id, item))
 				{
-					Client.CerrWriteLine("uid collision of objects appended from peer");
+					Client.Cerr.WriteLine("uid collision of objects appended from peer");
 					continue;
 				}
 			}
@@ -142,12 +142,12 @@ public class World : IDisposable
 	}
 	public void OnMemberObjectDelete(AbyssLibB.EObjectDelete evnt)
 	{
-		Client.CerrWriteLine($"OnMemberObjectDelete from {evnt.PeerID}");
+		Client.Cerr.WriteLine($"OnMemberObjectDelete from {evnt.PeerID}");
 		lock (_lock)
 		{
 			if (!_members.TryGetValue(evnt.PeerID, out HL.Member? member))
 			{
-				Client.CerrWriteLine("failed to find member");
+				Client.Cerr.WriteLine("failed to find member");
 				return;
 			}
 
@@ -155,7 +155,7 @@ public class World : IDisposable
 			{
 				if (!member.remote_items.Remove(id, out HL.Item? item))
 				{
-					Client.CerrWriteLine("peer tried to delete unshared objects");
+					Client.Cerr.WriteLine("peer tried to delete unshared objects");
 					continue;
 				}
 				item.Dispose();
@@ -164,12 +164,12 @@ public class World : IDisposable
 	}
 	public void OnMemberLeave(string peerID)
 	{
-		Client.CerrWriteLine($"OnMemberLeave: {peerID}");
+		Client.Cerr.WriteLine($"OnMemberLeave: {peerID}");
 		lock (_lock)
 		{
 			if (!_members.Remove(peerID, out HL.Member? value))
 			{
-				Client.CerrWriteLine("non-existing peer leaved");
+				Client.Cerr.WriteLine("non-existing peer leaved");
 				return;
 			}
 			Client.RenderWriter.MemberLeave(peerID);

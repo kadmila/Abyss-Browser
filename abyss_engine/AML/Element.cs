@@ -120,7 +120,7 @@ public class Element : IDisposable
         GC.SuppressFinalize(this);
         _disposed = true;
     }
-    ~Element() => Client.Client.CerrWriteLine("fatal:::Element finialized without disposing. This is bug");
+    ~Element() => Client.Client.Cerr.WriteLine("fatal:::Element finialized without disposing. This is bug");
 }
 #pragma warning restore IDE1006 //naming convension
 

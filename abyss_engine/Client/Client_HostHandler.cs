@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace AbyssCLI.Client;
+﻿namespace AbyssCLI.Client;
 
 public static partial class Client
 {
@@ -15,18 +9,32 @@ public static partial class Client
             var (evnt, error) = Host.WaitForEvent();
             if (error != null)
             {
-                CerrWriteLine("Host event error: " + error.Message);
+                Cerr.WriteLine("Host event error: " + error.Message);
                 return;
             }
 
             switch (evnt)
             {
                 case AbyssLibB.EPeerConnected e:
-                    CerrWriteLine($"Peer connected: {e.Peer.ID}");
-                    break;
+                lock (_peers)
+                {
+                    if (!_peers.TryAdd(e.Peer.ID, e.Peer))
+                    {
+                        Cerr.WriteLine("FATAL:::duplicate peer connected event: " + e.Peer.ID);
+                    }
+                }
+                continue;
                 case AbyssLibB.EPeerDisconnected e:
-                    CerrWriteLine($"Peer disconnected: {e.PeerID}");
-                    break;
+                lock (_peers)
+                {
+                    if (!_peers.Remove(e.PeerID))
+                    {
+                        Cerr.WriteLine("FATAL:::duplicate peer disconnection event: " + e.PeerID);
+                    }
+                }
+                continue;
+                default:
+                break;
             }
 
             lock (_worldMoveLock)

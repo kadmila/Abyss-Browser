@@ -160,7 +160,7 @@ func TestJoinWorld(t *testing.T) {
 	expectEvent[*ahost.EPeerConnected](t, host_A.GetEventCh())
 
 	// Host B joins the world at path "/"
-	host_B.JoinWorld(peer_B_to_A.Peer, "/")
+	host_B.JoinWorld(peer_B_to_A.PeerID, "/")
 
 	// Wait for session request event on host A (host A should receive join request)
 	session_request := expectEvent[*and.EANDSessionRequest](t, host_A.GetEventCh())
@@ -294,7 +294,7 @@ func TestJoinWorldTransitive(t *testing.T) {
 		peer_B_to_A := expectEvent[*ahost.EPeerConnected](t, host_B.GetEventCh())
 
 		// 2. joins "/" to A -> EANDWorldEnter -> exposes at "/shared"
-		host_B.JoinWorld(peer_B_to_A.Peer, "/")
+		host_B.JoinWorld(peer_B_to_A.PeerID, "/")
 		world_enter_B := expectEvent[*and.EANDWorldEnter](t, host_B.GetEventCh())
 		host_B.ExposeWorldForJoin(world_enter_B.World, "/shared")
 		close(world_exposed_B)
@@ -330,7 +330,7 @@ func TestJoinWorldTransitive(t *testing.T) {
 		peer_C_to_B := expectEvent[*ahost.EPeerConnected](t, host_C.GetEventCh())
 
 		// 2. joins "/shared" to B -> EANDWorldEnter
-		host_C.JoinWorld(peer_C_to_B.Peer, "/shared")
+		host_C.JoinWorld(peer_C_to_B.PeerID, "/shared")
 		world_enter_C := expectEvent[*and.EANDWorldEnter](t, host_C.GetEventCh())
 
 		// 3. EANDSessionReady (from B)
@@ -461,7 +461,7 @@ func TestJoinWorldTransitiveNPeers(t *testing.T) {
 			peer := expectEvent[*ahost.EPeerConnected](t, hosts[idx].GetEventCh())
 
 			// Join world
-			hosts[idx].JoinWorld(peer.Peer, "/")
+			hosts[idx].JoinWorld(peer.PeerID, "/")
 			world_enter := expectEvent[*and.EANDWorldEnter](t, hosts[idx].GetEventCh())
 
 			// Expose world for next host to join (except host (N-1))

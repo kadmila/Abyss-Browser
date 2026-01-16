@@ -1,11 +1,17 @@
 package ahost
 
-import "github.com/kadmila/Abyss-Browser/abyss_core/ani"
-
 type EPeerConnected struct {
-	Peer ani.IAbyssPeer
+	PeerID string
 }
 
 type EPeerDisconnected struct {
+	PeerID string
+}
+
+type EPeerFound struct {
+	PeerID string
+}
+
+type EPeerForgot struct {
 	PeerID string
 }

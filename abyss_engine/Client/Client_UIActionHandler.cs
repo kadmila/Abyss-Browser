@@ -1,6 +1,7 @@
 using AbyssCLI.ABI;
 using AbyssCLI.Tool;
 using System;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace AbyssCLI.Client;
 
@@ -59,28 +60,90 @@ public static partial class Client
     }
     private static void OnMoveWorld(UIAction.Types.MoveWorld args)
     {
-        lock (_worldMoveLock)
+        if (args.WorldUrl.StartsWith("abyss://"))
         {
-            var (net_world, error) = Host.OpenWorld(args.WorldUrl);
-            if (error != null)
+            var split = args.WorldUrl["abyss://".Length..].Split('/', 2);
+            string peer_id;
+            string path;
+            if (split.Length == 1)
             {
-                CerrWriteLine("failed to open world: " + error.Message);
+                peer_id = split[0];
+                path = "/";
+            }
+            else if (split.Length == 2)
+            {
+                peer_id = split[0];
+                path = "/" + split[1];
+            }
+            else
+            {
+                Cerr.WriteLine("tried to move to invalid world url: " + args.WorldUrl);
                 return;
             }
 
-            _currentWorld?.Dispose();
-            try
+            lock (_worldMoveLock)
             {
-                _currentWorld = new World(Host, net_world!);
             }
-            catch (Exception ex)
+
+            AbyssLibB.Peer? peer;
+            lock (_peers)
             {
-                CerrWriteLine("world creation failed: " + ex.Message);
-                _currentWorld = null;
+                if (!_peers.TryGetValue(peer_id, out peer))
+                {
+                    Cerr.WriteLine("no such peer: " + peer_id);
+                    return;
+                }
+            }
+
+            lock (_worldMoveLock)
+            {
+                var (net_world, error) = Host.JoinWorld(peer, path);
+                if (error != null)
+                {
+                    Cerr.WriteLine("failed to join world: " + error.Message);
+                    return;
+                }
+                _currentWorld?.Dispose();
+                try
+                {
+                    _currentWorld = new World(Host, net_world!);
+                }
+                catch (Exception ex)
+                {
+                    Cerr.WriteLine("world creation failed: " + ex.Message);
+                    _currentWorld = null;
+                }
             }
         }
+        else if (args.WorldUrl.StartsWith("http://") || args.WorldUrl.StartsWith("https://"))
+        {
+            lock(_worldMoveLock)
+            {
+                var (net_world, error) = Host.OpenWorld(args.WorldUrl);
+                if (error != null)
+                {
+                    Cerr.WriteLine("failed to open world: " + error.Message);
+                    return;
+                }
+
+                _currentWorld?.Dispose();
+                try
+                {
+                    _currentWorld = new World(Host, net_world!);
+                }
+                catch (Exception ex)
+                {
+                    Cerr.WriteLine("world creation failed: " + ex.Message);
+                    _currentWorld = null;
+                }
+            }
+        }
+        else
+        {
+            Cerr.WriteLine("tried to move to invalid world url: " + args.WorldUrl);
+        }
     }
-	private static void OnShareContent(UIAction.Types.ShareContent args)
+    private static void OnShareContent(UIAction.Types.ShareContent args)
 	{
 		_currentWorld!.ShareItem(new Guid(args.Uuid.ToByteArray()), args.Url, [args.Pos.X, args.Pos.Y, args.Pos.Z, args.Rot.W, args.Rot.X, args.Rot.Y, args.Rot.Z]);
 	}
@@ -91,7 +154,7 @@ public static partial class Client
 		var error = Host.Dial(args.Aurl);
 		if (error != null)
 		{
-			CerrWriteLine("failed to dial peer: " + error.Message);
+			Cerr.WriteLine("failed to dial peer: " + error.Message);
 		}
 	}
     private static void OnConsoleInput(UIAction.Types.ConsoleInput args)

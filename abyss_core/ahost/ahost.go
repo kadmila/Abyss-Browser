@@ -102,7 +102,7 @@ func (h *AbyssHost) Serve() error {
 			return err
 		}
 
-		h.event_ch <- &EPeerConnected{Peer: peer}
+		h.event_ch <- &EPeerConnected{PeerID: peer.ID()}
 
 		h.mtx.Lock()
 		participating_worlds := make(map[uuid.UUID]*and.World)
@@ -160,17 +160,17 @@ func (h *AbyssHost) OpenWorld(world_url string) *and.World {
 	return result
 }
 
-func (h *AbyssHost) JoinWorld(peer ani.IAbyssPeer, path string) (*and.World, error) {
+func (h *AbyssHost) JoinWorld(peer_id string, path string) (*and.World, error) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	result, err := h.and.JoinWorld(peer, path)
+	result, err := h.and.JoinWorld(peer_id, path)
 	if err != nil {
 		return result, err
 	}
 
 	// JoinWorld forces the join target partcipates in my local AND world
-	h.peer_participating_worlds[peer.ID()][result.SessionID()] = result
+	h.peer_participating_worlds[peer_id][result.SessionID()] = result
 	// don't call world.PeerConnected, as the join target is handled specially.
 
 	return result, err
@@ -234,31 +234,19 @@ func (h *AbyssHost) CloseWorld(world *and.World) {
 }
 
 // WorldObjectAppend sends SOA message to the specified peers in the world.
-func (h *AbyssHost) WorldObjectAppend(world *and.World, peers []ani.IAbyssPeer, peerSessionIDs []uuid.UUID, objects []and.ObjectInfo) {
+func (h *AbyssHost) WorldObjectAppend(world *and.World, peer_session_identities []and.ANDPeerSessionIdentity, objects []and.ObjectInfo) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	for i, peer := range peers {
-		peer_session := and.ANDPeerSession{
-			Peer:      peer,
-			SessionID: peerSessionIDs[i],
-		}
-		world.SendObjectAppend(peer_session, objects)
-	}
+	world.ObjectAppend(peer_session_identities, objects)
 }
 
 // WorldObjectDelete sends SOD message to the specified peers in the world.
-func (h *AbyssHost) WorldObjectDelete(world *and.World, peers []ani.IAbyssPeer, peerSessionIDs []uuid.UUID, objectIDs []uuid.UUID) {
+func (h *AbyssHost) WorldObjectDelete(world *and.World, peer_session_identities []and.ANDPeerSessionIdentity, objectIDs []uuid.UUID) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	for i, peer := range peers {
-		peer_session := and.ANDPeerSession{
-			Peer:      peer,
-			SessionID: peerSessionIDs[i],
-		}
-		world.SendObjectDelete(peer_session, objectIDs)
-	}
+	world.ObjectDelete(peer_session_identities, objectIDs)
 }
 
 /// host features

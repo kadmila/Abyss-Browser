@@ -3,7 +3,6 @@
 
 using AbyssCLI.ABI;
 using CacheCow.Client;
-using System.Diagnostics.Metrics;
 using System.Threading.Channels;
 
 namespace AbyssCLI.Client;
@@ -30,6 +29,8 @@ public static partial class Client
     private static World? _currentWorld;
 	private static readonly object _worldMoveLock = new();
 
+    private static readonly Dictionary<string, AbyssLibB.Peer> _peers = []; // requires locking
+
     // For client-level call serialization (UI/JavaScript APIs)
     private static readonly Channel<UIAction> _client_operations = Channel.CreateUnbounded<UIAction>(new UnboundedChannelOptions
     {
@@ -41,7 +42,7 @@ public static partial class Client
 	{
 		if (AbyssLibB.Initialize() != 0)
         {
-            CerrWriteLine("failed to initialize abyssnet.dll");
+            Cerr.WriteLine("failed to initialize abyssnet.dll");
             return;
 		}
 
@@ -59,7 +60,7 @@ public static partial class Client
         var (host, hostErr) = AbyssLibB.Host.Create(keyBytes);
         if (hostErr != null)
         {
-            CerrWriteLine("host creation failed: " + hostErr.Message);
+            Cerr.WriteLine("host creation failed: " + hostErr.Message);
             return;
         }
         Host = host!;
@@ -68,14 +69,14 @@ public static partial class Client
         UIAction initMsg = ReadProtoMessage();
         if (initMsg.InnerCase != UIAction.InnerOneofCase.Init)
         {
-            CerrWriteLine("host not initialized");
+            Cerr.WriteLine("host not initialized");
             return;
         }
 
         var (host, hostErr) = AbyssLibB.Host.Create(initMsg.Init.RootKey.ToByteArray());
         if (hostErr != null)
         {
-            CerrWriteLine("host creation failed: " + hostErr.Message);
+            Cerr.WriteLine("host creation failed: " + hostErr.Message);
             return;
         }
         Host = host!;
@@ -84,7 +85,7 @@ public static partial class Client
         var bindErr = Host.Bind();
 		if (bindErr != null)
 		{
-			CerrWriteLine("host bind failed: " + bindErr.Message);
+			Cerr.WriteLine("host bind failed: " + bindErr.Message);
 			return;
 		}
 
