@@ -4,6 +4,7 @@ package ahost
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/netip"
 	"sync"
@@ -164,7 +165,12 @@ func (h *AbyssHost) JoinWorld(peer_id string, path string) (*and.World, error) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	result, err := h.and.JoinWorld(peer_id, path)
+	peer, ok := h.peers[peer_id]
+	if !ok {
+		return nil, errors.New("peer not found")
+	}
+
+	result, err := h.and.JoinWorld(peer, path)
 	if err != nil {
 		return result, err
 	}
