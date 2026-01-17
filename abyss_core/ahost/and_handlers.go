@@ -4,10 +4,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
+	"github.com/kadmila/Abyss-Browser/abyss_core/tools/ds"
 )
 
 func (h *AbyssHost) onJN(
-	events *and.ANDEventQueue,
+	events ds.Queue,
 	JN *and.JN,
 	peer_session and.ANDPeerSession,
 	participating_worlds map[uuid.UUID]*and.World,
@@ -35,7 +36,7 @@ func (h *AbyssHost) onJN(
 }
 
 func (h *AbyssHost) onJOK(
-	events *and.ANDEventQueue,
+	events ds.Queue,
 	JOK *and.JOK,
 	peer_session and.ANDPeerSession,
 	participating_worlds map[uuid.UUID]*and.World,
@@ -54,7 +55,7 @@ func (h *AbyssHost) onJOK(
 }
 
 func (h *AbyssHost) onJDN(
-	events *and.ANDEventQueue,
+	events ds.Queue,
 	JDN *and.JDN,
 	peer ani.IAbyssPeer,
 	participating_worlds map[uuid.UUID]*and.World,
@@ -73,7 +74,7 @@ func (h *AbyssHost) onJDN(
 }
 
 func (h *AbyssHost) onJNI(
-	events *and.ANDEventQueue,
+	events ds.Queue,
 	JNI *and.JNI,
 	peer_session and.ANDPeerSession,
 	participating_worlds map[uuid.UUID]*and.World,
@@ -92,7 +93,7 @@ func (h *AbyssHost) onJNI(
 }
 
 func (h *AbyssHost) onMEM(
-	events *and.ANDEventQueue,
+	events ds.Queue,
 	MEM *and.MEM,
 	peer_session and.ANDPeerSession,
 	participating_worlds map[uuid.UUID]*and.World,
@@ -121,7 +122,7 @@ func (h *AbyssHost) onMEM(
 }
 
 func (h *AbyssHost) onSJN(
-	events *and.ANDEventQueue,
+	events ds.Queue,
 	SJN *and.SJN,
 	peer_session and.ANDPeerSession,
 	participating_worlds map[uuid.UUID]*and.World,
@@ -140,7 +141,7 @@ func (h *AbyssHost) onSJN(
 }
 
 func (h *AbyssHost) onCRR(
-	events *and.ANDEventQueue,
+	events ds.Queue,
 	CRR *and.CRR,
 	peer_session and.ANDPeerSession,
 	participating_worlds map[uuid.UUID]*and.World,
@@ -159,7 +160,7 @@ func (h *AbyssHost) onCRR(
 }
 
 func (h *AbyssHost) onRST(
-	events *and.ANDEventQueue,
+	events ds.Queue,
 	RST *and.RST,
 	peer_session and.ANDPeerSession,
 	participating_worlds map[uuid.UUID]*and.World,
@@ -178,7 +179,7 @@ func (h *AbyssHost) onRST(
 }
 
 func (h *AbyssHost) onSOA(
-	events *and.ANDEventQueue,
+	events ds.Queue,
 	SOA *and.SOA,
 	peer_session and.ANDPeerSession,
 	participating_worlds map[uuid.UUID]*and.World,
@@ -196,7 +197,7 @@ func (h *AbyssHost) onSOA(
 }
 
 func (h *AbyssHost) onSOD(
-	events *and.ANDEventQueue,
+	events ds.Queue,
 	SOD *and.SOD,
 	peer_session and.ANDPeerSession,
 	participating_worlds map[uuid.UUID]*and.World,

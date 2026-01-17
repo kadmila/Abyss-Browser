@@ -1,12 +1,12 @@
 package ahost
 
 import (
-	"github.com/kadmila/Abyss-Browser/abyss_core/and"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
+	"github.com/kadmila/Abyss-Browser/abyss_core/tools/ds"
 )
 
 func (h *AbyssHost) onAUPingTX(
-	events *and.ANDEventQueue,
+	events ds.Queue,
 	peer ani.IAbyssPeer,
 ) error {
 	h.mtx.Lock()
@@ -18,7 +18,7 @@ func (h *AbyssHost) onAUPingTX(
 }
 
 func (h *AbyssHost) onAUPingRX(
-	events *and.ANDEventQueue,
+	events ds.Queue,
 	peer ani.IAbyssPeer,
 ) error {
 	h.mtx.Lock()

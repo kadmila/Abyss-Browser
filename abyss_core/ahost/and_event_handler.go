@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
+	"github.com/kadmila/Abyss-Browser/abyss_core/tools/ds"
 )
 
 // peerReservation represents a peer that needs to be connected to a world
@@ -15,7 +16,7 @@ type peerReservation struct {
 	addrs []netip.AddrPort
 }
 
-func (h *AbyssHost) handleANDEvent(events *and.ANDEventQueue) {
+func (h *AbyssHost) handleANDEvent(events ds.Queue) {
 	// Collect peers that need to be connected after processing all events
 	var reservations []peerReservation
 

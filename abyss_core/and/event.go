@@ -1,7 +1,6 @@
 package and
 
 import (
-	"container/list"
 	"net/netip"
 	"time"
 
@@ -70,23 +69,23 @@ type EANDObjectDelete struct {
 type EANDError struct {
 }
 
-type ANDEventQueue struct {
-	inner *list.List
-}
+// type ANDEventQueue struct {
+// 	inner *list.List
+// }
 
-func NewANDEventQueue() *ANDEventQueue {
-	return &ANDEventQueue{
-		inner: list.New(),
-	}
-}
+// func NewANDEventQueue() *ANDEventQueue {
+// 	return &ANDEventQueue{
+// 		inner: list.New(),
+// 	}
+// }
 
-func (q *ANDEventQueue) Push(e any) {
-	q.inner.PushBack(e)
-}
-func (q *ANDEventQueue) Pop() (any, bool) {
-	front := q.inner.Front()
-	if front == nil {
-		return nil, false
-	}
-	return q.inner.Remove(front), true
-}
+// func (q *ANDEventQueue) Push(e any) {
+// 	q.inner.PushBack(e)
+// }
+// func (q *ANDEventQueue) Pop() (any, bool) {
+// 	front := q.inner.Front()
+// 	if front == nil {
+// 		return nil, false
+// 	}
+// 	return q.inner.Remove(front), true
+// }

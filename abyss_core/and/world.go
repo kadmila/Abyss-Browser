@@ -9,6 +9,7 @@ import (
 
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
 	"github.com/kadmila/Abyss-Browser/abyss_core/config"
+	"github.com/kadmila/Abyss-Browser/abyss_core/tools/ds"
 	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
 )
 
@@ -34,7 +35,7 @@ type World struct {
 
 const INITIAL_WORLD_TIMER = 1000
 
-func newWorld_Open(events *ANDEventQueue, origin *AND, world_url string) *World {
+func newWorld_Open(events ds.Queue, origin *AND, world_url string) *World {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	result := &World{
 		o:            origin,
@@ -250,7 +251,7 @@ func (w *World) Peers() []ani.IAbyssPeer {
 // removeEntry should only be called for unexpected malfunction of the opponent.
 // is this a good design? IDK ¯\_(ツ)_/¯
 // **note: when modifying this code, you may need to revise RST() also.
-func (w *World) removeEntry(events *ANDEventQueue, entry *peerWorldSessionState, code int, message string) {
+func (w *World) removeEntry(events ds.Queue, entry *peerWorldSessionState, code int, message string) {
 	switch entry.state {
 	case WS_DC_JNI:
 		// no send
@@ -282,7 +283,7 @@ func (w *World) removeEntry(events *ANDEventQueue, entry *peerWorldSessionState,
 
 // tryOverwritePeerSession cleanly resets peer states if newer session id was given.
 // This is kinda dangerous; impact is high. Can we ever prevent/detect forgery?
-func (w *World) tryOverwritePeerSession(events *ANDEventQueue, entry *peerWorldSessionState, session_id uuid.UUID, timestamp time.Time) bool {
+func (w *World) tryOverwritePeerSession(events ds.Queue, entry *peerWorldSessionState, session_id uuid.UUID, timestamp time.Time) bool {
 	if entry.TimeStamp.Before(timestamp) {
 		switch entry.state {
 		case WS_JN:
@@ -314,7 +315,7 @@ func (w *World) tryOverwritePeerSession(events *ANDEventQueue, entry *peerWorldS
 }
 
 // mustBeMemberCheck can only be used as a barrier for handling a message that must be sent from a member.
-func (w *World) mustBeMemberCheck(events *ANDEventQueue, peer_session ANDPeerSession) (*peerWorldSessionState, bool) {
+func (w *World) mustBeMemberCheck(events ds.Queue, peer_session ANDPeerSession) (*peerWorldSessionState, bool) {
 	entry, ok := w.entries[peer_session.Peer.ID()]
 	if !ok {
 		// this must be w.join_target - join target's fault
@@ -345,7 +346,7 @@ func (w *World) mustBeMemberCheck(events *ANDEventQueue, peer_session ANDPeerSes
 	return entry, true
 }
 
-func (w *World) PeerConnected(events *ANDEventQueue, peer ani.IAbyssPeer) {
+func (w *World) PeerConnected(events ds.Queue, peer ani.IAbyssPeer) {
 	if w.is_closed {
 		return
 	}
@@ -381,7 +382,7 @@ func (w *World) PeerConnected(events *ANDEventQueue, peer ani.IAbyssPeer) {
 	}
 }
 
-func (w *World) JN(events *ANDEventQueue, peer_session ANDPeerSession, timestamp time.Time) {
+func (w *World) JN(events ds.Queue, peer_session ANDPeerSession, timestamp time.Time) {
 	if w.is_closed {
 		return
 	}
@@ -411,7 +412,7 @@ func (w *World) JN(events *ANDEventQueue, peer_session ANDPeerSession, timestamp
 	}
 }
 
-func (w *World) JOK(events *ANDEventQueue, peer_session ANDPeerSession, timestamp time.Time, world_url string, member_infos []ANDFullPeerSessionInfo) {
+func (w *World) JOK(events ds.Queue, peer_session ANDPeerSession, timestamp time.Time, world_url string, member_infos []ANDFullPeerSessionInfo) {
 	if w.is_closed {
 		return
 	}
@@ -461,7 +462,7 @@ func (w *World) JOK(events *ANDEventQueue, peer_session ANDPeerSession, timestam
 	panic("JOK: World corrupted")
 }
 
-func (w *World) JDN(events *ANDEventQueue, peer ani.IAbyssPeer, code int, message string) {
+func (w *World) JDN(events ds.Queue, peer ani.IAbyssPeer, code int, message string) {
 	if w.is_closed {
 		return
 	}
@@ -485,7 +486,7 @@ func (w *World) JDN(events *ANDEventQueue, peer ani.IAbyssPeer, code int, messag
 	panic("JDN: World corrupted")
 }
 
-func (w *World) JNI(events *ANDEventQueue, peer_session ANDPeerSession, member_info ANDFullPeerSessionInfo) {
+func (w *World) JNI(events ds.Queue, peer_session ANDPeerSession, member_info ANDFullPeerSessionInfo) {
 	if w.is_closed {
 		return
 	}
@@ -499,7 +500,7 @@ func (w *World) JNI(events *ANDEventQueue, peer_session ANDPeerSession, member_i
 	w.jni_mems(events, member_info, false)
 }
 
-func (w *World) jni_mems(events *ANDEventQueue, mem_info ANDFullPeerSessionInfo, sjnp bool) {
+func (w *World) jni_mems(events ds.Queue, mem_info ANDFullPeerSessionInfo, sjnp bool) {
 	config.IF_DEBUG(func() {
 		if w.join_target != nil {
 			panic("jni_mems: world is joining")
@@ -549,7 +550,7 @@ func (w *World) jni_mems(events *ANDEventQueue, mem_info ANDFullPeerSessionInfo,
 	}
 }
 
-func (w *World) MEM(events *ANDEventQueue, peer_session ANDPeerSession, timestamp time.Time) {
+func (w *World) MEM(events ds.Queue, peer_session ANDPeerSession, timestamp time.Time) {
 	if w.is_closed {
 		return
 	}
@@ -615,7 +616,7 @@ func (w *World) MEM(events *ANDEventQueue, peer_session ANDPeerSession, timestam
 	}
 }
 
-func (w *World) AcceptSession(events *ANDEventQueue, peer_session_identity ANDPeerSessionIdentity) {
+func (w *World) AcceptSession(events ds.Queue, peer_session_identity ANDPeerSessionIdentity) {
 	if w.is_closed {
 		return
 	}
@@ -658,7 +659,7 @@ func (w *World) AcceptSession(events *ANDEventQueue, peer_session_identity ANDPe
 	}
 }
 
-func (w *World) DeclineSession(events *ANDEventQueue, peer_session_identity ANDPeerSessionIdentity, code int, message string) {
+func (w *World) DeclineSession(events ds.Queue, peer_session_identity ANDPeerSessionIdentity, code int, message string) {
 	if w.is_closed {
 		return
 	}
@@ -722,7 +723,7 @@ func (w *World) ObjectDelete(peer_session_identities []ANDPeerSessionIdentity, o
 	}
 }
 
-func (w *World) TimerExpire(events *ANDEventQueue) {
+func (w *World) TimerExpire(events ds.Queue) {
 	if w.is_closed {
 		return
 	}
@@ -736,7 +737,7 @@ func (w *World) TimerExpire(events *ANDEventQueue) {
 	})
 }
 
-func (w *World) SJN(events *ANDEventQueue, peer_session ANDPeerSession, member_infos []ANDPeerSessionIdentity) {
+func (w *World) SJN(events ds.Queue, peer_session ANDPeerSession, member_infos []ANDPeerSessionIdentity) {
 	if w.is_closed {
 		return
 	}
@@ -784,7 +785,7 @@ func (w *World) SJN(events *ANDEventQueue, peer_session ANDPeerSession, member_i
 	}
 }
 
-func (w *World) CRR(events *ANDEventQueue, peer_session ANDPeerSession, member_infos []ANDPeerSessionIdentity) {
+func (w *World) CRR(events ds.Queue, peer_session ANDPeerSession, member_infos []ANDPeerSessionIdentity) {
 	if w.is_closed {
 		return
 	}
@@ -804,7 +805,7 @@ func (w *World) CRR(events *ANDEventQueue, peer_session ANDPeerSession, member_i
 	}
 }
 
-func (w *World) SOA(events *ANDEventQueue, peer_session ANDPeerSession, objects []ObjectInfo) {
+func (w *World) SOA(events ds.Queue, peer_session ANDPeerSession, objects []ObjectInfo) {
 	if w.is_closed {
 		return
 	}
@@ -821,7 +822,7 @@ func (w *World) SOA(events *ANDEventQueue, peer_session ANDPeerSession, objects 
 	})
 }
 
-func (w *World) SOD(events *ANDEventQueue, peer_session ANDPeerSession, objectIDs []uuid.UUID) {
+func (w *World) SOD(events ds.Queue, peer_session ANDPeerSession, objectIDs []uuid.UUID) {
 	if w.is_closed {
 		return
 	}
@@ -839,7 +840,7 @@ func (w *World) SOD(events *ANDEventQueue, peer_session ANDPeerSession, objectID
 }
 
 // removeEntrySilent is equivalent to removeEntry, but does not send ahmp message to the peer.
-func (w *World) removeEntrySilent(events *ANDEventQueue, entry *peerWorldSessionState) {
+func (w *World) removeEntrySilent(events ds.Queue, entry *peerWorldSessionState) {
 	if entry.state == WS_MEM {
 		w.member_count--
 	}
@@ -858,7 +859,7 @@ func (w *World) removeEntrySilent(events *ANDEventQueue, entry *peerWorldSession
 	delete(w.entries, entry.PeerID)
 }
 
-func (w *World) RST(events *ANDEventQueue, peer_session ANDPeerSession) {
+func (w *World) RST(events ds.Queue, peer_session ANDPeerSession) {
 	if w.is_closed {
 		return
 	}
@@ -873,7 +874,7 @@ func (w *World) RST(events *ANDEventQueue, peer_session ANDPeerSession) {
 
 // We don't verify everything like we did for the other messages; we trust the caller.
 // PeerDisconnected should raise EANDPeerDiscoard event for the peer.
-func (w *World) PeerDisconnected(events *ANDEventQueue, peer_id string) {
+func (w *World) PeerDisconnected(events ds.Queue, peer_id string) {
 	if w.is_closed {
 		return
 	}

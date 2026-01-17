@@ -9,6 +9,7 @@ package and
 
 import (
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
+	"github.com/kadmila/Abyss-Browser/abyss_core/tools/ds"
 	"github.com/kadmila/Abyss-Browser/abyss_core/watchdog"
 )
 
@@ -24,7 +25,7 @@ func NewAND(local_id string) *AND {
 	}
 }
 
-func (a *AND) OpenWorld(events *ANDEventQueue, world_url string) *World {
+func (a *AND) OpenWorld(events ds.Queue, world_url string) *World {
 	watchdog.Info("appCall::OpenWorld " + world_url)
 
 	return newWorld_Open(events, a, world_url)

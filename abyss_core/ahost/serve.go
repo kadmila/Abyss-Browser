@@ -8,6 +8,7 @@ import (
 	"github.com/kadmila/Abyss-Browser/abyss_core/ahmp"
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
+	"github.com/kadmila/Abyss-Browser/abyss_core/tools/ds"
 )
 
 type parsibleAhmp[T any] interface {
@@ -25,7 +26,7 @@ func tryParseAhmp[RawT parsibleAhmp[T], T any](msg *ahmp.AHMPMessage) (*T, error
 func (h *AbyssHost) servePeer(peer ani.IAbyssPeer, participating_worlds map[uuid.UUID]*and.World) error {
 	// participating_worlds is a reference of h.peer_participating_worlds[peer.ID()]
 	// it must be accessed within h.mtx lock
-	events := and.NewANDEventQueue()
+	events := ds.MakeQueue()
 
 	defer func() {
 		h.mtx.Lock()

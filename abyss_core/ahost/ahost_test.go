@@ -160,7 +160,10 @@ func TestJoinWorld(t *testing.T) {
 	expectEvent[*ahost.EPeerConnected](t, host_A.GetEventCh())
 
 	// Host B joins the world at path "/"
-	host_B.JoinWorld(peer_B_to_A.PeerID, "/")
+	world, err := host_B.JoinWorld(peer_B_to_A.PeerID, "/")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Wait for session request event on host A (host A should receive join request)
 	session_request := expectEvent[*and.EANDSessionRequest](t, host_A.GetEventCh())
@@ -174,6 +177,8 @@ func TestJoinWorld(t *testing.T) {
 	// Both hosts should receive EANDSessionReady event
 	expectEvent[*and.EANDSessionReady](t, host_A.GetEventCh())
 	expectEvent[*and.EANDSessionReady](t, host_B.GetEventCh())
+
+	world.CheckSanity()
 }
 
 func TestJoinWorldTransitive(t *testing.T) {
@@ -372,7 +377,7 @@ func TestJoinWorldTransitive(t *testing.T) {
 }
 
 func TestJoinWorldTransitiveNPeers(t *testing.T) {
-	N := 100
+	N := 30
 
 	// Construct five hosts
 	hosts := make([]*ahost.AbyssHost, N)

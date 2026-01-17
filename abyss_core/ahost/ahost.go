@@ -15,6 +15,7 @@ import (
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ann"
 	"github.com/kadmila/Abyss-Browser/abyss_core/sec"
+	"github.com/kadmila/Abyss-Browser/abyss_core/tools/ds"
 )
 
 type AbyssHost struct {
@@ -74,7 +75,7 @@ func (h *AbyssHost) Serve() error {
 
 	// and timer event worker
 	go func() {
-		events := and.NewANDEventQueue()
+		events := ds.MakeQueue()
 		for {
 			wsid, err := h.timer_queue.Wait(h.service_ctx)
 			if err != nil {
@@ -103,15 +104,16 @@ func (h *AbyssHost) Serve() error {
 			return err
 		}
 
+		h.mtx.Lock()
+		h.peers[peer.ID()] = peer
 		h.event_ch <- &EPeerConnected{PeerID: peer.ID()}
 
-		h.mtx.Lock()
 		participating_worlds := make(map[uuid.UUID]*and.World)
 		h.peer_participating_worlds[peer.ID()] = participating_worlds
 
 		request_note, ok := h.requested_peers[peer.ID()]
 		if ok {
-			events := and.NewANDEventQueue()
+			events := ds.MakeQueue()
 			for _, world := range request_note {
 				participating_worlds[world.SessionID()] = world
 				world.PeerConnected(events, peer)
@@ -154,7 +156,7 @@ func (h *AbyssHost) OpenWorld(world_url string) *and.World {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	events := and.NewANDEventQueue()
+	events := ds.MakeQueue()
 	result := h.and.OpenWorld(events, world_url)
 	h.handleANDEvent(events)
 
@@ -188,7 +190,7 @@ func (h *AbyssHost) AcceptWorldSession(world *and.World, peer_id string, peerSes
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	events := and.NewANDEventQueue()
+	events := ds.MakeQueue()
 	peer_session_identity := and.ANDPeerSessionIdentity{
 		PeerID:    peer_id,
 		SessionID: peerSessionID,
@@ -204,7 +206,7 @@ func (h *AbyssHost) DeclineWorldSession(world *and.World, peer_id string, peerSe
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	events := and.NewANDEventQueue()
+	events := ds.MakeQueue()
 	peer_session_identity := and.ANDPeerSessionIdentity{
 		PeerID:    peer_id,
 		SessionID: peerSessionID,
