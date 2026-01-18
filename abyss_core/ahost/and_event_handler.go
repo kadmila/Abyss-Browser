@@ -72,7 +72,7 @@ func (h *AbyssHost) handleANDEvent(events ds.Queue) {
 
 		case *and.EANDTimerRequest:
 			//fmt.Println(e.Duration.Milliseconds())
-			h.timer_queue.push(e.World.SessionID(), e.Duration)
+			h.timer_queue.Add(e.World.SessionID(), e.Duration)
 
 		case *and.EANDWorldEnter:
 			h.event_ch <- e

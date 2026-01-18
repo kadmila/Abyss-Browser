@@ -31,8 +31,8 @@ func newWorldTimerQueue() *worldTimerQueue {
 	return q
 }
 
-// push adds an entry to the queue
-func (q *worldTimerQueue) push(world_id uuid.UUID, duration time.Duration) {
+// Add adds an entry to the queue
+func (q *worldTimerQueue) Add(world_id uuid.UUID, duration time.Duration) {
 	q.mtx.Lock()
 	defer q.mtx.Unlock()
 
@@ -46,6 +46,7 @@ func (q *worldTimerQueue) push(world_id uuid.UUID, duration time.Duration) {
 	}
 }
 
+// Wait waits for the nearest entry.
 func (q *worldTimerQueue) Wait(ctx context.Context) (uuid.UUID, error) {
 	for {
 		q.mtx.Lock()
@@ -78,6 +79,7 @@ func (q *worldTimerQueue) Wait(ctx context.Context) (uuid.UUID, error) {
 }
 
 /// heap.Interface
+// This should never be called directly.
 
 func (q *worldTimerQueue) Len() int {
 	return len(q.entries)

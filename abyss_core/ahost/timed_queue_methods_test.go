@@ -17,9 +17,9 @@ func TestWorldTimerQueuePushAndWait(t *testing.T) {
 
 	// Push worlds with different durations
 	// world2 should expire first (100ms), then world3 (200ms), then world1 (300ms)
-	q.push(world1, time.Millisecond*300)
-	q.push(world2, time.Millisecond*100)
-	q.push(world3, time.Millisecond*200)
+	q.Add(world1, time.Millisecond*300)
+	q.Add(world2, time.Millisecond*100)
+	q.Add(world3, time.Millisecond*200)
 
 	ctx := context.Background()
 
@@ -94,7 +94,7 @@ func TestWorldTimerQueueWaitCancellation(t *testing.T) {
 	world := uuid.New()
 
 	// Push with long duration
-	q.push(world, time.Second*10)
+	q.Add(world, time.Second*10)
 
 	// Create cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
@@ -143,7 +143,7 @@ func TestWorldTimerQueuePushWhileWaiting(t *testing.T) {
 	time.Sleep(time.Millisecond * 50)
 
 	// Push world1 with short duration
-	q.push(world1, time.Millisecond*100)
+	q.Add(world1, time.Millisecond*100)
 
 	// Should receive world1
 	select {
@@ -166,7 +166,7 @@ func TestWorldTimerQueuePushWhileWaiting(t *testing.T) {
 	}()
 
 	time.Sleep(time.Millisecond * 50)
-	q.push(world2, time.Millisecond*100)
+	q.Add(world2, time.Millisecond*100)
 
 	select {
 	case result := <-result_ch:
@@ -191,7 +191,7 @@ func TestWorldTimerQueueConcurrentPush(t *testing.T) {
 	done := make(chan bool, num_worlds)
 	for i := 0; i < num_worlds; i++ {
 		go func(idx int) {
-			q.push(worlds[idx], time.Millisecond*time.Duration(100+idx))
+			q.Add(worlds[idx], time.Millisecond*time.Duration(100+idx))
 			done <- true
 		}(i)
 	}
@@ -220,7 +220,7 @@ func TestWorldTimerQueuePushUpdatesWaiter(t *testing.T) {
 	ctx := context.Background()
 
 	// Push world1 with long duration
-	q.push(world1, time.Second*5)
+	q.Add(world1, time.Second*5)
 
 	// Start waiting
 	result_ch := make(chan uuid.UUID, 1)
@@ -238,7 +238,7 @@ func TestWorldTimerQueuePushUpdatesWaiter(t *testing.T) {
 	time.Sleep(time.Millisecond * 50)
 
 	// Push world2 with shorter duration - should be returned first
-	q.push(world2, time.Millisecond*100)
+	q.Add(world2, time.Millisecond*100)
 
 	// Should receive world2 (not world1)
 	start := time.Now()

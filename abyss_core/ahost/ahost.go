@@ -19,14 +19,15 @@ import (
 )
 
 type AbyssHost struct {
-	net         *ann.AbyssNode
-	and         *and.AND
-	timer_queue *worldTimerQueue
+	net *ann.AbyssNode
+	and *and.AND
 
 	service_ctx        context.Context
 	service_cancelfunc context.CancelFunc
 
-	mtx                       sync.Mutex
+	timer_queue *worldTimerQueue // This is thread safe.
+
+	mtx                       sync.Mutex // Below this are not thread safe.
 	worlds                    map[uuid.UUID]*and.World
 	world_path_mapping        map[uuid.UUID]string  // inverse of exposed_worlds
 	exposed_worlds            map[string]*and.World // JN path -> world
@@ -44,12 +45,13 @@ func NewAbyssHost(root_key sec.PrivateKey) (*AbyssHost, error) {
 	}
 	service_ctx, service_cancelfunc := context.WithCancel(context.Background())
 	return &AbyssHost{
-		net:         node,
-		and:         and.NewAND(node.ID()),
-		timer_queue: newWorldTimerQueue(),
+		net: node,
+		and: and.NewAND(node.ID()),
 
 		service_ctx:        service_ctx,
 		service_cancelfunc: service_cancelfunc,
+
+		timer_queue: newWorldTimerQueue(),
 
 		worlds:                    make(map[uuid.UUID]*and.World),
 		world_path_mapping:        make(map[uuid.UUID]string),

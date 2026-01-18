@@ -19,6 +19,15 @@ As the product, the host maintains a set of worlds (`worlds`), their mapping wit
 The structure of requested_peers may be a bit confusing.
 The reason why it takes `map[uuid.UUID]*and.World` as values is to filter out duplicate peer requests from a world, ensuring only one `PeerConnected()` calls happen for a peer on a world.
 
+
+| Member | Population | Depopulation |
+| -------- | -------- | -------- |
+| `worlds` | `JoinWorld()`, `OpenWorld()` | `CloseWorld()` |
+| `world_path_mapping`, `exposed_worlds` | `ExposeWorldForJoin()` | `HideWorld()`, `CloseWorld()` |
+| `peer_participating_worlds` | `JoinWorld()`, when calling `World.PeerConnected()` | `EANDPeerDiscard` |
+
+Peer failures are primarily detected at servePeer() routine, which will return error.
+
 All the resulting events are queued to a channel (`event_ch`), which the client-side is expected to consume.
 
 ### Bind()
