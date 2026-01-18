@@ -39,11 +39,18 @@ func (h *AbyssHost) handleANDEvent(events ds.Queue) {
 				})
 			} else {
 				// Peer not found, dial it
-				if err := h.net.AppendKnownPeerDer(e.RootCertificateDer, e.HandshakeKeyCertificateDer); err != nil {
+				peer_id, ok, err := h.net.AppendKnownPeerDer(e.RootCertificateDer, e.HandshakeKeyCertificateDer)
+				if err != nil {
 					// TODO: handle AppendKnownPeer failure.
+					continue
 				}
-				h.net.Dial(e.PeerID)
-				// TODO: handle Dial failure.
+				if err := h.net.Dial(e.PeerID); err != nil {
+					// TODO: handle Dial failure.
+					continue
+				}
+				if ok {
+					h.event_ch <- &EPeerFound{PeerID: peer_id}
+				}
 
 				// record peer request.
 				request_note, ok := h.requested_peers[e.PeerID]

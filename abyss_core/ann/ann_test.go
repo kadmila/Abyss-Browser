@@ -56,11 +56,11 @@ func TestNewAbyssNode(t *testing.T) {
 	}()
 
 	// Appending peer information
-	err = node_A.AppendKnownPeer(node_B.RootCertificate(), node_B.HandshakeKeyCertificate())
+	_, _, err = node_A.AppendKnownPeer(node_B.RootCertificate(), node_B.HandshakeKeyCertificate())
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = node_B.AppendKnownPeer(node_A.RootCertificate(), node_A.HandshakeKeyCertificate())
+	_, _, err = node_B.AppendKnownPeer(node_A.RootCertificate(), node_A.HandshakeKeyCertificate())
 	if err != nil {
 		t.Fatal(err)
 	}

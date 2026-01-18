@@ -240,32 +240,35 @@ func (n *AbyssNode) cleanUp(serve_err error) error {
 
 func (n *AbyssNode) LocalAddrCandidates() []netip.AddrPort { return n.local_addr_candidates }
 
-func (n *AbyssNode) AppendKnownPeer(root_cert string, handshake_info_cert string) error {
+// AppendKnownPeer returns true if the peer is newly added
+func (n *AbyssNode) AppendKnownPeer(root_cert string, handshake_info_cert string) (string, bool, error) {
 	root_self_cert_der, _ := pem.Decode([]byte(root_cert))
 	if root_self_cert_der == nil {
-		return errors.New("failed to parse certificate")
+		return "", false, errors.New("failed to parse certificate")
 	}
 	handshake_info_cert_der, _ := pem.Decode([]byte(handshake_info_cert))
 	if handshake_info_cert_der == nil {
-		return errors.New("failed to parse certificate")
+		return "", false, errors.New("failed to parse certificate")
 	}
 	return n.AppendKnownPeerDer(root_self_cert_der.Bytes, handshake_info_cert_der.Bytes)
 }
-func (n *AbyssNode) AppendKnownPeerDer(root_cert []byte, handshake_info_cert []byte) error {
+
+// AppendKnownPeerDer returns true if the peer is newly added
+func (n *AbyssNode) AppendKnownPeerDer(root_cert []byte, handshake_info_cert []byte) (string, bool, error) {
 	root_self_cert_x509, err := x509.ParseCertificate(root_cert)
 	if err != nil {
-		return err
+		return "", false, err
 	}
 	handshake_info_cert_x509, err := x509.ParseCertificate(handshake_info_cert)
 	if err != nil {
-		return err
+		return "", false, err
 	}
-	n.registry.UpdatePeerIdentity(root_self_cert_x509, handshake_info_cert_x509)
-	return nil
+	ok, err := n.registry.AddOrUpdatePeerIdentity(root_self_cert_x509, handshake_info_cert_x509)
+	return root_self_cert_x509.Issuer.CommonName, ok, err
 }
 
-func (n *AbyssNode) EraseKnownPeer(id string) {
-	n.registry.RemovePeerIdentity(id)
+func (n *AbyssNode) EraseKnownPeer(id string) bool {
+	return n.registry.TryRemovePeerIdentity(id)
 }
 
 // Dial synchronously check for dialing plausibility, and

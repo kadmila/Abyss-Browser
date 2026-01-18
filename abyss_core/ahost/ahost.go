@@ -140,9 +140,24 @@ func (h *AbyssHost) RootCertificate() string               { return h.net.RootCe
 func (h *AbyssHost) HandshakeKeyCertificate() string       { return h.net.HandshakeKeyCertificate() }
 
 func (h *AbyssHost) AppendKnownPeer(root_cert string, handshake_info_cert string) error {
-	return h.net.AppendKnownPeer(root_cert, handshake_info_cert)
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
+	peer_id, ok, err := h.net.AppendKnownPeer(root_cert, handshake_info_cert)
+	if ok {
+		h.event_ch <- &EPeerFound{PeerID: peer_id}
+	}
+
+	return err
 }
-func (h *AbyssHost) EraseKnownPeer(id string)               { h.net.EraseKnownPeer(id) }
+func (h *AbyssHost) EraseKnownPeer(id string) {
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
+	if h.net.EraseKnownPeer(id) {
+		h.event_ch <- EPeerForgot{PeerID: id}
+	}
+}
 func (h *AbyssHost) Dial(id string) error                   { return h.net.Dial(id) }
 func (h *AbyssHost) ConfigAbystGateway(config string) error { return h.net.ConfigAbystGateway(config) }
 func (h *AbyssHost) NewAbystClient() *abyst.AbystClient     { return h.net.NewAbystClient() }

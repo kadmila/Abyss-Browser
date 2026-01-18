@@ -32,7 +32,9 @@ func NewAbyssPeerRegistry() *AbyssPeerRegistry {
 	}
 }
 
-func (r *AbyssPeerRegistry) UpdatePeerIdentity(root_cert *x509.Certificate, handshake_info *x509.Certificate) {
+// AddOrUpdatePeerIdentity tries to add or update peer identity.
+// It returns true only when the peer identity was newly added.
+func (r *AbyssPeerRegistry) AddOrUpdatePeerIdentity(root_cert *x509.Certificate, handshake_info *x509.Certificate) (bool, error) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 
@@ -41,8 +43,7 @@ func (r *AbyssPeerRegistry) UpdatePeerIdentity(root_cert *x509.Certificate, hand
 	// when there is an old identity, update it and return.
 	old_identity, ok := r.known[peer_id]
 	if ok {
-		old_identity.UpdateHandshakeInfo(handshake_info)
-		return
+		return false, old_identity.UpdateHandshakeInfo(handshake_info)
 	}
 
 	new_identity, err := sec.NewAbyssPeerIdentity(root_cert, handshake_info)
@@ -50,18 +51,22 @@ func (r *AbyssPeerRegistry) UpdatePeerIdentity(root_cert *x509.Certificate, hand
 		// TODO
 	}
 	r.known[peer_id] = new_identity
+	return true, nil
 }
 
-// RemovePeerIdentity removes every information for the peer, and
+// TryRemovePeerIdentity removes every information for the peer, and
 // Kills everything from the peer.
 // We don't delete the peer from dialed or connected,
 // as it should be removed by ReportDialTermination and ReportPeerClose.
 // However, we signal the connection silently.
-func (r *AbyssPeerRegistry) RemovePeerIdentity(id string) {
+func (r *AbyssPeerRegistry) TryRemovePeerIdentity(id string) bool {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 
-	delete(r.known, id)
+	_, did_exist := r.known[id]
+	if did_exist {
+		delete(r.known, id)
+	}
 
 	// For entries of r.connected, we don't directly delete them.
 	// Instead, cut the connection and let the client-side Close() call handle it.
@@ -69,6 +74,8 @@ func (r *AbyssPeerRegistry) RemovePeerIdentity(id string) {
 		delete(r.tls_certs, sec.HashTlsCertificate(old_peer.client_tls_cert))
 		old_peer.connection.CloseWithError(AbyssQuicClose, "")
 	}
+
+	return did_exist
 }
 
 type RegistryEntryStatus int
