@@ -288,6 +288,8 @@ and.EANDObjectDelete
 and.EANDWorldLeave
 EPeerConnected
 EPeerDisconnected
+EPeerFound
+EPeerForgot
 */
 func (h *AbyssHost) GetEventCh() <-chan any {
 	return h.event_ch

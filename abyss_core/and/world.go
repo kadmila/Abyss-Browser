@@ -281,6 +281,27 @@ func (w *World) removeEntry(events ds.Queue, entry *peerWorldSessionState, code 
 	delete(w.entries, entry.PeerID)
 }
 
+// removeEntrySilent is equivalent to removeEntry, but does not send ahmp message to the peer.
+// Do we ever need this?
+func (w *World) removeEntrySilent(events ds.Queue, entry *peerWorldSessionState) {
+	if entry.state == WS_MEM {
+		w.member_count--
+	}
+	if entry.is_session_requested {
+		events.Push(&EANDSessionClose{
+			World:          w,
+			ANDPeerSession: entry.ANDPeerSession(),
+		})
+	}
+	if entry.Peer != nil {
+		events.Push(&EANDPeerDiscard{
+			World: w,
+			Peer:  entry.Peer,
+		})
+	}
+	delete(w.entries, entry.PeerID)
+}
+
 // tryOverwritePeerSession cleanly resets peer states if newer session id was given.
 // This is kinda dangerous; impact is high. Can we ever prevent/detect forgery?
 func (w *World) tryOverwritePeerSession(events ds.Queue, entry *peerWorldSessionState, session_id uuid.UUID, timestamp time.Time) bool {
@@ -837,26 +858,6 @@ func (w *World) SOD(events ds.Queue, peer_session ANDPeerSession, objectIDs []uu
 		ANDPeerSession: peer_session,
 		ObjectIDs:      objectIDs,
 	})
-}
-
-// removeEntrySilent is equivalent to removeEntry, but does not send ahmp message to the peer.
-func (w *World) removeEntrySilent(events ds.Queue, entry *peerWorldSessionState) {
-	if entry.state == WS_MEM {
-		w.member_count--
-	}
-	if entry.is_session_requested {
-		events.Push(&EANDSessionClose{
-			World:          w,
-			ANDPeerSession: entry.ANDPeerSession(),
-		})
-	}
-	if entry.Peer != nil {
-		events.Push(&EANDPeerDiscard{
-			World: w,
-			Peer:  entry.Peer,
-		})
-	}
-	delete(w.entries, entry.PeerID)
 }
 
 func (w *World) RST(events ds.Queue, peer_session ANDPeerSession) {
