@@ -160,6 +160,15 @@ func SendJDN_NoWorld(peer_session ANDPeerSession, code int, message string) erro
 	})
 }
 
+func SendRST_UnexpectedArbitraryWorld(peer_session ANDPeerSession, unknown_wsid uuid.UUID) error {
+	return peer_session.Peer.Send(ahmp.RST_T, RawRST{
+		SenderSessionID: unknown_wsid.String(),
+		RecverSessionID: peer_session.SessionID.String(),
+		Code:            JNC_UNEXPECTED_WSID,
+		Message:         JNM_UNEXPECTED_WSID,
+	})
+}
+
 // sendSOA sends SOA (Shared Object Append) message to a specific peer.
 func (w *World) sendSOA(target *peerWorldSessionState, objects []ObjectInfo) error {
 	rawObjects := functional.Filter(objects, func(obj ObjectInfo) RawObjectInfo {

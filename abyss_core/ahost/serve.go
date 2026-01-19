@@ -23,22 +23,49 @@ func tryParseAhmp[RawT parsibleAhmp[T], T any](msg *ahmp.AHMPMessage) (*T, error
 	return raw.TryParse()
 }
 
-func (h *AbyssHost) servePeer(peer ani.IAbyssPeer, participating_worlds map[uuid.UUID]*and.World) error {
-	// participating_worlds is a reference of h.peer_participating_worlds[peer.ID()]
-	// it must be accessed within h.mtx lock
+func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
+
+	// peer AND event queue
 	events := ds.MakeQueue()
 
+	// participating_worlds is a reference of h.peer_participating_worlds[peer.ID()]
+	// it must be accessed within h.mtx lock
+	participating_worlds := make(map[uuid.UUID]*and.World)
+
+	// register related information to the host, and handle pending peer requests
+	h.mtx.Lock()
+	h.peers[peer.ID()] = peer
+	h.event_ch <- &EPeerConnected{PeerID: peer.ID()}
+	h.peer_participating_worlds[peer.ID()] = participating_worlds
+
+	request_entry, ok := h.requested_peers[peer.ID()]
+	if ok {
+		for _, world := range request_entry {
+			participating_worlds[world.SessionID()] = world
+			world.PeerConnected(events, peer)
+			world.CheckSanity()
+			h.handleANDEvent(events)
+		}
+		delete(h.requested_peers, peer.ID())
+	}
+	h.mtx.Unlock()
+
+	// prepare for disconnection
 	defer func() {
 		h.mtx.Lock()
 		defer h.mtx.Unlock()
 
 		for _, world := range participating_worlds {
 			world.PeerDisconnected(events, peer.ID())
+			world.CheckSanity()
 			h.handleANDEvent(events)
 		}
+		delete(h.peer_participating_worlds, peer.ID())
+		delete(h.peers, peer.ID())
 		peer.Close()
 	}()
 
+	// receive AHMP messages and handle them
 	var msg ahmp.AHMPMessage
 	for {
 		err := peer.Recv(&msg)

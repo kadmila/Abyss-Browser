@@ -85,6 +85,9 @@ func (w *World) SessionID() uuid.UUID {
 }
 
 func (w *World) CheckSanity() {
+	if !config.DEBUG {
+		return
+	}
 
 	if w.o == nil {
 		panic("world origin nil")
@@ -248,6 +251,14 @@ func (w *World) Peers() []ani.IAbyssPeer {
 	return peers
 }
 
+// IsExposable checks if the world joining procedure is finished and the world information is set.
+func (w *World) IsExposable() bool {
+	if w.join_target != nil || w.url == "" {
+		return false
+	}
+	return true
+}
+
 // removeEntry should only be called for unexpected malfunction of the opponent.
 // is this a good design? IDK ¯\_(ツ)_/¯
 // **note: when modifying this code, you may need to revise RST() also.
@@ -282,7 +293,7 @@ func (w *World) removeEntry(events ds.Queue, entry *peerWorldSessionState, code 
 }
 
 // removeEntrySilent is equivalent to removeEntry, but does not send ahmp message to the peer.
-// Do we ever need this?
+// This should only be used when the peer is disconnected, or the peer request seize of communication (RST)
 func (w *World) removeEntrySilent(events ds.Queue, entry *peerWorldSessionState) {
 	if entry.state == WS_MEM {
 		w.member_count--
@@ -367,6 +378,7 @@ func (w *World) mustBeMemberCheck(events ds.Queue, peer_session ANDPeerSession) 
 	return entry, true
 }
 
+// PeerConnected must never raise EANDPeerDiscard event for the connected peer.
 func (w *World) PeerConnected(events ds.Queue, peer ani.IAbyssPeer) {
 	if w.is_closed {
 		return

@@ -16,12 +16,12 @@ func (h *AbyssHost) onJN(
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
+	// JN forces appending participating_worlds.
 	world, ok := h.exposed_worlds[JN.Path]
 	if !ok {
 		return and.SendJDN_NoWorld(peer_session, and.JNC_NOT_FOUND, and.JNM_NOT_FOUND)
 	}
 
-	// JN forces appending participating_worlds.
 	if _, ok := participating_worlds[world.SessionID()]; !ok {
 		participating_worlds[world.SessionID()] = world
 		world.PeerConnected(events, peer_session.Peer)
@@ -46,7 +46,7 @@ func (h *AbyssHost) onJOK(
 
 	world, ok := participating_worlds[JOK.RecverSessionID]
 	if !ok {
-		return nil
+		return and.SendRST_UnexpectedArbitraryWorld(peer_session, JOK.RecverSessionID)
 	}
 	world.JOK(events, peer_session, JOK.TimeStamp, JOK.URL, JOK.Neighbors)
 	world.CheckSanity()
@@ -82,9 +82,10 @@ func (h *AbyssHost) onJNI(
 ) error {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
+
 	world, ok := participating_worlds[JNI.RecverSessionID]
 	if !ok {
-		return nil
+		return and.SendRST_UnexpectedArbitraryWorld(peer_session, JNI.RecverSessionID)
 	}
 	world.JNI(events, peer_session, joiner_info)
 	world.CheckSanity()
@@ -102,13 +103,12 @@ func (h *AbyssHost) onMEM(
 	defer h.mtx.Unlock()
 
 	// MEM forces appending participating_worlds.
-	world, ok := participating_worlds[MEM.RecverSessionID]
+	world, ok := h.worlds[MEM.RecverSessionID]
 	if !ok {
-		world, ok = h.worlds[MEM.RecverSessionID]
-		if !ok {
-			return nil
-		}
+		return and.SendRST_UnexpectedArbitraryWorld(peer_session, MEM.RecverSessionID)
+	}
 
+	if _, ok := participating_worlds[MEM.RecverSessionID]; !ok {
 		participating_worlds[world.SessionID()] = world
 		world.PeerConnected(events, peer_session.Peer)
 		world.CheckSanity()
@@ -132,7 +132,7 @@ func (h *AbyssHost) onSJN(
 
 	world, ok := participating_worlds[SJN.RecverSessionID]
 	if !ok {
-		return nil
+		return and.SendRST_UnexpectedArbitraryWorld(peer_session, SJN.RecverSessionID)
 	}
 	world.SJN(events, peer_session, SJN.MemberInfos)
 	world.CheckSanity()
@@ -151,7 +151,7 @@ func (h *AbyssHost) onCRR(
 
 	world, ok := participating_worlds[CRR.RecverSessionID]
 	if !ok {
-		return nil
+		return and.SendRST_UnexpectedArbitraryWorld(peer_session, CRR.RecverSessionID)
 	}
 	world.CRR(events, peer_session, CRR.MemberInfos)
 	world.CheckSanity()
@@ -170,7 +170,7 @@ func (h *AbyssHost) onRST(
 
 	world, ok := participating_worlds[RST.RecverSessionID]
 	if !ok {
-		return nil // resetting non-participating world is a no-op.
+		return nil // must be no reflection
 	}
 	world.RST(events, peer_session)
 	world.CheckSanity()
@@ -189,7 +189,7 @@ func (h *AbyssHost) onSOA(
 
 	world, ok := participating_worlds[SOA.RecverSessionID]
 	if !ok {
-		return nil
+		return and.SendRST_UnexpectedArbitraryWorld(peer_session, SOA.RecverSessionID)
 	}
 	world.SOA(events, peer_session, SOA.Objects)
 	h.handleANDEvent(events)
@@ -207,7 +207,7 @@ func (h *AbyssHost) onSOD(
 
 	world, ok := participating_worlds[SOD.RecverSessionID]
 	if !ok {
-		return nil
+		return and.SendRST_UnexpectedArbitraryWorld(peer_session, SOD.RecverSessionID)
 	}
 	world.SOD(events, peer_session, SOD.ObjectIDs)
 	h.handleANDEvent(events)

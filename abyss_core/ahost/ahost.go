@@ -28,11 +28,11 @@ type AbyssHost struct {
 	timer_queue *worldTimerQueue // This is thread safe.
 
 	mtx                       sync.Mutex // Below this are not thread safe.
+	peers                     map[string]ani.IAbyssPeer
 	worlds                    map[uuid.UUID]*and.World
 	world_path_mapping        map[uuid.UUID]string  // inverse of exposed_worlds
 	exposed_worlds            map[string]*and.World // JN path -> world
 	peer_participating_worlds map[string]map[uuid.UUID]*and.World
-	peers                     map[string]ani.IAbyssPeer
 	requested_peers           map[string]map[uuid.UUID]*and.World // EANDPeerRequest origins
 
 	event_ch chan any
@@ -53,11 +53,11 @@ func NewAbyssHost(root_key sec.PrivateKey) (*AbyssHost, error) {
 
 		timer_queue: newWorldTimerQueue(),
 
+		peers:                     make(map[string]ani.IAbyssPeer),
 		worlds:                    make(map[uuid.UUID]*and.World),
 		world_path_mapping:        make(map[uuid.UUID]string),
 		exposed_worlds:            make(map[string]*and.World),
 		peer_participating_worlds: make(map[string]map[uuid.UUID]*and.World),
-		peers:                     make(map[string]ani.IAbyssPeer),
 		requested_peers:           make(map[string]map[uuid.UUID]*and.World),
 
 		event_ch: make(chan any, 1024),
@@ -71,30 +71,53 @@ func (h *AbyssHost) Bind() error {
 func (h *AbyssHost) Serve() error {
 	defer h.service_cancelfunc()
 
-	go h.net.Serve() // we ignore the return value of Serve()
-	// This is somewhat temporary. Although we expect failure of Serve() will be
-	// bubbled up to the Accept() call, this is a bit lazy.
-
-	// and timer event worker
+	// AbyssNode serve loop
+	serve_done := make(chan error)
 	go func() {
-		events := ds.MakeQueue()
-		for {
-			wsid, err := h.timer_queue.Wait(h.service_ctx)
-			if err != nil {
-				return
-			}
-
-			h.mtx.Lock()
-			world, ok := h.worlds[wsid]
-			if ok {
-				world.TimerExpire(events)
-				world.CheckSanity()
-				h.handleANDEvent(events)
-			}
-			h.mtx.Unlock()
-		}
+		serve_done <- h.net.Serve()
 	}()
 
+	// and timer event worker
+	timer_done := make(chan error)
+	go h.timerWorkingLoop(timer_done)
+
+	err := h.acceptingLoop()
+
+	<-timer_done
+	<-serve_done
+	// we ignore the return value of Serve()
+	// This is somewhat temporary. Although we expect failure of Serve() to be
+	// bubbled up to the acceptingLoop(), this is bad.
+
+	close(h.event_ch)
+	close_err := h.net.Close()
+	return errors.Join(err, close_err)
+}
+
+func (h *AbyssHost) timerWorkingLoop(timer_done chan<- error) {
+	events := ds.MakeQueue()
+	for {
+		wsid, err := h.timer_queue.Wait(h.service_ctx)
+		if err != nil {
+			timer_done <- err
+			return
+		}
+
+		h.mtx.Lock()
+		world, ok := h.worlds[wsid]
+		if ok {
+			world.TimerExpire(events)
+			world.CheckSanity()
+			h.handleANDEvent(events)
+		}
+		h.mtx.Unlock()
+	}
+}
+
+// acceptingLoop accepts new connections.
+// This returns only when the AbyssNode failed.
+// TODO: add waitgroup for servePeer() goroutines.
+func (h *AbyssHost) acceptingLoop() error {
 	for {
 		peer, err := h.net.Accept(h.service_ctx)
 		if err != nil {
@@ -102,31 +125,9 @@ func (h *AbyssHost) Serve() error {
 				continue // TODO: log handshake errors for diagnosis
 			}
 			// other errors are fatal.
-			close(h.event_ch)
 			return err
 		}
-
-		h.mtx.Lock()
-		h.peers[peer.ID()] = peer
-		h.event_ch <- &EPeerConnected{PeerID: peer.ID()}
-
-		participating_worlds := make(map[uuid.UUID]*and.World)
-		h.peer_participating_worlds[peer.ID()] = participating_worlds
-
-		request_note, ok := h.requested_peers[peer.ID()]
-		if ok {
-			events := ds.MakeQueue()
-			for _, world := range request_note {
-				participating_worlds[world.SessionID()] = world
-				world.PeerConnected(events, peer)
-				world.CheckSanity()
-				h.handleANDEvent(events)
-			}
-			delete(h.requested_peers, peer.ID())
-		}
-		h.mtx.Unlock()
-
-		go h.servePeer(peer, participating_worlds)
+		go h.servePeer(peer)
 	}
 }
 
@@ -250,6 +251,14 @@ func (h *AbyssHost) CloseWorld(world *and.World) {
 		delete(h.peer_participating_worlds[peer.ID()], world_lsid)
 	}
 
+	// Remove entry from requested_peers
+	for peer_id, entry := range h.requested_peers {
+		delete(entry, world_lsid)
+		if len(entry) == 0 {
+			delete(h.requested_peers, peer_id)
+		}
+	}
+
 	delete(h.worlds, world_lsid)
 	join_path, ok := h.world_path_mapping[world_lsid]
 	if ok {
@@ -295,21 +304,24 @@ func (h *AbyssHost) GetEventCh() <-chan any {
 	return h.event_ch
 }
 
-func (h *AbyssHost) ExposeWorldForJoin(world *and.World, path string) {
+func (h *AbyssHost) ExposeWorldForJoin(world *and.World, path string) error {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	other_world, ok := h.exposed_worlds[path]
-	if ok {
-		delete(h.world_path_mapping, other_world.SessionID())
+	if !world.IsExposable() {
+		return errors.New("This world is under joining procedure, thus not exposable.")
 	}
-	h.exposed_worlds[path] = world
 
-	old_path, ok := h.world_path_mapping[world.SessionID()]
-	if ok {
-		delete(h.exposed_worlds, old_path)
+	if _, ok := h.exposed_worlds[path]; ok {
+		return errors.New("Path in use")
 	}
+	if _, ok := h.world_path_mapping[world.SessionID()]; ok {
+		return errors.New("World already exposed to another path")
+	}
+
+	h.exposed_worlds[path] = world
 	h.world_path_mapping[world.SessionID()] = path
+	return nil
 }
 
 func (h *AbyssHost) HideWorld(world *and.World) {

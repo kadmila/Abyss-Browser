@@ -22,10 +22,10 @@ The reason why it takes `map[uuid.UUID]*and.World` as values is to filter out du
 
 | Member | Population | Depopulation |
 | -------- | -------- | -------- |
+| `peers` | when accepted the peer | when the peer serving loop returns (should call `World.PeerDisconnected()`) |
 | `worlds` | `JoinWorld()`, `OpenWorld()` | `CloseWorld()` |
 | `world_path_mapping`, `exposed_worlds` | `ExposeWorldForJoin()` | `HideWorld()`, `CloseWorld()` |
-| `peer_participating_worlds` | `JoinWorld()`, when calling `World.PeerConnected()` | `EANDPeerDiscard` |
-| `peers` | when accepted the peer | when the peer serving loop returns |
+| `peer_participating_worlds` | `JoinWorld()`, received `JN` or `MEM` (should call `World.PeerConnected()`) | `EANDPeerDiscard`, when the peer serving loop returns |
 | `requested_peers` | `EANDPeerRequest` but peer did not exist | when accepted the peer, `CloseWorld()` |
 
 Peer failures are primarily detected at servePeer() routine, which will return with error.

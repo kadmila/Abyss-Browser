@@ -210,7 +210,10 @@ func Host_ExposeWorldForJoin(
 	if !ok {
 		return marshalError(errors.New("nil arguments"))
 	}
-	host.ExposeWorldForJoin(world, string(path))
+	err := host.ExposeWorldForJoin(world, string(path))
+	if err != nil {
+		return marshalError(err)
+	}
 	return 0
 }
 
