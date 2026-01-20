@@ -1,5 +1,5 @@
 ﻿namespace AbyssCLI.AML.Event;
 
-public class KeyboardEvent : AmlEvent
+public class AmlEvent
 {
 }

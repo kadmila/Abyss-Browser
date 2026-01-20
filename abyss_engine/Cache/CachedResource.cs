@@ -1,4 +1,5 @@
 ﻿using AbyssCLI.AML;
+using System.Net;
 
 namespace AbyssCLI.Cache;
 
@@ -24,5 +25,7 @@ public class CachedResource(HttpResponseMessage http_response) : IDisposable
         GC.SuppressFinalize(this);
         _disposed = true;
     }
-    public static CachedResource DefaultFailedResource => default;
+
+    static readonly CachedResource _default_failed_resource = new CachedResource(new HttpResponseMessage(HttpStatusCode.UnprocessableEntity));
+    public static CachedResource DefaultFailedResource => _default_failed_resource;
 }

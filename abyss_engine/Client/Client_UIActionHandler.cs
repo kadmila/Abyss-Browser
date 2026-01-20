@@ -83,21 +83,7 @@ public static partial class Client
 
             lock (_worldMoveLock)
             {
-            }
-
-            AbyssLibB.Peer? peer;
-            lock (_peers)
-            {
-                if (!_peers.TryGetValue(peer_id, out peer))
-                {
-                    Cerr.WriteLine("no such peer: " + peer_id);
-                    return;
-                }
-            }
-
-            lock (_worldMoveLock)
-            {
-                var (net_world, error) = Host.JoinWorld(peer, path);
+                var (net_world, error) = Host.JoinWorld(peer_id, path);
                 if (error != null)
                 {
                     Cerr.WriteLine("failed to join world: " + error.Message);

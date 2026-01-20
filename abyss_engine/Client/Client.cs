@@ -29,8 +29,6 @@ public static partial class Client
     private static World? _currentWorld;
 	private static readonly object _worldMoveLock = new();
 
-    private static readonly Dictionary<string, AbyssLibB.Peer> _peers = []; // requires locking
-
     // For client-level call serialization (UI/JavaScript APIs)
     private static readonly Channel<UIAction> _client_operations = Channel.CreateUnbounded<UIAction>(new UnboundedChannelOptions
     {

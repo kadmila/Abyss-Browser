@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using static AbyssCLI.AbyssLibB;
 
 namespace AbyssCLI.Test
@@ -145,6 +145,10 @@ namespace AbyssCLI.Test
                     host.AppendKnownPeer(Encoding.UTF8.GetBytes(host2.RootCertificate), Encoding.UTF8.GetBytes(host2.GetHandshakeKeyCertificate()));
                     host2.AppendKnownPeer(Encoding.UTF8.GetBytes(host.RootCertificate), Encoding.UTF8.GetBytes(host.GetHandshakeKeyCertificate()));
 
+                    // consume PeerFound events
+                    host.WaitForEvent();
+                    host2.WaitForEvent();
+
                     var host_task = Task.Run(() =>
                     {
                         var (world, error_wo) = host.OpenWorld("https://world.com");
@@ -207,7 +211,7 @@ namespace AbyssCLI.Test
                         }
                         var e_pc = evnt as EPeerConnected;
 
-                        var (world, join_error) = host2.JoinWorld(e_pc!.Peer, "/");
+                        var (world, join_error) = host2.JoinWorld(e_pc!.PeerID, "/");
                         (evnt, evnt_error) = host2.WaitForEvent();
                         var e_we = evnt as EWorldEnter;
 
@@ -220,7 +224,7 @@ namespace AbyssCLI.Test
                             Transform = [1, 2, 3, 4, 5, 6, 7, 8],
                             Address = "https://some-object.com",
                         };
-                        world!.ObjectAppend([(e_pc.Peer, e_srd!.PeerWSID)], [obj]);
+                        world!.ObjectAppend([(e_pc.PeerID, e_srd!.PeerWSID)], [obj]);
                     });
 
                     await host_task;

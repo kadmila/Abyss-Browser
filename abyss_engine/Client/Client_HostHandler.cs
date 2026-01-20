@@ -1,4 +1,4 @@
-﻿namespace AbyssCLI.Client;
+namespace AbyssCLI.Client;
 
 public static partial class Client
 {
@@ -16,23 +16,11 @@ public static partial class Client
             switch (evnt)
             {
                 case AbyssLibB.EPeerConnected e:
-                lock (_peers)
-                {
-                    if (!_peers.TryAdd(e.Peer.ID, e.Peer))
-                    {
-                        Cerr.WriteLine("FATAL:::duplicate peer connected event: " + e.Peer.ID);
-                    }
-                }
-                continue;
+                    Cerr.WriteLine($"Peer connected: {e.PeerID}");
+                    continue;
                 case AbyssLibB.EPeerDisconnected e:
-                lock (_peers)
-                {
-                    if (!_peers.Remove(e.PeerID))
-                    {
-                        Cerr.WriteLine("FATAL:::duplicate peer disconnection event: " + e.PeerID);
-                    }
-                }
-                continue;
+                    Cerr.WriteLine($"Peer disconnected: {e.PeerID}");
+                    continue;
                 default:
                 break;
             }

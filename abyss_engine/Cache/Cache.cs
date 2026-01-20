@@ -47,7 +47,7 @@ public class Cache
             _ = new_entry.TryGetReference(out TaskCompletionReference<CachedResource> new_reference);
             _inner.Add(url, new_entry);
 
-            Task.Run(() => Fetch(url));
+            _= Task.Run(() => Fetch(url));
             return new_reference;
         }
     }

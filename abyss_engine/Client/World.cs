@@ -12,7 +12,6 @@ public class World : IDisposable
 	private readonly Dictionary<string, HL.Member> _members = []; //peer ID - Member
 	private readonly Dictionary<Guid, HL.Item> _local_items = []; //UUID - item
 	private readonly object _lock = new();
-	private bool _active = true;
 
 	public World(AbyssLibB.Host host, AbyssLibB.World world)
 	{
@@ -32,7 +31,7 @@ public class World : IDisposable
 			_local_items[uuid] = item;
 			
 			// Convert members to targets for ObjectAppend
-			var targets = _members.Select(m => (m.Value.Peer!, m.Value.PeerWSID)).ToArray();
+			var targets = _members.Select(m => (m.Value.PeerID, m.Value.PeerWSID)).ToArray();
 			if (targets.Length > 0)
 			{
 				var objectInfo = new AbyssLibB.ObjectInfo
@@ -55,7 +54,7 @@ public class World : IDisposable
 			_ = _local_items.Remove(item_id);
 			
 			// Convert members to targets for ObjectDelete
-			var targets = _members.Select(m => (m.Value.Peer!, m.Value.PeerWSID)).ToArray();
+			var targets = _members.Select(m => (m.Value.PeerID, m.Value.PeerWSID)).ToArray();
 			if (targets.Length > 0)
 			{
 				_world.ObjectDelete(targets, [item_id]);
@@ -189,7 +188,6 @@ public class World : IDisposable
 
     public void Dispose()
     {
-        _active = false;
         _environment?.Dispose();
         _world.Dispose();
 

@@ -31,7 +31,7 @@ public class JavaScriptDispatcher
 
         _engine.AddHostType("Vector3", typeof(Vector3));
         _engine.AddHostType("Quaternion", typeof(Quaternion));
-        _engine.AddHostType("Event", typeof(Event.Event));
+        _engine.AddHostType("Event", typeof(Event.AmlEvent));
         _engine.AddHostType("KeyboardEvent", typeof(Event.KeyboardEvent));
 
         _engine.AddHostObject("document", new JavaScriptAPI.Document(this, document));
