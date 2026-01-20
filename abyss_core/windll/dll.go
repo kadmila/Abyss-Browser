@@ -193,9 +193,16 @@ func Host_JoinWorld(
 	return 0
 }
 
-//export CloseWorld
-func CloseWorld(h_world C.uintptr_t) {
+//export Host_CloseWorld
+func Host_CloseWorld(
+	h_host C.uintptr_t,
+	h_world C.uintptr_t,
+) {
+	host := cgo.Handle(h_host).Value().(*ahost.AbyssHost)
 	handle := cgo.Handle(h_world)
+	world := handle.Value().(*and.World)
+
+	host.CloseWorld(world)
 	deleteHandle(handle)
 }
 

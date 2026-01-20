@@ -169,7 +169,7 @@ extern __declspec(dllexport) uintptr_t Host_WaitForEvent(uintptr_t h, int* event
 extern __declspec(dllexport) void CloseEvent(uintptr_t h);
 extern __declspec(dllexport) uintptr_t Host_OpenWorld(uintptr_t h, char* world_url_ptr, int world_url_len, uintptr_t* world_handle_out);
 extern __declspec(dllexport) uintptr_t Host_JoinWorld(uintptr_t h, char* peer_id_ptr, int peer_id_len, char* path_ptr, int path_len, uintptr_t* world_handle_out);
-extern __declspec(dllexport) void CloseWorld(uintptr_t h_world);
+extern __declspec(dllexport) void Host_CloseWorld(uintptr_t h_host, uintptr_t h_world);
 extern __declspec(dllexport) uintptr_t Host_ExposeWorldForJoin(uintptr_t h, uintptr_t h_world, char* path_ptr, int path_len);
 extern __declspec(dllexport) void Host_HideWorld(uintptr_t h, uintptr_t h_world);
 extern __declspec(dllexport) int Host_LocalAddrCandidates(uintptr_t h, char* buf_ptr, int buf_len);
@@ -194,7 +194,6 @@ extern __declspec(dllexport) void CloseHttpResponse(uintptr_t h_response);
 extern __declspec(dllexport) void World_Query(uintptr_t h_world, char* world_session_id_buf);
 extern __declspec(dllexport) void World_AcceptSession(uintptr_t h_host, uintptr_t h_world, char* peer_id_buf_ptr, int peer_id_buf_len, char* peer_session_id_buf);
 extern __declspec(dllexport) void World_DeclineSession(uintptr_t h_host, uintptr_t h_world, char* peer_id_buf_ptr, int peer_id_buf_len, char* peer_session_id_buf, int code, char* message_buf_ptr, int message_buf_len);
-extern __declspec(dllexport) void World_Close(uintptr_t h_host, uintptr_t h_world);
 extern __declspec(dllexport) void World_ObjectAppend(uintptr_t h_host, uintptr_t h_world, int peer_count, char** peer_id_bufs, int* peer_id_buf_lens, char** peer_session_id_bufs, int object_count, char** object_id_bufs, float** object_transform_bufs, char** object_addr_bufs, int* object_addr_buf_lens);
 extern __declspec(dllexport) void World_ObjectDelete(uintptr_t h_host, uintptr_t h_world, int peer_count, char** peer_id_bufs, int* peer_id_buf_lens, char** peer_session_id_bufs, int object_count, char** object_id_bufs);
 

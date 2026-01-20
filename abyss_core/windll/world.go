@@ -74,19 +74,6 @@ func World_DeclineSession(
 	host.DeclineWorldSession(world, string(peer_id), peer_session_id, int(code), message)
 }
 
-//export World_Close
-func World_Close(
-	h_host C.uintptr_t,
-	h_world C.uintptr_t,
-) {
-	host := cgo.Handle(h_host).Value().(*ahost.AbyssHost)
-	handle := cgo.Handle(h_world)
-	world := handle.Value().(*and.World)
-
-	host.CloseWorld(world)
-	deleteHandle(handle)
-}
-
 //export World_ObjectAppend
 func World_ObjectAppend(
 	h_host C.uintptr_t,

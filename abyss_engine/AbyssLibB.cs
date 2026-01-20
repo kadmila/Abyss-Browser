@@ -67,7 +67,7 @@ public static class AbyssLibB
     [DllImport(DllName)] private static extern unsafe void World_Query(IntPtr h_world, byte* world_session_id_buf);
     [DllImport(DllName)] private static extern unsafe void World_AcceptSession(IntPtr h_host, IntPtr h_world, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf);
     [DllImport(DllName)] private static extern unsafe void World_DeclineSession(IntPtr h_host, IntPtr h_world, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf, int code, byte* message_buf_ptr, int message_buf_len);
-    [DllImport(DllName)] private static extern void World_Close(IntPtr h_host, IntPtr h_world);
+    [DllImport(DllName)] private static extern void Host_CloseWorld(IntPtr h_host, IntPtr h_world);
     [DllImport(DllName)] private static extern unsafe void World_ObjectAppend(IntPtr h_host, IntPtr h_world, int peer_count, byte** peer_id_bufs, int* peer_id_buf_lens, byte** peer_session_id_bufs, int object_count, byte** object_id_bufs, float** object_transform_bufs, byte** object_addr_bufs, int* object_addr_buf_lens);
     [DllImport(DllName)] private static extern unsafe void World_ObjectDelete(IntPtr h_host, IntPtr h_world, int peer_count, byte** peer_id_bufs, int* peer_id_buf_lens, byte** peer_session_id_bufs, int object_count, byte** object_id_bufs);
 
@@ -84,6 +84,8 @@ public static class AbyssLibB
     [DllImport(DllName)] private static extern unsafe int Event_WorldLeave_Query(IntPtr h_event, byte* world_session_id_buf, int* code_out, byte* message_buf_ptr, int message_buf_len);
     [DllImport(DllName)] private static extern unsafe int Event_PeerConnected_Query(IntPtr h_event, byte* peer_id_buf_ptr, int peer_id_buf_len);
     [DllImport(DllName)] private static extern unsafe int Event_PeerDisconnected_Query(IntPtr h_event, byte* peer_id_buf_ptr, int peer_id_buf_len);
+    [DllImport(DllName)] private static extern unsafe int Event_PeerFound_Query(IntPtr h_event, byte* peer_id_buf_ptr, int peer_id_buf_len);
+    [DllImport(DllName)] private static extern unsafe int Event_PeerForgot_Query(IntPtr h_event, byte* peer_id_buf_ptr, int peer_id_buf_len);
 
 #pragma warning restore SYSLIB1054
 #pragma warning restore IDE0079
@@ -210,6 +212,8 @@ public static class AbyssLibB
                     EventType.WorldLeave => new EWorldLeave(eventHandle),
                     EventType.PeerConnected => new EPeerConnected(eventHandle),
                     EventType.PeerDisconnected => new EPeerDisconnected(eventHandle),
+                    EventType.PeerFound => new EPeerFound(eventHandle),
+                    EventType.PeerForgot => new EPeerForgot(eventHandle),
                     _ => null
                 };
                 return (ev, null);
@@ -232,15 +236,17 @@ public static class AbyssLibB
             }
         }
 
-        public (World?, AbyssLibError?) JoinWorld(Peer peer, string path)
+        public (World?, AbyssLibError?) JoinWorld(string peerId, string path)
         {
+            byte[] peerIdBytes = Encoding.UTF8.GetBytes(peerId);
             byte[] pathBytes = Encoding.UTF8.GetBytes(path);
             unsafe
             {
+                fixed (byte* peerIdPtr = peerIdBytes)
                 fixed (byte* pathPtr = pathBytes)
                 {
                     IntPtr worldHandle;
-                    IntPtr errHandle = Host_JoinWorld(_handle, peer.Handle, pathPtr, pathBytes.Length, &worldHandle);
+                    IntPtr errHandle = Host_JoinWorld(_handle, peerIdPtr, peerIdBytes.Length, pathPtr, pathBytes.Length, &worldHandle);
                     if (errHandle != IntPtr.Zero)
                         return (null, new AbyssLibError(errHandle));
                     return (new World(worldHandle, this), null);
@@ -394,6 +400,8 @@ public static class AbyssLibB
         WorldLeave = 7,
         PeerConnected = 8,
         PeerDisconnected = 9,
+        PeerFound = 10,
+        PeerForgot = 11,
     }
 
     public class EWorldEnter
@@ -702,19 +710,18 @@ public static class AbyssLibB
 
     public class EPeerConnected
     {
-        public Peer Peer { get; }
+        public string PeerID { get; }
         public EPeerConnected(IntPtr handle)
         {
             unsafe
             {
                 byte[] peerIdBuf = new byte[PeerIdMaxLength];
-                IntPtr peerHandle;
                 fixed (byte* pidPtr = peerIdBuf)
                 {
-                    int peerIdLen = Event_PeerConnected_Query(handle, &peerHandle, pidPtr, peerIdBuf.Length);
+                    int peerIdLen = Event_PeerConnected_Query(handle, pidPtr, peerIdBuf.Length);
                     if (peerIdLen < 0)
                         throw new InternalBufferOverflowException("Event_PeerConnected_Query");
-                    Peer = new Peer(peerHandle, Encoding.UTF8.GetString(peerIdBuf, 0, peerIdLen));
+                    PeerID = Encoding.UTF8.GetString(peerIdBuf, 0, peerIdLen);
                 }
             }
             CloseEvent(handle);
@@ -741,33 +748,44 @@ public static class AbyssLibB
         }
     }
 
-    #endregion
-
-    #region Peer
-
-    public class Peer : IDisposable
+    public class EPeerFound
     {
-        private IntPtr _handle;
-        public string ID { get; }
-
-        internal Peer(IntPtr handle, string id)
+        public string PeerID { get; }
+        public EPeerFound(IntPtr handle)
         {
-            _handle = handle;
-            ID = id;
+            unsafe
+            {
+                byte[] peerIdBuf = new byte[PeerIdMaxLength];
+                fixed (byte* pidPtr = peerIdBuf)
+                {
+                    int peerIdLen = Event_PeerFound_Query(handle, pidPtr, peerIdBuf.Length);
+                    if (peerIdLen < 0)
+                        throw new InternalBufferOverflowException("Event_PeerFound_Query");
+                    PeerID = Encoding.UTF8.GetString(peerIdBuf, 0, peerIdLen);
+                }
+            }
+            CloseEvent(handle);
         }
+    }
 
-        public bool IsValid => _handle != IntPtr.Zero;
-        internal IntPtr Handle => _handle;
-
-        public void Dispose()
+    public class EPeerForgot
+    {
+        public string PeerID { get; }
+        public EPeerForgot(IntPtr handle)
         {
-            if (_handle == IntPtr.Zero) return;
-            ClosePeer(_handle);
-            _handle = IntPtr.Zero;
-            GC.SuppressFinalize(this);
+            unsafe
+            {
+                byte[] peerIdBuf = new byte[PeerIdMaxLength];
+                fixed (byte* pidPtr = peerIdBuf)
+                {
+                    int peerIdLen = Event_PeerForgot_Query(handle, pidPtr, peerIdBuf.Length);
+                    if (peerIdLen < 0)
+                        throw new InternalBufferOverflowException("Event_PeerForgot_Query");
+                    PeerID = Encoding.UTF8.GetString(peerIdBuf, 0, peerIdLen);
+                }
+            }
+            CloseEvent(handle);
         }
-
-        ~Peer() => Dispose();
     }
 
     #endregion
@@ -814,7 +832,7 @@ public static class AbyssLibB
             }
         }
 
-        public void DeclineSession(Peer peer, string peer_id, Guid peerWSID, int code, string message)
+        public void DeclineSession(string peer_id, Guid peerWSID, int code, string message)
         {
             var pidBytes = Encoding.UTF8.GetBytes(peer_id);
             var psidBytes = peerWSID.ToByteArray();
@@ -830,21 +848,36 @@ public static class AbyssLibB
             }
         }
 
-        public void ObjectAppend((Peer, Guid)[] targets, ObjectInfo[] info)
+        public void ObjectAppend((string, Guid)[] targets, ObjectInfo[] info)
         {
             unsafe
             {
                 var peerCount = targets.Length;
                 var objectCount = info.Length;
 
-                // Prepare peer handles and session IDs
-                var peerHandles = new IntPtr[peerCount];
+                // Prepare peer IDs and session IDs
+                var peerIdBytes = new byte[peerCount][];
+                var peerIdBytesTotal = 0;
                 var peerSessionIdBytes = new byte[16 * peerCount];
                 for (int i = 0; i < peerCount; i++)
                 {
-                    peerHandles[i] = targets[i].Item1.Handle;
+                    var pidBytes = Encoding.UTF8.GetBytes(targets[i].Item1);
+                    peerIdBytes[i] = pidBytes;
+                    peerIdBytesTotal += pidBytes.Length;
+                    
                     var sessionIdBytes = targets[i].Item2.ToByteArray();
                     Array.Copy(sessionIdBytes, 0, peerSessionIdBytes, i * 16, 16);
+                }
+
+                // Concatenate peer ID bytes
+                var peerIdBytesCombined = new byte[peerIdBytesTotal];
+                var peerIdLens = new int[peerCount];
+                var currentPeerIdPos = 0;
+                for (int i = 0; i < peerCount; i++)
+                {
+                    Array.Copy(peerIdBytes[i], 0, peerIdBytesCombined, currentPeerIdPos, peerIdBytes[i].Length);
+                    peerIdLens[i] = peerIdBytes[i].Length;
+                    currentPeerIdPos += peerIdBytes[i].Length;
                 }
 
                 // Prepare object data
@@ -867,29 +900,34 @@ public static class AbyssLibB
                     objectAddrBytesTotal += addrBytes.Length;
                 }
 
-                // Second iteration - concatenate address utf-8 bytes
+                // Concatenate object address bytes
                 var objectAddrBytesCombined = new byte[objectAddrBytesTotal];
                 var currentPos = 0;
                 foreach (var item in objectAddrBytes)
                 {
                     Array.Copy(item, 0, objectAddrBytesCombined, currentPos, item.Length);
+                    currentPos += item.Length;
                 }
 
                 // Pin and create pointer arrays
-                fixed (IntPtr* peerPtrs = peerHandles)
+                fixed (byte* peerIdPtr = peerIdBytesCombined)
                 fixed (byte* sessionIdPtr = peerSessionIdBytes)
                 fixed (byte* objIdPtr = objectIdBytes)
                 fixed (float* trPtr = transformBytes)
                 fixed (byte* objAddrPtr = objectAddrBytesCombined)
                 {
+                    var peerIdDp = new byte*[peerCount];
                     var sessionIdDp = new byte*[peerCount];
                     var objIdDp = new byte*[objectCount];
                     var trDp = new float*[objectCount];
                     var objAddrDp = new byte*[objectCount];
                     var objAddrLenSp = new int[objectCount];
 
+                    var peerIdPos = 0;
                     for (int i = 0; i < peerCount; i++)
                     {
+                        peerIdDp[i] = peerIdPtr + peerIdPos;
+                        peerIdPos += peerIdLens[i];
                         sessionIdDp[i] = sessionIdPtr + (16 * i);
                     }
 
@@ -897,7 +935,7 @@ public static class AbyssLibB
                     for (int i = 0; i < objectCount; i++)
                     {
                         objIdDp[i] = objIdPtr + (16 * i);
-                        trDp[i] = trPtr + (16 * i);
+                        trDp[i] = trPtr + (7 * i);
                         objAddrDp[i] = objAddrPtr + objectAddrPos;
 
                         var objAddrLength = objectAddrBytes[i].Length;
@@ -905,34 +943,51 @@ public static class AbyssLibB
                         objectAddrPos += objAddrLength;
                     }
 
+                    fixed (byte** peerIdDpPtr = peerIdDp)
+                    fixed (int* peerIdLensPtr = peerIdLens)
                     fixed (byte** sessionIdDpPtr = sessionIdDp)
                     fixed (byte** objIdDpPtr = objIdDp)
                     fixed (float** trDpPtr = trDp)
                     fixed (byte** objAddrDpPtr = objAddrDp)
                     fixed (int* objAddrLenSpPtr = objAddrLenSp)
                     {
-                        World_ObjectAppend(_host.Handle, _handle, peerCount, peerPtrs, sessionIdDpPtr, 
+                        World_ObjectAppend(_host.Handle, _handle, peerCount, peerIdDpPtr, peerIdLensPtr, sessionIdDpPtr, 
                                          objectCount, objIdDpPtr, trDpPtr, objAddrDpPtr, objAddrLenSpPtr);
                     }
                 }
             }
         }
 
-        public void ObjectDelete((Peer, Guid)[] targets, Guid[] info)
+        public void ObjectDelete((string, Guid)[] targets, Guid[] info)
         {
             unsafe
             {
                 var peerCount = targets.Length;
                 var objectCount = info.Length;
 
-                // Prepare peer handles and session IDs
-                var peerHandles = new IntPtr[peerCount];
+                // Prepare peer IDs and session IDs
+                var peerIdBytes = new byte[peerCount][];
+                var peerIdBytesTotal = 0;
                 var peerSessionIdBytes = new byte[16 * peerCount];
                 for (int i = 0; i < peerCount; i++)
                 {
-                    peerHandles[i] = targets[i].Item1.Handle;
+                    var pidBytes = Encoding.UTF8.GetBytes(targets[i].Item1);
+                    peerIdBytes[i] = pidBytes;
+                    peerIdBytesTotal += pidBytes.Length;
+                    
                     var sessionIdBytes = targets[i].Item2.ToByteArray();
                     Array.Copy(sessionIdBytes, 0, peerSessionIdBytes, i * 16, 16);
+                }
+
+                // Concatenate peer ID bytes
+                var peerIdBytesCombined = new byte[peerIdBytesTotal];
+                var peerIdLens = new int[peerCount];
+                var currentPeerIdPos = 0;
+                for (int i = 0; i < peerCount; i++)
+                {
+                    Array.Copy(peerIdBytes[i], 0, peerIdBytesCombined, currentPeerIdPos, peerIdBytes[i].Length);
+                    peerIdLens[i] = peerIdBytes[i].Length;
+                    currentPeerIdPos += peerIdBytes[i].Length;
                 }
 
                 // Prepare object IDs
@@ -944,15 +999,19 @@ public static class AbyssLibB
                 }
 
                 // Pin and create pointer arrays
-                fixed (IntPtr* peerPtrs = peerHandles)
+                fixed (byte* peerIdPtr = peerIdBytesCombined)
                 fixed (byte* sessionIdPtr = peerSessionIdBytes)
                 fixed (byte* objIdPtr = objectIdBytes)
                 {
+                    var peerIdDp = new byte*[peerCount];
                     var sessionIdDp = new byte*[peerCount];
                     var objIdDp = new byte*[objectCount];
 
+                    var peerIdPos = 0;
                     for (int i = 0; i < peerCount; i++)
                     {
+                        peerIdDp[i] = peerIdPtr + peerIdPos;
+                        peerIdPos += peerIdLens[i];
                         sessionIdDp[i] = sessionIdPtr + (16 * i);
                     }
 
@@ -961,10 +1020,12 @@ public static class AbyssLibB
                         objIdDp[i] = objIdPtr + (16 * i);
                     }
 
+                    fixed (byte** peerIdDpPtr = peerIdDp)
+                    fixed (int* peerIdLensPtr = peerIdLens)
                     fixed (byte** sessionIdDpPtr = sessionIdDp)
                     fixed (byte** objIdDpPtr = objIdDp)
                     {
-                        World_ObjectDelete(_host.Handle, _handle, peerCount, peerPtrs, sessionIdDpPtr, 
+                        World_ObjectDelete(_host.Handle, _handle, peerCount, peerIdDpPtr, peerIdLensPtr, sessionIdDpPtr, 
                                         objectCount, objIdDpPtr);
                     }
                 }
@@ -974,7 +1035,7 @@ public static class AbyssLibB
         public void Dispose()
         {
             if (_handle == IntPtr.Zero) return;
-            World_Close(_host.Handle, _handle);
+            Host_CloseWorld(_host.Handle, _handle);
             _handle = IntPtr.Zero;
             GC.SuppressFinalize(this);
         }
