@@ -23,7 +23,6 @@ public static partial class Client
     public static readonly HttpClient HttpClient; // normal web fetch
 	public static readonly HttpClient AbystClient; // abyst:// scheme
 	public static readonly HttpClient CollocatedHttp3Client; // collocated http/3 fetch
-    public static void CerrWriteLine(string message) => Cerr.WriteLine(message);
 
     private static readonly BinaryReader _cin = new(Console.OpenStandardInput());
 

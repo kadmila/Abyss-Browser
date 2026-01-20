@@ -3,7 +3,7 @@
 namespace AbyssCLI.HL;
 public class Content : IDisposable
 {
-    public readonly string URL;
+    public readonly System.Uri URL;
     public readonly Document Document;
     public readonly Cache.Cache Cache = new();
 
@@ -11,14 +11,14 @@ public class Content : IDisposable
     private readonly Task _content_task;
     public Content(string url, AmlMetadata metadata)
     {
-        URL = url;
+        URL = new Uri(url);
         Document = new(this, metadata);
 
         //TODO: properly handle all exceptions from content task.
         _content_task = Task.Run(async() =>
         {
             Document.Init();
-            using var _document_cache_ref = Cache.GetReference(URL);
+            using var _document_cache_ref = Cache.GetReference(url);
 
             Cache.CachedResource? doc_resource;
             try
@@ -28,7 +28,7 @@ public class Content : IDisposable
             catch
             {
                 //todo: show loading status/error in UI
-                Client.Client.Cerr.WriteLine("failed to load document body: " + URL);
+                Client.Client.Cerr.WriteLine("failed to load document body: " + url);
                 return;
             }
 
@@ -45,11 +45,11 @@ public class Content : IDisposable
             } 
             catch
             {
-                Client.Client.Cerr.WriteLine("failed to read document: " + URL);
+                Client.Client.Cerr.WriteLine("failed to read document: " + url);
                 return;
             }
 
-            Client.Client.Cerr.WriteLine("document loaded: " + URL);
+            Client.Client.Cerr.WriteLine("document loaded: " + url);
 
             ParseUtil.ParseAMLDocument(this, Document, raw_document, _cts.Token);
             Document.StartJavaScript(_cts.Token);
@@ -90,5 +90,9 @@ public class Content : IDisposable
         is_disposed = true;
         GC.SuppressFinalize(this);
     }
-    ~Content() => Dispose();
+    ~Content()
+    {
+        Client.Client.Cerr.WriteLine("Warning:::Content was garbage collected. Content must be Disposed. This is a bug");
+        Dispose();
+    }
 }
