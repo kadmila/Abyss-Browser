@@ -444,31 +444,61 @@ namespace AbyssCLI.ABI
 			
 			Write(action);
 		}
-		public void DebugEnter
+		public void PeerConnected
 		(
-			string msg
+			string peer_id
 		)
 		{
 			var action = new RenderAction
 			{
-				DebugEnter = new()
+				PeerConnected = new()
 				{
-					Msg = msg
+					PeerId = peer_id
 				}
 			};
 			
 			Write(action);
 		}
-		public void DebugLeave
+		public void PeerDisconnected
 		(
-			string msg
+			string peer_id
 		)
 		{
 			var action = new RenderAction
 			{
-				DebugLeave = new()
+				PeerDisconnected = new()
 				{
-					Msg = msg
+					PeerId = peer_id
+				}
+			};
+			
+			Write(action);
+		}
+		public void PeerFound
+		(
+			string peer_id
+		)
+		{
+			var action = new RenderAction
+			{
+				PeerFound = new()
+				{
+					PeerId = peer_id
+				}
+			};
+			
+			Write(action);
+		}
+		public void PeerForgot
+		(
+			string peer_id
+		)
+		{
+			var action = new RenderAction
+			{
+				PeerForgot = new()
+				{
+					PeerId = peer_id
 				}
 			};
 			

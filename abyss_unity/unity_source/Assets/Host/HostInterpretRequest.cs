@@ -14,12 +14,6 @@ namespace Host
             _ui_base.OnAddressBarSubmit = (arg) => Tx.MoveWorld(arg);
             _ui_base.OnSubAddressBarSubmit = (arg) =>
             {
-                if (arg.StartsWith("connect "))
-                {
-                    var conn_addr = arg["connect ".Length..];
-                    Tx.ConnectPeer(conn_addr);
-                    return;
-                }
                 var spawn_transform = _interaction_base.GetContentSpawnPos();
                 var new_uuid = Guid.NewGuid();
                 Tx.ShareContent(
@@ -65,8 +59,6 @@ namespace Host
             case RenderAction.InnerOneofCase.LocalInfo: RenderingActionQueue.Enqueue(LocalInfo(render_action.LocalInfo));return;
             case RenderAction.InnerOneofCase.InfoContentShared: RenderingActionQueue.Enqueue(InfoContentShared(render_action.InfoContentShared));return;
             case RenderAction.InnerOneofCase.InfoContentDeleted: RenderingActionQueue.Enqueue(InfoContentDeleted(render_action.InfoContentDeleted));return;
-            case RenderAction.InnerOneofCase.DebugEnter: RenderingActionQueue.Enqueue(() => _ui_base.DebugEnter(render_action.DebugEnter.Msg));return;
-            case RenderAction.InnerOneofCase.DebugLeave: RenderingActionQueue.Enqueue(() => _ui_base.DebugLeave(render_action.DebugLeave.Msg));return;
             default: StderrQueue.Enqueue("Executor: invalid RenderAction: " + render_action.InnerCase);return;
             }
         }

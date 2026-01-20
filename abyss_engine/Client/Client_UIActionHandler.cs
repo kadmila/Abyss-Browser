@@ -114,7 +114,7 @@ public static partial class Client
         {
             if (_mainWorld == null)
             {
-                var (net_world, error) = Host.OpenWorld("");
+                var (net_world, error) = Host.OpenWorld("http://example.com");
                 if (error != null)
                 {
                     Cerr.WriteLine("failed to open empty world: " + error.Message);

@@ -149,13 +149,6 @@ message RenderAction {
 		string peer_id = 1;
 	}
 
-	message DebugEnter {
-		string msg = 1;
-	}
-	message DebugLeave {
-		string msg = 1;
-	}
-
 	oneof inner {
 		ConsolePrint console_print = 100;
 
@@ -191,8 +184,5 @@ message RenderAction {
 		PeerDisconnected peer_disconnected = 701;
 		PeerFound peer_found = 702;
 		PeerForgot peer_forgot = 703;
-
-		DebugEnter debug_enter = 800;
-		DebugEnter debug_leave = 801;
 	}
 }

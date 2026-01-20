@@ -114,21 +114,6 @@ namespace AbyssCLI.ABI
 			
 			Write(action);
 		}
-		public void ConnectPeer
-		(
-			string aurl
-		)
-		{
-			var action = new UIAction
-			{
-				ConnectPeer = new()
-				{
-					Aurl = aurl
-				}
-			};
-			
-			Write(action);
-		}
 		public void ConsoleInput
 		(
 			int element_id,
