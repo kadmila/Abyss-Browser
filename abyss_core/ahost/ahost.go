@@ -131,6 +131,7 @@ func (h *AbyssHost) acceptingLoop() error {
 
 func (h *AbyssHost) Close() {
 	h.service_cancelfunc()
+	h.net.Close()
 }
 
 //// AbyssNode APIs
@@ -156,7 +157,7 @@ func (h *AbyssHost) EraseKnownPeer(id string) {
 	defer h.mtx.Unlock()
 
 	if h.net.EraseKnownPeer(id) {
-		h.event_ch <- EPeerForgot{PeerID: id}
+		h.event_ch <- &EPeerForgot{PeerID: id}
 	}
 }
 func (h *AbyssHost) Dial(id string) error                   { return h.net.Dial(id) }

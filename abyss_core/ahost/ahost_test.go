@@ -539,3 +539,96 @@ func TestJoinWorldTransitiveNPeers(t *testing.T) {
 
 	<-time.After(10 * time.Second)
 }
+
+func TestDisconnect(t *testing.T) {
+	// Construct two hosts
+	root_key_A, _ := sec.NewRootPrivateKey()
+	host_A, _ := ahost.NewAbyssHost(root_key_A)
+
+	root_key_B, _ := sec.NewRootPrivateKey()
+	host_B, _ := ahost.NewAbyssHost(root_key_B)
+
+	// Bind both hosts
+	host_A.Bind()
+	host_B.Bind()
+
+	// Start serving
+	go host_A.Serve()
+	go host_B.Serve()
+	defer host_A.Close()
+	defer host_B.Close()
+
+	// Exchange peer information
+	host_A.AppendKnownPeer(host_B.RootCertificate(), host_B.HandshakeKeyCertificate())
+	host_B.AppendKnownPeer(host_A.RootCertificate(), host_A.HandshakeKeyCertificate())
+
+	// Wait for peer found events
+	expectEvent[*ahost.EPeerFound](t, host_A.GetEventCh())
+	expectEvent[*ahost.EPeerFound](t, host_B.GetEventCh())
+
+	// Host A dials host B
+	host_A.Dial(host_B.ID())
+
+	// Wait for peer connection events
+	e_a_conn := expectEvent[*ahost.EPeerConnected](t, host_A.GetEventCh())
+	e_b_conn := expectEvent[*ahost.EPeerConnected](t, host_B.GetEventCh())
+
+	if e_a_conn.PeerID != host_B.ID() || e_b_conn.PeerID != host_A.ID() {
+		t.Fatal("Peer IDs do not match")
+	}
+
+	// Host A closes
+	host_A.EraseKnownPeer(e_a_conn.PeerID)
+
+	// Wait for peer forget event
+	expectEvent[*ahost.EPeerForgot](t, host_A.GetEventCh())
+
+	// Both hosts should receive EPeerDisconnected event
+	expectEvent[*ahost.EPeerDisconnected](t, host_A.GetEventCh())
+	expectEvent[*ahost.EPeerDisconnected](t, host_B.GetEventCh())
+}
+
+func TestDisconnect2(t *testing.T) {
+	// Construct two hosts
+	root_key_A, _ := sec.NewRootPrivateKey()
+	host_A, _ := ahost.NewAbyssHost(root_key_A)
+
+	root_key_B, _ := sec.NewRootPrivateKey()
+	host_B, _ := ahost.NewAbyssHost(root_key_B)
+
+	// Bind both hosts
+	host_A.Bind()
+	host_B.Bind()
+
+	// Start serving
+	go host_A.Serve()
+	go host_B.Serve()
+	defer host_A.Close()
+	defer host_B.Close()
+
+	// Exchange peer information
+	host_A.AppendKnownPeer(host_B.RootCertificate(), host_B.HandshakeKeyCertificate())
+	host_B.AppendKnownPeer(host_A.RootCertificate(), host_A.HandshakeKeyCertificate())
+
+	// Wait for peer found events
+	expectEvent[*ahost.EPeerFound](t, host_A.GetEventCh())
+	expectEvent[*ahost.EPeerFound](t, host_B.GetEventCh())
+
+	// Host A dials host B
+	host_A.Dial(host_B.ID())
+
+	// Wait for peer connection events
+	e_a_conn := expectEvent[*ahost.EPeerConnected](t, host_A.GetEventCh())
+	e_b_conn := expectEvent[*ahost.EPeerConnected](t, host_B.GetEventCh())
+
+	if e_a_conn.PeerID != host_B.ID() || e_b_conn.PeerID != host_A.ID() {
+		t.Fatal("Peer IDs do not match")
+	}
+
+	// Host A closes
+	host_A.Close()
+
+	<-time.After(20 * time.Second) // wait for timeout.
+
+	expectEvent[*ahost.EPeerDisconnected](t, host_B.GetEventCh())
+}

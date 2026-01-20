@@ -38,6 +38,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 	h.event_ch <- &EPeerConnected{PeerID: peer.ID()}
 	h.peer_participating_worlds[peer.ID()] = participating_worlds
 
+	// handle pending peer requests
 	request_entry, ok := h.requested_peers[peer.ID()]
 	if ok {
 		for _, world := range request_entry {
@@ -62,6 +63,8 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 		}
 		delete(h.peer_participating_worlds, peer.ID())
 		delete(h.peers, peer.ID())
+
+		h.event_ch <- &EPeerDisconnected{PeerID: peer.ID()}
 		peer.Close()
 	}()
 
