@@ -44,11 +44,4 @@ All the resulting events are queued to a channel (`event_ch`), which the client-
 
 ### Serve()
 
-
-TODO: JoinWorld (peer_id) => query peer?
-
-## Host Failure Logging
-
-Currently, AbyssHost does not handle/log any fatal errors.
-When AbyssNode or other things fail abruptly, it may or may not terminate.
-Even its termination is not properly tested.
+: Runs all internal loops

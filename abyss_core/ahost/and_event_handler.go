@@ -93,8 +93,7 @@ func (h *AbyssHost) handleANDEvent(events ds.Queue) {
 			}
 			h.event_ch <- e
 
-		case *and.EANDSessionRequest, *and.EANDSessionReady, *and.EANDSessionClose,
-			*and.EANDObjectAppend, *and.EANDObjectDelete:
+		default:
 			h.event_ch <- e
 		}
 	}
