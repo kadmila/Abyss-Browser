@@ -8,7 +8,7 @@ namespace AbyssCLI.AML;
 #pragma warning disable IDE1006 //naming convension
 public class Element : IDisposable
 {
-    public readonly ContentB Origin;
+    public readonly Content Origin;
     public int RefCount;
     public readonly int ElementId = RenderID.ElementId;
     public readonly string tagName;
@@ -16,7 +16,7 @@ public class Element : IDisposable
     public Element? Parent;
     public readonly List<Element> Children = [];
     public bool IsDeleteElementRequired = false; // this can be set to false when its parent is deleted in rendering engine.
-    public Element(ContentB origin, string tag, object? options)
+    public Element(Content origin, string tag, object? options)
     {
         Origin = origin;
         RefCount = 0;

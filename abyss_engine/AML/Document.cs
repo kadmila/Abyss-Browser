@@ -16,14 +16,14 @@ public class Document
     public ElementLifespanMan ElementLifespanManager;
     public readonly AmlMetadata Metadata;
 
-    private readonly ContentB _origin;
+    private readonly Content _origin;
     private int _ui_element_id = 0;
     private readonly Deallocator _dealloc_stack;
     private readonly JavaScriptDispatcher _js_dispatcher;
     private bool IsUiInitialized => _ui_element_id != 0;
 
     //document constructor must not allocate any resource that needs to be deallocated.
-    public Document(ContentB origin, AmlMetadata metadata)
+    public Document(Content origin, AmlMetadata metadata)
     {
         _origin = origin;
         Metadata = metadata;

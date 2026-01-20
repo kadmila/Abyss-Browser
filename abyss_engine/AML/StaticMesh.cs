@@ -6,7 +6,7 @@ namespace AbyssCLI.AML;
 public class StaticMesh : Transform
 {
     public StaticMeshResourceLink? _mesh = null;
-    public StaticMesh(ContentB origin, object? options) : base(origin, "obj", options)
+    public StaticMesh(Content origin, object? options) : base(origin, "obj", options)
     {
         if (!Attributes.TryGetValue("src", out string? mesh_src))
             return;

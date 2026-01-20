@@ -5,7 +5,7 @@ namespace AbyssCLI.AML;
 
 internal static class ParseUtil
 {
-    internal static void ParseAMLDocument(ContentB origin, Document target, string document, CancellationToken token)
+    internal static void ParseAMLDocument(Content origin, Document target, string document, CancellationToken token)
     {
         XmlDocument xml_document = new();
         xml_document.LoadXml(document);
@@ -44,7 +44,7 @@ internal static class ParseUtil
             }
         }
     }
-    private static void ParseHead(ContentB origin, Document document, XmlElement head_elem)
+    private static void ParseHead(Content origin, Document document, XmlElement head_elem)
     {
         foreach (XmlNode child in head_elem.ChildNodes)
         {
@@ -76,7 +76,7 @@ internal static class ParseUtil
             }
         }
     }
-    private static void ParseScript(ContentB origin, Document document, XmlElement script_elem)
+    private static void ParseScript(Content origin, Document document, XmlElement script_elem)
     {
         // src - defer is the default behavior.
         string src = script_elem.GetAttribute("src");

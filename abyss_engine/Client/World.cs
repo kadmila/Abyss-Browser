@@ -11,7 +11,7 @@ public class World : IDisposable
 
     private readonly AbyssLibB.Host _host;
 	private readonly AbyssLibB.World _world;
-	private HL.ContentB? _environment;
+	private HL.Content? _environment;
 	private readonly Dictionary<string, Member> _members = []; //peer ids - WSID
 	private readonly Dictionary<Guid, HL.Item> _local_items = []; //UUID - item
 

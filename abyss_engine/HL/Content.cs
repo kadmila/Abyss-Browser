@@ -1,26 +1,24 @@
 ﻿using AbyssCLI.AML;
 
-#nullable enable
 namespace AbyssCLI.HL;
-public class ContentB : IDisposable
+public class Content : IDisposable
 {
+    public readonly string URL;
+    public readonly Document Document;
     public readonly Cache.Cache Cache = new();
 
-    private readonly string _url;
-    internal readonly Document Document;
-    private readonly CancellationTokenSource _cts;
+    private readonly CancellationTokenSource _cts = new();
     private readonly Task _content_task;
-    internal ContentB(string url, AmlMetadata metadata)
+    public Content(string url, AmlMetadata metadata)
     {
-        _url = url;
+        URL = url;
         Document = new(this, metadata);
-        _cts = new();
 
         //TODO: properly handle all exceptions from content task.
         _content_task = Task.Run(async() =>
         {
             Document.Init();
-            using var _document_cache_ref = Cache.GetReference(_url);
+            using var _document_cache_ref = Cache.GetReference(URL);
 
             Cache.CachedResource? doc_resource;
             try
@@ -30,7 +28,7 @@ public class ContentB : IDisposable
             catch
             {
                 //todo: show loading status/error in UI
-                Client.Client.Cerr.WriteLine("failed to load document body: " + _url);
+                Client.Client.Cerr.WriteLine("failed to load document body: " + URL);
                 return;
             }
 
@@ -47,11 +45,11 @@ public class ContentB : IDisposable
             } 
             catch
             {
-                Client.Client.Cerr.WriteLine("failed to read document: " + _url);
+                Client.Client.Cerr.WriteLine("failed to read document: " + URL);
                 return;
             }
 
-            Client.Client.Cerr.WriteLine("document loaded: " + _url);
+            Client.Client.Cerr.WriteLine("document loaded: " + URL);
 
             ParseUtil.ParseAMLDocument(this, Document, raw_document, _cts.Token);
             Document.StartJavaScript(_cts.Token);
@@ -92,5 +90,5 @@ public class ContentB : IDisposable
         is_disposed = true;
         GC.SuppressFinalize(this);
     }
-    ~ContentB() => Dispose();
+    ~Content() => Dispose();
 }

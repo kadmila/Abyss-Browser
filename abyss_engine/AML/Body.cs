@@ -2,7 +2,7 @@
 
 namespace AbyssCLI.AML;
 
-public class Body(ContentB origin) : Transform(origin, "body", null)
+public class Body(Content origin) : Transform(origin, "body", null)
 {
     public void Init()
     {

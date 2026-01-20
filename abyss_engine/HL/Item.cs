@@ -1,5 +1,4 @@
-﻿using AbyssCLI.Tool;
-using System.Numerics;
+﻿using System.Numerics;
 
 namespace AbyssCLI.HL;
 
@@ -7,8 +6,7 @@ public class Item : IDisposable
 {
     public readonly string SharerHash;
     public readonly Guid UUID;
-    public readonly string URL;
-    public readonly HL.ContentB Content;
+    public readonly HL.Content Content;
     public AbyssLibB.ObjectInfo SerializedObjectInfo { get; private set; }
 
     public Item(string sharer_hash, Guid uuid, string url, float[] transform) 
@@ -19,7 +17,6 @@ public class Item : IDisposable
     {
         SharerHash = sharer_hash;
         UUID = uuid;
-        URL = url;
         Content = new(url, new()
         {
             title = sharer_hash + ":" + uuid.ToString(),
