@@ -31,34 +31,34 @@ public static partial class Client
                 break;
             }
 
-            lock (_worldMoveLock)
+            lock (_worldLock)
             {
-                if (_currentWorld == null)
+                if (_mainWorld == null)
                     continue;
 
                 switch (evnt)
                 {
-                case AbyssLibB.EWorldEnter e when _currentWorld.WSID == e.WSID:
-                    _currentWorld.OnWorldEnter(e);
+                case AbyssLibB.EWorldEnter e when _mainWorld.WSID == e.WSID:
+                    _mainWorld.OnWorldEnter(e);
                     break;
-                case AbyssLibB.ESessionRequest e when _currentWorld.WSID == e.WSID:
-                    _currentWorld.OnMemberRequest(e);
+                case AbyssLibB.ESessionRequest e when _mainWorld.WSID == e.WSID:
+                    _mainWorld.OnMemberRequest(e);
                     break;
-                case AbyssLibB.ESessionReady e when _currentWorld.WSID == e.WSID:
-                    _currentWorld.OnMemberReady(e);
+                case AbyssLibB.ESessionReady e when _mainWorld.WSID == e.WSID:
+                    _mainWorld.OnMemberReady(e);
                     break;
-                case AbyssLibB.EObjectAppend e when _currentWorld.WSID == e.WSID:
-                    _currentWorld.OnMemberObjectAppend(e);
+                case AbyssLibB.EObjectAppend e when _mainWorld.WSID == e.WSID:
+                    _mainWorld.OnMemberObjectAppend(e);
                     break;
-                case AbyssLibB.EObjectDelete e when _currentWorld.WSID == e.WSID:
-                    _currentWorld.OnMemberObjectDelete(e);
+                case AbyssLibB.EObjectDelete e when _mainWorld.WSID == e.WSID:
+                    _mainWorld.OnMemberObjectDelete(e);
                     break;
-                case AbyssLibB.ESessionClose e when _currentWorld.WSID == e.WSID:
-                    _currentWorld.OnMemberLeave(e.PeerID);
+                case AbyssLibB.ESessionClose e when _mainWorld.WSID == e.WSID:
+                    _mainWorld.OnMemberLeave(e.PeerID);
                     break;
-                case AbyssLibB.EWorldLeave e when _currentWorld.WSID == e.WSID:
-                    _currentWorld.Dispose();
-                    _currentWorld = null;
+                case AbyssLibB.EWorldLeave e when _mainWorld.WSID == e.WSID:
+                    _mainWorld.Dispose();
+                    _mainWorld = null;
                     break;
                 default:
                     break;

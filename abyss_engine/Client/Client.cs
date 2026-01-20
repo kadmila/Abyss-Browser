@@ -26,8 +26,9 @@ public static partial class Client
     public static void CerrWriteLine(string message) => Cerr.WriteLine(message);
 
     private static readonly BinaryReader _cin = new(Console.OpenStandardInput());
-    private static World? _currentWorld;
-	private static readonly object _worldMoveLock = new();
+
+    private static readonly object _worldLock = new();
+    private static World? _mainWorld;
 
     // For client-level call serialization (UI/JavaScript APIs)
     private static readonly Channel<UIAction> _client_operations = Channel.CreateUnbounded<UIAction>(new UnboundedChannelOptions

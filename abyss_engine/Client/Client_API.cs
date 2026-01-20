@@ -4,7 +4,8 @@ namespace AbyssCLI.Client;
 
 public static partial class Client
 {
-    public static async Task MoveWorldAsync(string world_url)
+    // MoveWorld may return false (no-op) if the client is overloaded.
+    public static bool MoveWorld(string world_url)
     {
         var message = new UIAction()
         {
@@ -13,6 +14,6 @@ public static partial class Client
                 WorldUrl = world_url
             }
         };
-        await _client_operations.Writer.WriteAsync(message);
+        return _client_operations.Writer.TryWrite(message);
     }
 }

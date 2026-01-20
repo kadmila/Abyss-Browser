@@ -1,7 +1,4 @@
 using AbyssCLI.ABI;
-using AbyssCLI.Tool;
-using System;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace AbyssCLI.Client;
 
@@ -47,9 +44,6 @@ public static partial class Client
                 case UIAction.InnerOneofCase.UnshareContent:
                     OnUnshareContent(message.UnshareContent);
                     break;
-                case UIAction.InnerOneofCase.ConnectPeer:
-                    OnConnectPeer(message.ConnectPeer);
-                    break;
                 case UIAction.InnerOneofCase.ConsoleInput:
                     OnConsoleInput(message.ConsoleInput);
                     break;
@@ -60,7 +54,10 @@ public static partial class Client
     }
     private static void OnMoveWorld(UIAction.Types.MoveWorld args)
     {
-        if (args.WorldUrl.StartsWith("abyss://"))
+        _mainWorld?.Dispose();
+        _mainWorld = null;
+
+        if (args.WorldUrl.StartsWith("abyss://")) //joining
         {
             var split = args.WorldUrl["abyss://".Length..].Split('/', 2);
             string peer_id;
@@ -81,7 +78,7 @@ public static partial class Client
                 return;
             }
 
-            lock (_worldMoveLock)
+            lock (_worldLock)
             {
                 var (net_world, error) = Host.JoinWorld(peer_id, path);
                 if (error != null)
@@ -89,21 +86,12 @@ public static partial class Client
                     Cerr.WriteLine("failed to join world: " + error.Message);
                     return;
                 }
-                _currentWorld?.Dispose();
-                try
-                {
-                    _currentWorld = new World(Host, net_world!);
-                }
-                catch (Exception ex)
-                {
-                    Cerr.WriteLine("world creation failed: " + ex.Message);
-                    _currentWorld = null;
-                }
+                _mainWorld = new World(Host, net_world!);
             }
         }
-        else if (args.WorldUrl.StartsWith("http://") || args.WorldUrl.StartsWith("https://"))
+        else if (args.WorldUrl.StartsWith("http://") || args.WorldUrl.StartsWith("https://")) //opening
         {
-            lock(_worldMoveLock)
+            lock(_worldLock)
             {
                 var (net_world, error) = Host.OpenWorld(args.WorldUrl);
                 if (error != null)
@@ -111,17 +99,7 @@ public static partial class Client
                     Cerr.WriteLine("failed to open world: " + error.Message);
                     return;
                 }
-
-                _currentWorld?.Dispose();
-                try
-                {
-                    _currentWorld = new World(Host, net_world!);
-                }
-                catch (Exception ex)
-                {
-                    Cerr.WriteLine("world creation failed: " + ex.Message);
-                    _currentWorld = null;
-                }
+                _mainWorld = new World(Host, net_world!);
             }
         }
         else
@@ -129,26 +107,41 @@ public static partial class Client
             Cerr.WriteLine("tried to move to invalid world url: " + args.WorldUrl);
         }
     }
+    // OnShareContent Opens a new world if _mainWorld is null.
     private static void OnShareContent(UIAction.Types.ShareContent args)
 	{
-		_currentWorld?.ShareItem(new Guid(args.Uuid.ToByteArray()), args.Url, [args.Pos.X, args.Pos.Y, args.Pos.Z, args.Rot.W, args.Rot.X, args.Rot.Y, args.Rot.Z]);
+        lock (_worldLock)
+        {
+            if (_mainWorld == null)
+            {
+                var (net_world, error) = Host.OpenWorld("");
+                if (error != null)
+                {
+                    Cerr.WriteLine("failed to open empty world: " + error.Message);
+                    return;
+                }
+                _mainWorld = new World(Host, net_world!);
+            }
+
+            _mainWorld.ShareItem(new Guid(args.Uuid.ToByteArray()), args.Url, [args.Pos.X, args.Pos.Y, args.Pos.Z, args.Rot.X, args.Rot.Y, args.Rot.Z, args.Rot.W]);
+        }
 	}
-	private static void OnUnshareContent(UIAction.Types.UnshareContent args) => _currentWorld!.UnshareItem(new Guid(args.Uuid.ToByteArray()));
-	private static void OnConnectPeer(UIAction.Types.ConnectPeer args)
-	{
-		// In AbyssLibB, use Dial() instead of OpenOutboundConnection
-		var error = Host.Dial(args.Aurl);
-		if (error != null)
-		{
-			Cerr.WriteLine("failed to dial peer: " + error.Message);
-		}
-	}
+	private static void OnUnshareContent(UIAction.Types.UnshareContent args)
+    {
+        lock (_worldLock)
+        {
+            if (_mainWorld == null)
+                return;
+
+            _mainWorld.UnshareItem(new Guid(args.Uuid.ToByteArray()));
+        }
+    }
     private static void OnConsoleInput(UIAction.Types.ConsoleInput args)
     {
         Client.RenderWriter.ConsolePrint("console input: " + args.Text);
         if (args.ElementId == 0) //world environment content
         {
-			_currentWorld?.TryExecuteJavascript(args.Text);
+			_mainWorld?.TryExecuteJavascript(args.Text);
         }
     }
 }

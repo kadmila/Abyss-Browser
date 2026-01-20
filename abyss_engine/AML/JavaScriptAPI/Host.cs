@@ -1,5 +1,4 @@
-#pragma warning disable IDE1006 //naming convension
-#pragma warning disable CA1822 //"static"
+#pragma warning disable IDE1006, CA1822 //naming convension, "static"
 namespace AbyssCLI.AML.JavaScriptAPI;
 public class Host
 {
@@ -27,6 +26,6 @@ public class Host
 	}
 	public void move_world(string aurl)
 	{
-		_ = Client.Client.MoveWorldAsync(aurl);
+		_ = Client.Client.MoveWorld(aurl);
 	}
 }
