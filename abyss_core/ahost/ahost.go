@@ -81,17 +81,15 @@ func (h *AbyssHost) Serve() error {
 	timer_done := make(chan error)
 	go h.timerWorkingLoop(timer_done)
 
-	err := h.acceptingLoop()
+	accept_err := h.acceptingLoop()
 
 	<-timer_done
-	<-serve_done
-	// we ignore the return value of Serve()
-	// This is somewhat temporary. Although we expect failure of Serve() to be
-	// bubbled up to the acceptingLoop(), this is bad.
+	serve_err := <-serve_done
 
 	close(h.event_ch)
 	close_err := h.net.Close()
-	return errors.Join(err, close_err)
+
+	return errors.Join(accept_err, serve_err, close_err)
 }
 
 func (h *AbyssHost) timerWorkingLoop(timer_done chan<- error) {
@@ -175,10 +173,11 @@ func (h *AbyssHost) OpenWorld(world_url string) *and.World {
 	defer h.mtx.Unlock()
 
 	events := ds.MakeQueue()
-	result := h.and.OpenWorld(events, world_url)
+	world := h.and.OpenWorld(events, world_url)
 	h.handleANDEvent(events)
 
-	return result
+	h.worlds[world.SessionID()] = world
+	return world
 }
 
 func (h *AbyssHost) JoinWorld(peer_id string, path string) (*and.World, error) {
@@ -190,16 +189,17 @@ func (h *AbyssHost) JoinWorld(peer_id string, path string) (*and.World, error) {
 		return nil, errors.New("peer not found")
 	}
 
-	result, err := h.and.JoinWorld(peer, path)
+	world, err := h.and.JoinWorld(peer, path)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 
 	// JoinWorld forces the join target partcipates in my local AND world
-	h.peer_participating_worlds[peer_id][result.SessionID()] = result
+	h.peer_participating_worlds[peer_id][world.SessionID()] = world
 	// don't call world.PeerConnected, as the join target is handled specially.
 
-	return result, err
+	h.worlds[world.SessionID()] = world
+	return world, err
 }
 
 // AcceptWorldSession accepts a peer session request for a world.
@@ -240,9 +240,6 @@ func (h *AbyssHost) CloseWorld(world *and.World) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	world.Close()
-
-	// Clean up world from host's tracking maps
 	world_lsid := world.SessionID()
 
 	// Remove world from all peers' participating worlds
@@ -259,12 +256,16 @@ func (h *AbyssHost) CloseWorld(world *and.World) {
 		}
 	}
 
+	// Remove world from host's worlds and exposed worlds
 	delete(h.worlds, world_lsid)
 	join_path, ok := h.world_path_mapping[world_lsid]
 	if ok {
 		delete(h.world_path_mapping, world_lsid)
 		delete(h.exposed_worlds, join_path)
 	}
+
+	// Destroy the world
+	world.Close()
 }
 
 // WorldObjectAppend sends SOA message to the specified peers in the world.
