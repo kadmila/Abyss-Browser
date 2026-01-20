@@ -131,7 +131,7 @@ public static partial class Client
     }
     private static void OnShareContent(UIAction.Types.ShareContent args)
 	{
-		_currentWorld!.ShareItem(new Guid(args.Uuid.ToByteArray()), args.Url, [args.Pos.X, args.Pos.Y, args.Pos.Z, args.Rot.W, args.Rot.X, args.Rot.Y, args.Rot.Z]);
+		_currentWorld?.ShareItem(new Guid(args.Uuid.ToByteArray()), args.Url, [args.Pos.X, args.Pos.Y, args.Pos.Z, args.Rot.W, args.Rot.X, args.Rot.Y, args.Rot.Z]);
 	}
 	private static void OnUnshareContent(UIAction.Types.UnshareContent args) => _currentWorld!.UnshareItem(new Guid(args.Uuid.ToByteArray()));
 	private static void OnConnectPeer(UIAction.Types.ConnectPeer args)
@@ -148,7 +148,7 @@ public static partial class Client
         Client.RenderWriter.ConsolePrint("console input: " + args.Text);
         if (args.ElementId == 0) //world environment content
         {
-			_currentWorld!.TryExecuteJavascript(args.Text);
+			_currentWorld?.TryExecuteJavascript(args.Text);
         }
     }
 }
