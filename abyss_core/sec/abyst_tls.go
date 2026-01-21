@@ -20,6 +20,7 @@ type TLSIdentity struct {
 	tls_priv_key    crypto.PrivateKey
 	tls_self_cert   []byte //der
 	abyss_bind_cert []byte //der
+	root_self_cert  []byte //der
 }
 
 func HashTlsCertificate(cert *x509.Certificate) [32]byte {
@@ -124,7 +125,7 @@ func (t *TLSIdentity) NewCollocatedH3TlsConf() *tls.Config {
 	return &tls.Config{
 		Certificates: []tls.Certificate{
 			{
-				Certificate: [][]byte{t.tls_self_cert},
+				Certificate: [][]byte{t.tls_self_cert, t.abyss_bind_cert, t.root_self_cert},
 				PrivateKey:  t.tls_priv_key,
 			},
 		},

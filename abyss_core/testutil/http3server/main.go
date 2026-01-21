@@ -1,11 +1,15 @@
 package main
 
 import (
+	"crypto"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha3"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -13,6 +17,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/quic-go/quic-go/http3"
 )
 
@@ -26,30 +31,10 @@ func cacheHandler(w http.ResponseWriter, _ *http.Request) {
 }
 
 func peerIdentityQueryHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("AA")
+	tls_self_cert := r.TLS.PeerCertificates[2]
 
-	tls := r.TLS
-	if tls == nil || len(r.TLS.PeerCertificates) < 1 {
-		w.Write([]byte("no peer certificate"))
-		w.WriteHeader(400)
-		return
-	}
-
-	fmt.Println("BB")
-
-	tls_self_cert := r.TLS.PeerCertificates[0]
-	if tls_self_cert == nil {
-		w.Write([]byte("nil peer certificate"))
-		w.WriteHeader(400)
-		return
-	}
-
-	//fmt.Println("client: " + tls_self_cert
-
-	w.Write([]byte("you are the peer"))
+	w.Write([]byte("you are " + tls_self_cert.Issuer.CommonName))
 	w.WriteHeader(500)
-
-	fmt.Println("CC")
 }
 
 func main() {
@@ -75,16 +60,51 @@ func main() {
 			VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
 				fmt.Println("verifying one peer")
 
-				if len(rawCerts) == 0 {
-					return fmt.Errorf("no client certificate")
+				if len(rawCerts) < 3 {
+					return fmt.Errorf("insufficient client certificates")
 				}
 
-				cert, err := x509.ParseCertificate(rawCerts[0])
+				// ensure tls cert is self-signed.
+				tls_self_cert, err := x509.ParseCertificate(rawCerts[0])
 				if err != nil {
 					return err
 				}
+				if err := tls_self_cert.CheckSignatureFrom(tls_self_cert); err != nil {
+					return err
+				}
 
-				if err := cert.CheckSignatureFrom(cert); err != nil {
+				// validate abyss self signed certificate.
+				abyss_self_cert, err := x509.ParseCertificate(rawCerts[2])
+				if err != nil {
+					return err
+				}
+				id, err := abyssIDFromKey(abyss_self_cert.PublicKey)
+				if err != nil {
+					return errors.New("invalid root certificate; failed to hash")
+				}
+				if abyss_self_cert.Issuer.CommonName != id {
+					return errors.New("invalid root certificate; unrecognized name")
+				}
+				if abyss_self_cert.Subject.CommonName != id {
+					return errors.New("invalid root certificate; not self-signed")
+				}
+
+				// ensure binding cert has the same public key with the tls cert.
+				// validate binding
+				abyss_bind_cert, err := x509.ParseCertificate(rawCerts[1])
+				if err != nil {
+					return err
+				}
+				if !abyss_bind_cert.PublicKey.(ed25519.PublicKey).Equal(tls_self_cert.PublicKey) {
+					return errors.New("invalid TLS binding key certificate; TLS public key mismatch")
+				}
+				if abyss_bind_cert.Issuer.CommonName != id {
+					return errors.New("invalid TLS binding key certificate; issuer mismatch")
+				}
+				if abyss_bind_cert.Subject.CommonName != "tls."+id {
+					return errors.New("invalid root certificate; unrecognized name")
+				}
+				if err := abyss_bind_cert.CheckSignatureFrom(abyss_self_cert); err != nil {
 					return err
 				}
 
@@ -99,6 +119,16 @@ func main() {
 	log.Printf("Starting HTTP/3 server on https://localhost:4433")
 	log.Printf("Serving files from current directory")
 	log.Fatal(server.ListenAndServe())
+}
+
+func abyssIDFromKey(pub crypto.PublicKey) (string, error) {
+	derBytes, err := x509.MarshalPKIXPublicKey(pub)
+	if err != nil {
+		return "", fmt.Errorf("unable to marshal public key to DER: %v", err)
+	}
+	hasher := sha3.New512()
+	hasher.Write(derBytes)
+	return "H-" + base58.Encode(hasher.Sum(nil)), nil
 }
 
 func generateSelfSignedCert() (tls.Certificate, error) {
