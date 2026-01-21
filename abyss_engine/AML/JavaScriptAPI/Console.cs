@@ -3,5 +3,5 @@
 public class Console
 {
     public void log(object any) =>
-        Client.Client.RenderWriter.ConsolePrint(any.ToString() ?? "");
+        Client.Client.RenderWriter.ConsolePrint(Helper.StringyfyJsObject(any));
 }

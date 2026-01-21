@@ -14,7 +14,7 @@ public class Cache
     {
         lock (_inner)
         {
-            Client.Client.Cerr.WriteLine("Patch:" + key + "|");
+            //Client.Client.Cerr.WriteLine("Patch:" + key + "|");
             if (_inner.TryGetValue(key, out RcTaskCompletionSource<CachedResource>? entry))
             {
                 if (entry.TrySetResult(value))
@@ -36,7 +36,7 @@ public class Cache
     {
         lock (_inner)
         {
-            Client.Client.Cerr.WriteLine($"GetReference:{url}|");
+            //Client.Client.Cerr.WriteLine($"GetReference:{url}|");
             if (_inner.TryGetValue(url, out RcTaskCompletionSource<CachedResource>? entry))
             {
                 _ = entry.TryGetReference(out TaskCompletionReference<CachedResource> reference);
