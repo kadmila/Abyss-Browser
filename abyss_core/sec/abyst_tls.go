@@ -17,7 +17,7 @@ const (
 
 // TLSIdentity is constructed from AbyssRootSecretes.NewTLSIdentity().
 type TLSIdentity struct {
-	priv_key        crypto.PrivateKey
+	tls_priv_key    crypto.PrivateKey
 	tls_self_cert   []byte //der
 	abyss_bind_cert []byte //der
 }
@@ -32,7 +32,7 @@ func (t *TLSIdentity) NewServerTlsConf(abyst_cert_checker ani.IAbystTlsCertCheck
 		Certificates: []tls.Certificate{
 			{
 				Certificate: [][]byte{t.tls_self_cert},
-				PrivateKey:  t.priv_key,
+				PrivateKey:  t.tls_priv_key,
 			},
 		},
 		VerifyConnection: func(cs tls.ConnectionState) error {
@@ -68,7 +68,7 @@ func (t *TLSIdentity) NewAbyssClientTlsConf() *tls.Config {
 		Certificates: []tls.Certificate{
 			{
 				Certificate: [][]byte{t.tls_self_cert},
-				PrivateKey:  t.priv_key,
+				PrivateKey:  t.tls_priv_key,
 			},
 		},
 		VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
@@ -95,7 +95,7 @@ func (t *TLSIdentity) NewAbystClientTlsConf(abyst_cert_checker ani.IAbystTlsCert
 		Certificates: []tls.Certificate{
 			{
 				Certificate: [][]byte{t.tls_self_cert},
-				PrivateKey:  t.priv_key,
+				PrivateKey:  t.tls_priv_key,
 			},
 		},
 		VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
@@ -125,7 +125,7 @@ func (t *TLSIdentity) NewCollocatedH3TlsConf() *tls.Config {
 		Certificates: []tls.Certificate{
 			{
 				Certificate: [][]byte{t.tls_self_cert},
-				PrivateKey:  t.priv_key,
+				PrivateKey:  t.tls_priv_key,
 			},
 		},
 		NextProtos:         []string{http3.NextProtoH3},

@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"fmt"
 	"log"
 	"math/big"
 	"net"
@@ -24,6 +25,33 @@ func cacheHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Write([]byte("This content should be cached"))
 }
 
+func peerIdentityQueryHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("AA")
+
+	tls := r.TLS
+	if tls == nil || len(r.TLS.PeerCertificates) < 1 {
+		w.Write([]byte("no peer certificate"))
+		w.WriteHeader(400)
+		return
+	}
+
+	fmt.Println("BB")
+
+	tls_self_cert := r.TLS.PeerCertificates[0]
+	if tls_self_cert == nil {
+		w.Write([]byte("nil peer certificate"))
+		w.WriteHeader(400)
+		return
+	}
+
+	//fmt.Println("client: " + tls_self_cert
+
+	w.Write([]byte("you are the peer"))
+	w.WriteHeader(500)
+
+	fmt.Println("CC")
+}
+
 func main() {
 	// Generate self-signed certificate
 	cert, err := generateSelfSignedCert()
@@ -35,6 +63,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir(".")))
 	mux.Handle("/c/", http.StripPrefix("/c/", http.HandlerFunc(cacheHandler)))
+	mux.Handle("/i/", http.StripPrefix("/i/", http.HandlerFunc(peerIdentityQueryHandler)))
 
 	// Configure HTTP/3 server
 	server := &http3.Server{
@@ -42,6 +71,28 @@ func main() {
 		Handler: mux,
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{cert},
+			ClientAuth:   tls.RequireAnyClientCert,
+			VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+				fmt.Println("verifying one peer")
+
+				if len(rawCerts) == 0 {
+					return fmt.Errorf("no client certificate")
+				}
+
+				cert, err := x509.ParseCertificate(rawCerts[0])
+				if err != nil {
+					return err
+				}
+
+				if err := cert.CheckSignatureFrom(cert); err != nil {
+					return err
+				}
+
+				// TODO: work with cert
+
+				fmt.Println("good")
+				return nil // handshake continues
+			},
 		},
 	}
 

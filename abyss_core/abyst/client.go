@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/quic-go/quic-go"
-	"github.com/quic-go/quic-go/http3"
 )
 
 // We do a bit of workaround here.
@@ -20,30 +19,15 @@ type IHost interface {
 }
 
 type AbystClient struct {
-	root   IHost
-	client *http.Client
-}
-
-func NewAbystClient(root IHost) *AbystClient {
-	return &AbystClient{
-		root: root,
-		client: &http.Client{
-			Transport: &http3.Transport{
-				Dial: root.AbystDial,
-			},
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				return http.ErrUseLastResponse // force no redirect
-			},
-		},
-	}
+	Client *http.Client
 }
 
 func (c *AbystClient) Get(id string, path string) (resp *http.Response, err error) {
-	return c.client.Get("https://" + id + ".abyst/" + path)
+	return c.Client.Get("https://" + id + ".abyst/" + path)
 }
 func (c *AbystClient) Head(id string, path string) (resp *http.Response, err error) {
-	return c.client.Head("https://" + id + ".abyst/" + path)
+	return c.Client.Head("https://" + id + ".abyst/" + path)
 }
 func (c *AbystClient) Post(id string, path, contentType string, body io.Reader) (resp *http.Response, err error) {
-	return c.client.Post("https://"+id+".abyst/"+path, contentType, body)
+	return c.Client.Post("https://"+id+".abyst/"+path, contentType, body)
 }

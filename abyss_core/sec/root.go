@@ -236,7 +236,7 @@ func (r *AbyssRootSecret) NewTLSIdentity() (*TLSIdentity, error) {
 	}
 
 	return &TLSIdentity{
-		priv_key:        tls_private_key,
+		tls_priv_key:    tls_private_key,
 		tls_self_cert:   tls_self_derBytes,
 		abyss_bind_cert: bind_derBytes,
 	}, nil

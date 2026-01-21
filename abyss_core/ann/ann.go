@@ -365,12 +365,25 @@ func (n *AbyssNode) AbystDial(
 }
 
 func (n *AbyssNode) NewAbystClient() *abyst.AbystClient {
-	return abyst.NewAbystClient(n)
+	return &abyst.AbystClient{
+		Client: &http.Client{
+			Transport: &http3.Transport{
+				TLSClientConfig: n.NewAbystClientTlsConf(n.registry),
+				QUICConfig:      newQuicConfig(),
+				Dial:            n.AbystDial,
+			},
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse // force no redirect
+			},
+		},
+	}
 }
 
 func (n *AbyssNode) NewCollocatedHttp3Client() *http.Client {
 	return &http.Client{
 		Transport: &http3.Transport{
+			TLSClientConfig: n.NewCollocatedH3TlsConf(),
+			QUICConfig:      newQuicConfig(),
 			Dial: func(ctx context.Context, addr string, _ *tls.Config, _ *quic.Config) (quic.EarlyConnection, error) {
 				udpAddr, err := net.ResolveUDPAddr("udp", addr)
 				if err != nil {
