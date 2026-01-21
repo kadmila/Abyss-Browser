@@ -1,55 +1,51 @@
-﻿using AbyssCLI.HL;
+﻿using AbyssCLI.AML.JavaScriptAPI;
+using AbyssCLI.HL;
 using Microsoft.ClearScript;
 using System.Xml;
 
 namespace AbyssCLI.AML;
-
-#nullable enable
-#pragma warning disable IDE1006 //naming convension
 public class Element : IDisposable
 {
     public readonly Content Origin;
-    public int RefCount;
+    public readonly ElementTag Tag;
     public readonly int ElementId = RenderID.ElementId;
-    public readonly string tagName;
-    public readonly Dictionary<string, string> Attributes = [];
+    public readonly Dictionary<string, string> Attributes;
     public Element? Parent;
     public readonly List<Element> Children = [];
     public bool IsDeleteElementRequired = false; // this can be set to false when its parent is deleted in rendering engine.
-    public Element(Content origin, string tag, object? options)
+
+    public int RefCount; // used by JavaScriptDispatcher
+    public Element(Content origin, ElementTag tag, object? options)
     {
         Origin = origin;
         RefCount = 0;
-        Client.Client.RenderWriter.CreateElement(-1, ElementId, tag switch
-        {
-            "o" => ElementTag.O,
-            "obj" => ElementTag.Obj,
-            "pbrm" => ElementTag.Pbrm,
-            "body" => ElementTag.O,
-            "bcol" => ElementTag.Bcol,
-            _ => throw new InvalidOperationException()
-        });
+        Client.Client.RenderWriter.CreateElement(-1, ElementId, tag);
 
-        tagName = tag;
-        if (options is ScriptObject optionsObj)
+        Tag = tag;
+        if (options == null)
         {
-            foreach (string prop in optionsObj.PropertyNames)
-            {
-                string? value = optionsObj.GetProperty(prop)?.ToString();
-                if (value != null)
-                    Attributes[prop] = value;
-            }
+            Attributes = [];
+        }
+        else if (options is ScriptObject optionsObj)
+        {
+            Attributes = Helper.ScriptObjectToDictionaryForceString(optionsObj);
         }
         else if (options is XmlAttributeCollection xmlAttributes)
         {
+            Attributes = [];
             foreach (XmlAttribute entry in xmlAttributes)
             {
                 Attributes[entry.Name] = entry.Value;
             }
         }
+        else
+        {
+            Client.Client.Cerr.WriteLine("element constructor: option is unsupported type. This is bug");
+            Attributes = [];
+        }
         GC.AddMemoryPressure(1_000_000_000); //debug
     }
-    public Element? getElementByIdHelper(string _id)
+    public Element? GetElementByIdHelper(string _id)
     {
         if (Attributes.TryGetValue("id", out string? id) && id == _id)
         {
@@ -57,7 +53,7 @@ public class Element : IDisposable
         }
         foreach (Element child in Children)
         {
-            Element? result = child.getElementByIdHelper(_id);
+            Element? result = child.GetElementByIdHelper(_id);
             if (result != null)
                 return result;
         }
@@ -69,14 +65,14 @@ public class Element : IDisposable
     public virtual bool IsChildAllowed(string child_tag) => true;
 
     //JavaScript API exposable
-    public void setActive(bool active) =>
+    public void SetActive(bool active) =>
         Client.Client.RenderWriter.ElemSetActive(ElementId, active);
-    public virtual Element appendChild(Element child)
+    public virtual Element AppendChild(Element child)
     {
         if (!child.IsParentAllowed(this) || !IsChildAllowed(child))
         {
             throw new InvalidOperationException(
-                "<" + tagName + "> cannot have <" + child.tagName + "> as a child");
+                "<" + Tag + "> cannot have <" + child.Tag + "> as a child");
         }
 
         if (child == null)
@@ -94,7 +90,7 @@ public class Element : IDisposable
         Client.Client.RenderWriter.MoveElement(child.ElementId, ElementId);
         return child;
     }
-    public virtual void remove()
+    public virtual void Remove()
     {
         if (Parent == null)
             return;
@@ -122,5 +118,3 @@ public class Element : IDisposable
     }
     ~Element() => Client.Client.Cerr.WriteLine("fatal:::Element finialized without disposing. This is bug");
 }
-#pragma warning restore IDE1006 //naming convension
-

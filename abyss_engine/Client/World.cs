@@ -140,7 +140,7 @@ public class World : IDisposable
     {
 		if (_environment == null)
 			return false;
-		return _environment.Document.TryEnqueueJavaScript("<console>", javascript);
+		return _environment.Document.TryRunScript("<console>", javascript);
     }
 
     public void Dispose()

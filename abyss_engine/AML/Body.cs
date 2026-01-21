@@ -2,13 +2,13 @@
 
 namespace AbyssCLI.AML;
 
-public class Body(Content origin) : Transform(origin, "body", null)
+public class Body(Content origin) : Transform(origin, ElementTag.O, null)
 {
     public void Init()
     {
         Client.Client.RenderWriter.MoveElement(ElementId, 0);
     }
 
-    public override void remove() =>
+    public override void Remove() =>
         throw new InvalidOperationException("<body> cannot be removed");
 }

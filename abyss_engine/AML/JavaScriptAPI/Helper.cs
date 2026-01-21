@@ -4,7 +4,7 @@ namespace AbyssCLI.AML.JavaScriptAPI
 {
     internal class Helper
     {
-        internal static object? ScriptObjectToDictionary(ScriptObject obj)
+        internal static Dictionary<string, object?>? ScriptObjectToDictionary(ScriptObject obj)
         {
             if (obj.PropertyNames == null) return null;
 
@@ -19,6 +19,25 @@ namespace AbyssCLI.AML.JavaScriptAPI
                 else if (value is not Undefined)
                 {
                     dict[name] = value;
+                }
+            }
+            return dict;
+        }
+        internal static Dictionary<string, string> ScriptObjectToDictionaryForceString(ScriptObject obj)
+        {
+            if (obj.PropertyNames == null) return [];
+
+            var dict = new Dictionary<string, string>();
+            foreach (var name in obj.PropertyNames)
+            {
+                var value = obj.GetProperty(name);
+                if (value is string str_value)
+                {
+                    dict[name] = str_value;
+                }
+                else
+                {
+                    dict[name] = value.ToString() ?? "";
                 }
             }
             return dict;

@@ -2,7 +2,7 @@
 
 namespace AbyssCLI.AML;
 
-public class ElementLifespanMan(Body body)
+public class ElementLifespanMan(Element root)
 {
     /// <summary>
     /// Future improvement:
@@ -16,7 +16,7 @@ public class ElementLifespanMan(Body body)
     //_all does not include body.
     private readonly Dictionary<int, Element> _all = [];
     private HashSet<Element> _isolated = [];
-    private readonly Body _body = body;
+    private readonly Element _body = root;
 
     public void Add(Element element)
     {

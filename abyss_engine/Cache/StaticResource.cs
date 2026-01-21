@@ -115,6 +115,7 @@ public class StaticResource : CachedResource
         base.Dispose();
 
         _disposed = true;
+        GC.SuppressFinalize(this);
     }
     public static MIME GetMimeType(string mime_type)
     {
@@ -122,6 +123,7 @@ public class StaticResource : CachedResource
         _ = Enum.TryParse(typeof(MIME), marsh, out var mime);
         return (mime as MIME?) ?? MIME.Invalid;
     }
+    ~StaticResource() => Dispose();
 }
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 internal struct StaticResourceHeader

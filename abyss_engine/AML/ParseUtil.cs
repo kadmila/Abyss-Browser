@@ -5,7 +5,7 @@ namespace AbyssCLI.AML;
 
 internal static class ParseUtil
 {
-    internal static void ParseAMLDocument(Content origin, Document target, string document, CancellationToken token)
+    internal static void ParseAMLDocument(Document target, string document, CancellationToken token)
     {
         XmlDocument xml_document = new();
         xml_document.LoadXml(document);
@@ -27,7 +27,7 @@ internal static class ParseUtil
             switch (node.Name)
             {
             case "head" when !is_head_parsed && !is_body_parsed && node is XmlElement node_elem: // head must be parsed before body
-                ParseHead(origin, target, node_elem);
+                ParseHead(target, node_elem);
                 is_head_parsed = true;
                 break;
             case "body" when !is_body_parsed && node is XmlElement node_elem:
@@ -44,7 +44,7 @@ internal static class ParseUtil
             }
         }
     }
-    private static void ParseHead(Content origin, Document document, XmlElement head_elem)
+    private static void ParseHead(Document document, XmlElement head_elem)
     {
         foreach (XmlNode child in head_elem.ChildNodes)
         {
@@ -53,60 +53,55 @@ internal static class ParseUtil
             switch (child.Name)
             {
             case "script":
-                ParseScript(origin, document, child as XmlElement);
+                ParseScript(document, (child as XmlElement)!);
                 break;
             case "title":
             {
-                XmlNode text_node = child.FirstChild;
+                XmlNode? text_node = child.FirstChild;
                 if (text_node == null)
                     continue;
-                if (text_node.NodeType != XmlNodeType.Text)
+                if (text_node.NodeType != XmlNodeType.Text || text_node.Value == null)
                 {
-                    Client.Client.Cerr.WriteLine("Warning: <title> tag must only have text content");
+                    Client.Client.Cerr.WriteLine("AML parsing failure: <title> tag must only have text content");
                     continue;
                 }
-                document.title = text_node.Value;
+                document.Title = text_node.Value;
             }
             break;
             case "link":
-                ParseLink(document, child as XmlElement);
+                ParseLink(document, (child as XmlElement)!);
                 break;
             default:
                 break;
             }
         }
     }
-    private static void ParseScript(Content origin, Document document, XmlElement script_elem)
+    private static void ParseScript(Document document, XmlElement script_elem)
     {
         // src - defer is the default behavior.
         string src = script_elem.GetAttribute("src");
         if (src != null && src.Length > 0)
         {
-            Tool.TaskCompletionReference<Cache.CachedResource> script_src = origin.Cache.GetReference(src);
-            document.AddToDeallocStack(new(script_src));
-
-            if (!document.TryEnqueueJavaScript(src, script_src))
-            {
+            if (!document.TryFetchScript(src))
                 Client.Client.Cerr.WriteLine("Ignored: too many scripts");
-            }
+
             return;
         }
 
         // direct text script
-        XmlNode text_node = script_elem.FirstChild;
+        XmlNode? text_node = script_elem.FirstChild;
         if (text_node == null)
         {
             Client.Client.Cerr.WriteLine("Warning: empty <script>");
+            return;
         }
         if (text_node.NodeType != XmlNodeType.Text)
         {
             Client.Client.Cerr.WriteLine("Error: text <script> should only have text");
             return;
         }
-        if (!document.TryEnqueueJavaScript(string.Empty, text_node.Value))
-        {
+        if (!document.TryRunScript("<script>", text_node.Value ?? ""))
             Client.Client.Cerr.WriteLine("Ignored: too many scripts");
-        }
     }
     private static void ParseLink(Document document, XmlElement link_elem)
     {
@@ -114,7 +109,7 @@ internal static class ParseUtil
         switch (link_elem.GetAttribute("rel"))
         {
         case "icon":
-            document.iconSrc = href;
+            document.IconSrc = href;
             break;
         default:
             return;
@@ -122,7 +117,7 @@ internal static class ParseUtil
     }
     private static void ParseBody(Document document, XmlElement target_elem, CancellationToken token)
     {
-        Body body = document.body;
+        Body body = document.Body;
         //body exists already in document.body, but we need to apply attributes.
         foreach (XmlAttribute entry in target_elem.Attributes)
         {
@@ -140,7 +135,7 @@ internal static class ParseUtil
         }
 
         //children
-        ParseBodyElement(document, document.body, target_elem, token);
+        ParseBodyElement(document, document.Body, target_elem, token);
     }
     private static void ParseBodyElement(Document document, Element target, XmlElement target_elem, CancellationToken token)
     {
@@ -149,9 +144,9 @@ internal static class ParseUtil
             if (child.NodeType != XmlNodeType.Element)
                 continue;
 
-            Element elem = document.createElement(child.Name, child.Attributes);
-            _ = target.appendChild(elem);
-            ParseBodyElement(document, elem, child as XmlElement, token);
+            Element elem = document.CreateElement(child.Name, child.Attributes);
+            _ = target.AppendChild(elem);
+            ParseBodyElement(document, elem, (child as XmlElement)!, token);
         }
     }
 }

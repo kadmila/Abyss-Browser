@@ -51,7 +51,15 @@ public class Content : IDisposable
 
             Client.Client.Cerr.WriteLine("document loaded: " + url);
 
-            ParseUtil.ParseAMLDocument(this, Document, raw_document, _cts.Token);
+            try
+            {
+                ParseUtil.ParseAMLDocument(Document, raw_document, _cts.Token);
+            }
+            catch (Exception ex)
+            {
+                Client.Client.Cerr.WriteLine("failed to parse document: " + ex.Message);
+                return;
+            }
             Document.StartJavaScript(_cts.Token);
 
             while (true)
@@ -68,6 +76,11 @@ public class Content : IDisposable
             }
         });
     }
+    public string TranslateURL(string url)
+    {
+        var result = new System.Uri(URL, url);
+        return result.ToString();
+    }
 
     private bool is_disposed;
     public void Dispose()
@@ -76,7 +89,7 @@ public class Content : IDisposable
             return;
 
         _cts.Cancel();
-        Document.Interrupt();
+        Document.Dispose();
         try
         {
             _content_task.Wait();
@@ -85,7 +98,6 @@ public class Content : IDisposable
         {
             Client.Client.RenderWriter.ConsolePrint("***FATAL***: uncaught exception from content: " + ex.ToString());
         }
-        Document.Join();
 
         is_disposed = true;
         GC.SuppressFinalize(this);

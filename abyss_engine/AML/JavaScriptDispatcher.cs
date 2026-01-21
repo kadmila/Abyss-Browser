@@ -7,7 +7,6 @@ using System.Collections.Concurrent;
 
 namespace AbyssCLI.AML;
 
-#pragma warning disable IDE1006
 public class JavaScriptGcCallback(ElementLifespanMan elem_lifespan_man)
 {
     public void on_gc(int element_id)
@@ -16,8 +15,7 @@ public class JavaScriptGcCallback(ElementLifespanMan elem_lifespan_man)
         elem.RefCount--;
     }
 }
-#pragma warning restore IDE1006
-public class JavaScriptDispatcher
+public class JavaScriptDispatcher : IDisposable
 {
     private readonly V8ScriptEngine _engine;
     private readonly BlockingCollection<(string, object)> _queue = []; // by default, 100 scripts can be queued at once
@@ -62,20 +60,6 @@ const fetch = (a, b) => __fetch_api.FetchAsync(a, b)
         _queue.TryAdd((filename, entry));
     public void Start(CancellationToken token) =>
         _thread.Start(token);
-    public void Interrupt()
-    {
-        _timer.Interrupt();
-        _engine.Interrupt();
-    }
-    public void Join()
-    {
-        _timer.Join();
-        if (_thread.IsAlive)
-            _thread.Join();
-        _queue.Dispose();
-        _engine.Dispose();
-    }
-
     private async void Run(object token_)
     {
         var token = (CancellationToken)token_;
@@ -166,5 +150,25 @@ const fetch = (a, b) => __fetch_api.FetchAsync(a, b)
         foreach (var v in elements)
             jsArray.push(v);
         return jsArray;
+    }
+
+    public void Dispose()
+    {
+        _timer.Interrupt();
+        _engine.Interrupt();
+
+        _timer.Join();
+        if (_thread.IsAlive)
+            _thread.Join();
+        _queue.Dispose();
+        _engine.Dispose();
+
+        GC.SuppressFinalize(this);
+    }
+
+    ~JavaScriptDispatcher()
+    {
+        Client.Client.Cerr.WriteLine("Fatal:::JavaScriptDispatcher destroyed by the garbage collecter. It should be manually disposed. This is a bug");
+        Dispose();
     }
 }

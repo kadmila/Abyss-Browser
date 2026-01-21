@@ -21,11 +21,13 @@ public class CachedResource(HttpResponseMessage http_response) : IDisposable
             return;
 
         _http_response.Dispose();
+        _disposed = true;
 
         GC.SuppressFinalize(this);
-        _disposed = true;
     }
 
-    static readonly CachedResource _default_failed_resource = new CachedResource(new HttpResponseMessage(HttpStatusCode.UnprocessableEntity));
+    static readonly CachedResource _default_failed_resource = new(new HttpResponseMessage(HttpStatusCode.UnprocessableEntity));
     public static CachedResource DefaultFailedResource => _default_failed_resource;
+
+    ~CachedResource() => Dispose();
 }

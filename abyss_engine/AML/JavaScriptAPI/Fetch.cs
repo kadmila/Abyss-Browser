@@ -1,11 +1,11 @@
-﻿#pragma warning disable IDE1006 //naming convension
-using Microsoft.ClearScript;
+﻿using Microsoft.ClearScript;
 using Microsoft.ClearScript.JavaScript;
 using Microsoft.ClearScript.V8;
 using System.Text;
 
 namespace AbyssCLI.AML.JavaScriptAPI;
 
+#pragma warning disable IDE1006 //naming convension
 public class FetchApi
 {
     public readonly V8ScriptEngine Engine;

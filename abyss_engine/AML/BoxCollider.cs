@@ -6,7 +6,7 @@ public class BoxCollider : Element
     private float _width = 1.0f;
     private float _height = 1.0f;
     private float _depth = 1.0f;
-    public BoxCollider(Content origin, object? options) : base(origin, "bcol", options)
+    public BoxCollider(Content origin, object? options) : base(origin, ElementTag.Bcol, options)
     {
         if (Attributes.TryGetValue("width", out string? width_str) && float.TryParse(width_str, out var width_par))
             width = width_par;
