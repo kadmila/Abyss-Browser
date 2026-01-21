@@ -22,6 +22,7 @@
         <ui:ScrollView name="info-section">
             <ui:Label parse-escape-sequences="true" display-tooltip-when-elided="true" name="info-more" text="maybe some extra text will be here!" style="color: rgb(255, 255, 255); width: auto; height: 100%;" />
         </ui:ScrollView>
+        <ui:Button text="Clear terminal" parse-escape-sequences="true" display-tooltip-when-elided="true" name="terminal-clear-button" style="height: 20px; width: 114px;" />
         <ui:TextField picking-mode="Ignore" value="abyst:local/home" name="console-input-bar">
             <ui:Label parse-escape-sequences="true" display-tooltip-when-elided="true" name="frame-time" text="frame-time" style="color: rgb(255, 255, 255);" />
             <ui:Label parse-escape-sequences="true" display-tooltip-when-elided="true" name="debug-stack" text="|" style="color: rgb(255, 255, 255);" />
