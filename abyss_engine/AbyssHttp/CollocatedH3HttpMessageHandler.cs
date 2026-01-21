@@ -5,7 +5,7 @@ public class CollocatedH3HttpMessageHandler(AbyssLibB.CollocatedH3Client _colloc
 {
     protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        Console.WriteLine("this is fucked up");
+        Client.Client.Cerr.WriteLine("this is fucked up");
         var task = SendAsync(request, cancellationToken);
         task.Wait(CancellationToken.None);
         return task.Result; 
@@ -14,7 +14,7 @@ public class CollocatedH3HttpMessageHandler(AbyssLibB.CollocatedH3Client _colloc
 		HttpRequestMessage request,
 		CancellationToken cancellationToken)
 	{
-        Console.WriteLine($"request: {request}||");
+        //Client.Client.Cerr.WriteLine($"request: {request}||");
 
         // Check if this is an https:// URL
         if (request.RequestUri?.Scheme != "https")
@@ -74,7 +74,7 @@ public class CollocatedH3HttpMessageHandler(AbyssLibB.CollocatedH3Client _colloc
 
         response.Dispose();
 
-        Console.WriteLine($"response: {httpResponse}||");
+        //Client.Client.Cerr.WriteLine($"response: {httpResponse}||");
         return httpResponse;
 	}
 }

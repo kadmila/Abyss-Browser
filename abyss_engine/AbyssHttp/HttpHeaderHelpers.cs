@@ -26,7 +26,7 @@ public static class HttpHeaderHelpers
 				catch
 				{
 					// Skip headers that fail to parse
-					Console.WriteLine($"[HttpHeaderHelpers] Warning: Failed to add header '{headerName}'");
+					Client.Client.Cerr.WriteLine($"[HttpHeaderHelpers] Warning: Failed to add header '{headerName}'");
 				}
 			}
 		}

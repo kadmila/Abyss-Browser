@@ -29,4 +29,4 @@ async function testAll() {
     await testFetch();
     await testFetchCollocatedH3();
 }
-testAll();
+testFetchCollocatedH3();

@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 
 namespace AbyssCLI.AML;
 
+#pragma warning disable IDE1006 //naming convension
 public class JavaScriptGcCallback(ElementLifespanMan elem_lifespan_man)
 {
     public void on_gc(int element_id)
@@ -15,6 +16,8 @@ public class JavaScriptGcCallback(ElementLifespanMan elem_lifespan_man)
         elem.RefCount--;
     }
 }
+#pragma warning restore IDE1006 //naming convension
+
 public class JavaScriptDispatcher : IDisposable
 {
     private readonly V8ScriptEngine _engine;
@@ -29,8 +32,8 @@ public class JavaScriptDispatcher : IDisposable
 
         _engine.AddHostType("Vector3", typeof(Vector3));
         _engine.AddHostType("Quaternion", typeof(Quaternion));
-        _engine.AddHostType("Event", typeof(Event.AmlEvent));
-        _engine.AddHostType("KeyboardEvent", typeof(Event.KeyboardEvent));
+        _engine.AddHostType("Event", typeof(AMLEvent.AmlEvent));
+        _engine.AddHostType("KeyboardEvent", typeof(AMLEvent.KeyboardEvent));
 
         _engine.AddHostObject("document", new JavaScriptAPI.Document(this, document));
         _engine.AddHostObject("console", new JavaScriptAPI.Console());
