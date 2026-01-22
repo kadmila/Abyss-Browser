@@ -58,7 +58,12 @@ func main() {
 			Certificates: []tls.Certificate{cert},
 			ClientAuth:   tls.RequireAnyClientCert,
 			VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
-				fmt.Println("verifying one peer")
+				is_success := false
+				defer func() {
+					if !is_success {
+						fmt.Println("peer authentication failed")
+					}
+				}()
 
 				if len(rawCerts) < 3 {
 					return fmt.Errorf("insufficient client certificates")
@@ -109,8 +114,8 @@ func main() {
 				}
 
 				// TODO: work with cert
-
-				fmt.Println("good")
+				is_success = true
+				fmt.Println("peer: " + abyss_self_cert.Issuer.CommonName)
 				return nil // handshake continues
 			},
 		},
