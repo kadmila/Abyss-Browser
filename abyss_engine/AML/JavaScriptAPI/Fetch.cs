@@ -19,6 +19,18 @@ public class FetchApi
         //Client.Client.RenderWriter.ConsolePrint("fetch called, option: " + options?.ToString());
         var request = createRequestFromFetch(url, options);
         bool is_collocated_h3 = options != null && (options.GetProperty("abyss-collocated-http3") as bool? ?? false);
+        string? credentials = options?.GetProperty("credentials") as string;
+
+        // TODO: cookie control.
+        switch (credentials)
+        {
+            case null:
+                break;
+            case "include":
+                break;
+            case "same-origin":
+                break;
+        }
 
         HttpClient client;
         if (url.StartsWith("abyst")) {

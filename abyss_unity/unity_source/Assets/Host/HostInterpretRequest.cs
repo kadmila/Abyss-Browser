@@ -14,6 +14,14 @@ namespace Host
             _ui_base.OnAddressBarSubmit = (arg) => Tx.MoveWorld(arg);
             _ui_base.OnSubAddressBarSubmit = (arg) =>
             {
+                if (arg == "")
+                    return;
+
+                if (!(arg.StartsWith("abyst://") || arg.StartsWith("https://") || arg.StartsWith("http://")))
+                {
+                    arg = "https://" + arg;
+                }
+
                 var spawn_transform = _interaction_base.GetContentSpawnPos();
                 var new_uuid = Guid.NewGuid();
                 Tx.ShareContent(
