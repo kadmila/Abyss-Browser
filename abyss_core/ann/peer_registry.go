@@ -48,7 +48,7 @@ func (r *AbyssPeerRegistry) AddOrUpdatePeerIdentity(root_cert *x509.Certificate,
 
 	new_identity, err := sec.NewAbyssPeerIdentity(root_cert, handshake_info)
 	if err != nil {
-		// TODO
+		return false, err
 	}
 	r.known[peer_id] = new_identity
 	return true, nil

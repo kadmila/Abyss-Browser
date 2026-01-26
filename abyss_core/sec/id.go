@@ -43,10 +43,10 @@ func NewAbyssPeerIdentity(root_self_cert *x509.Certificate, handshake_info_cert 
 		return nil, errors.New("invalid root certificate; failed to hash")
 	}
 	if root_self_cert.Issuer.CommonName != id {
-		return nil, errors.New("invalid root certificate; unrecognized name")
+		return nil, errors.New("invalid root certificate; unrecognized name: " + root_self_cert.Issuer.CommonName)
 	}
 	if root_self_cert.Subject.CommonName != id {
-		return nil, errors.New("invalid root certificate; not self-signed")
+		return nil, errors.New("invalid root certificate; not self-signed: " + root_self_cert.Subject.CommonName)
 	}
 
 	// re-encode der and pem. We don't re-use input values, for the sake of sanity.

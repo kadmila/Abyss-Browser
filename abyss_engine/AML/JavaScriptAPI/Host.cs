@@ -16,7 +16,7 @@ public class Host
 			Client.Client.RenderWriter.ConsolePrint("register failed: " + result.Message);
 		}
 	}
-	public void connect(string peerId)
+	public void dial(string peerId)
 	{
 		var result = Client.Client.Host.Dial(peerId);
 		if (result != null)
