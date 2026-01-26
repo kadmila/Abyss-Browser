@@ -643,9 +643,9 @@ public static class AbyssLibB
                 fixed (byte* psidPtr = peerSessionId)
                 fixed (byte* pidPtr = peerIdBuf)
                 {
-                    int peerIdLen = Event_ObjectAppend_Query(handle, wsidPtr, pidPtr, peerIdBuf.Length, psidPtr, &objectCount);
+                    int peerIdLen = Event_ObjectDelete_Query(handle, wsidPtr, pidPtr, peerIdBuf.Length, psidPtr, &objectCount);
                     if (peerIdLen < 0)
-                        throw new InternalBufferOverflowException("Event_ObjectAppend_Query");
+                        throw new InternalBufferOverflowException("Event_ObjectDelete_Query");
                     WSID = new Guid(worldSessionId);
                     PeerWSID = new Guid(peerSessionId);
                     PeerID = Encoding.UTF8.GetString(peerIdBuf, 0, peerIdLen);
