@@ -2,8 +2,17 @@ using System.Net;
 using System.Net.Http.Headers;
 
 namespace AbyssCLI.AbyssHttp;
-public class AbystHttpMessageHandler(AbyssLibB.AbystClient _abyst_client) : HttpMessageHandler
+public class AbystHttpMessageHandler : HttpMessageHandler
 {
+    private readonly AbyssLibB.AbystClient _abyst_client;
+    private readonly CookieContainer _cookie_container;
+    public AbystHttpMessageHandler(
+        AbyssLibB.AbystClient abyst_client,
+        CookieContainer cookie_container)
+    {
+        _abyst_client = abyst_client;
+        _cookie_container = cookie_container;
+    }
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken)
@@ -34,7 +43,8 @@ public class AbystHttpMessageHandler(AbyssLibB.AbystClient _abyst_client) : Http
             return new HttpResponseMessage(HttpStatusCode.MethodNotAllowed)
             {
                 Content = new StringContent($"Unsupported Method: {request.Method.Method}"),
-                RequestMessage = request
+                RequestMessage = request,
+                Version = HttpVersion.Version30,
             };
         }
         if (abyst_err != null)
@@ -42,26 +52,14 @@ public class AbystHttpMessageHandler(AbyssLibB.AbystClient _abyst_client) : Http
             return new HttpResponseMessage(HttpStatusCode.BadRequest)
             {
                 Content = new StringContent($"Internal error: {abyst_err.Message}"),
-                RequestMessage = request
+                RequestMessage = request,
+                Version = HttpVersion.Version30,
             };
         }
 
-        // Convert AbyssLibB.HttpResponse to System.Net.Http.HttpResponseMessage
-        var httpResponse = new HttpResponseMessage((HttpStatusCode)response!.StatusCode)
-        {
-            RequestMessage = request
-        };
-        byte[] bodyBytes = response.ReadAllBody();
-        httpResponse.Content = new ByteArrayContent(bodyBytes);
+        var httpResponse = HttpHelpers.TranslateResponse(request, response!, _cookie_container, HttpVersion.Version30);
 
-		// Sets header - requires httpResponse.Content.
-		string all_headers = response.GetAllHeaders();
-		if (!string.IsNullOrEmpty(all_headers))
-		{
-			HttpHeaderHelpers.ParseAndAddHeaders(httpResponse, all_headers);
-		}
-
-		response.Dispose();
+		response!.Dispose();
 		return httpResponse;
 	}
 }

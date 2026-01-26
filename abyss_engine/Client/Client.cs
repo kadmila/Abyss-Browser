@@ -20,6 +20,11 @@ public static partial class Client
     {
         AutoFlush = true
     };
+
+    // HttpClient and CollocatedHttp3Client shares cookies container, but Abyst has separate one.
+    public static readonly System.Net.CookieContainer SharedCookieContainer = new();
+    public static readonly System.Net.CookieContainer AbystCookieContainer = new();
+
     public static readonly HttpClient HttpClient; // normal web fetch
 	public static readonly HttpClient AbystClient; // abyst:// scheme
 	public static readonly HttpClient CollocatedHttp3Client; // collocated http/3 fetch
@@ -90,14 +95,22 @@ public static partial class Client
         // Start serving in background
         Host.Serve();
 
-		// Create reusable HttpClient;
-		HttpClient = ClientExtensions.CreateClient();
+		// Create reusable HttpClient with shared cookie container
+		// This enables automatic cookie management for standard HTTP requests
+		var http_handler = new System.Net.Http.HttpClientHandler
+		{
+			CookieContainer = SharedCookieContainer,
+			UseCookies = true
+		};
+		HttpClient = ClientExtensions.CreateClient(http_handler);
 		
-		// Create reusable AbystClient
-		AbystClient = ClientExtensions.CreateClient(new AbyssHttp.AbystHttpMessageHandler(Host.NewAbystClient()));
+		// Create reusable AbystClient (no cookie sharing - different protocol)
+		AbystClient = ClientExtensions.CreateClient(new AbyssHttp.AbystHttpMessageHandler(Host.NewAbystClient(), AbystCookieContainer));
 
-		// Create reusable CollocatedHttp3Client
-		CollocatedHttp3Client = ClientExtensions.CreateClient(new AbyssHttp.CollocatedH3HttpMessageHandler(Host.NewCollocatedHttp3Client()));
+		// Create reusable CollocatedHttp3Client with shared cookie container
+		// This enables cookie sharing with the regular HttpClient for HTTPS requests
+		CollocatedHttp3Client = ClientExtensions.CreateClient(
+			new AbyssHttp.CollocatedH3HttpMessageHandler(Host.NewCollocatedHttp3Client(), SharedCookieContainer));
 
         // Register local info for rendering engine
         RenderWriter.LocalInfo("abyss://" + Host.ID, Host.ID);

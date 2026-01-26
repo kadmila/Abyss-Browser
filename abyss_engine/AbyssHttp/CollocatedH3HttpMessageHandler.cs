@@ -1,8 +1,23 @@
 using System.Net;
 
 namespace AbyssCLI.AbyssHttp;
-public class CollocatedH3HttpMessageHandler(AbyssLibB.CollocatedH3Client _collocated_h3_client) : HttpMessageHandler
+
+/// <summary>
+/// HTTP message handler for collocated HTTP/3 requests using native AbyssLibB client.
+/// Supports cookie sharing with standard HttpClient through a shared CookieContainer.
+/// </summary>
+public class CollocatedH3HttpMessageHandler : HttpMessageHandler
 {
+	private readonly AbyssLibB.CollocatedH3Client _collocated_h3_client;
+	private readonly CookieContainer _cookie_container;
+
+	public CollocatedH3HttpMessageHandler(
+		AbyssLibB.CollocatedH3Client collocated_h3_client,
+		CookieContainer cookie_container)
+	{
+		_collocated_h3_client = collocated_h3_client;
+		_cookie_container = cookie_container;
+	}
     protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         Client.Client.Cerr.WriteLine("this is fucked up");
@@ -56,25 +71,9 @@ public class CollocatedH3HttpMessageHandler(AbyssLibB.CollocatedH3Client _colloc
             };
         }
 
-        // Convert AbyssLibB.HttpResponse to System.Net.Http.HttpResponseMessage
-        byte[] bodyBytes = response!.ReadAllBody();
-        var httpResponse = new HttpResponseMessage((HttpStatusCode)response.StatusCode)
-        {
-            Content = new ByteArrayContent(bodyBytes),
-            RequestMessage = request,
-            Version = HttpVersion.Version30,
-        };
+        var httpResponse = HttpHelpers.TranslateResponse(request, response!, _cookie_container, HttpVersion.Version30);
 
-        // Sets header - requires httpResponse.Content.
-        string all_headers = response.GetAllHeaders();
-        if (!string.IsNullOrEmpty(all_headers))
-        {
-            HttpHeaderHelpers.ParseAndAddHeaders(httpResponse, all_headers);
-        }
-
-        response.Dispose();
-
-        //Client.Client.Cerr.WriteLine($"response: {httpResponse}||");
+        response!.Dispose();
         return httpResponse;
 	}
 }
