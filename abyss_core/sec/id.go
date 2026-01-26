@@ -11,6 +11,9 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"net/netip"
+	"slices"
+	"sync"
 	"time"
 )
 
@@ -18,108 +21,126 @@ import (
 type AbyssPeerIdentity struct {
 	id                  string
 	root_self_cert_x509 *x509.Certificate
-	handshake_pub_key   *rsa.PublicKey
-	issue_time          time.Time
+	root_self_cert      string
+	root_self_cert_der  []byte
 
-	root_self_cert         string
-	root_self_cert_der     []byte
-	handshake_key_cert     string
-	handshake_key_cert_der []byte
-}
-
-func NewAbyssPeerIdentityFromPEM(root_self_cert string, handshake_key_cert string) (*AbyssPeerIdentity, error) {
-	root_self_cert_der, _ := pem.Decode([]byte(root_self_cert))
-	if root_self_cert_der == nil {
-		return nil, errors.New("failed to parse certificate")
-	}
-	handshake_key_cert_der, _ := pem.Decode([]byte(handshake_key_cert))
-	if handshake_key_cert_der == nil {
-		return nil, errors.New("failed to parse certificate")
-	}
-	return NewAbyssPeerIdentityFromDER(root_self_cert_der.Bytes, handshake_key_cert_der.Bytes)
-}
-
-func NewAbyssPeerIdentityFromDER(root_self_cert []byte, handshake_key_cert []byte) (*AbyssPeerIdentity, error) {
-	root_self_cert_x509, err := x509.ParseCertificate(root_self_cert)
-	if err != nil {
-		return nil, err
-	}
-	handshake_key_cert_x509, err := x509.ParseCertificate(handshake_key_cert)
-	if err != nil {
-		return nil, err
-	}
-	return NewAbyssPeerIdentity(root_self_cert_x509, handshake_key_cert_x509)
+	// handshake info is mutable.
+	handshake_info_mtx      sync.RWMutex
+	handshake_info_cert     string
+	handshake_info_cert_der []byte
+	handshake_pub_key       *rsa.PublicKey
+	address_candidates      []netip.AddrPort
+	issue_time              time.Time
 }
 
 // NewAbyssPeerIdentity conducts several verification for the certificates.
 // root self certificate must have same Issuer and Subject, with correct hash digest.
 // Abyss uses Common Name (CN).
-func NewAbyssPeerIdentity(root_self_cert *x509.Certificate, handshake_key_cert *x509.Certificate) (*AbyssPeerIdentity, error) {
+func NewAbyssPeerIdentity(root_self_cert *x509.Certificate, handshake_info_cert *x509.Certificate) (*AbyssPeerIdentity, error) {
 	// validate root self cert
 	id, err := abyssIDFromKey(root_self_cert.PublicKey)
 	if err != nil {
 		return nil, errors.New("invalid root certificate; failed to hash")
 	}
 	if root_self_cert.Issuer.CommonName != id {
-		return nil, errors.New("invalid root certificate; unrecognized name")
+		return nil, errors.New("invalid root certificate; unrecognized name: " + root_self_cert.Issuer.CommonName)
 	}
 	if root_self_cert.Subject.CommonName != id {
-		return nil, errors.New("invalid root certificate; not self-signed")
-	}
-
-	// validate handshake key cert
-	if err := handshake_key_cert.CheckSignatureFrom(root_self_cert); err != nil {
-		return nil, err
-	}
-	if handshake_key_cert.Issuer.CommonName != id {
-		return nil, errors.New("invalid handshake key certificate; issuer mismatch")
-	}
-	if handshake_key_cert.Subject.CommonName != "h."+id {
-		return nil, errors.New("invalid handshake key certificate name: " + handshake_key_cert.Subject.CommonName)
-	}
-	pkey, ok := handshake_key_cert.PublicKey.(*rsa.PublicKey)
-	if !ok {
-		return nil, errors.New("unsupported public key")
+		return nil, errors.New("invalid root certificate; not self-signed: " + root_self_cert.Subject.CommonName)
 	}
 
 	// re-encode der and pem. We don't re-use input values, for the sake of sanity.
 	root_self_cert_der := root_self_cert.Raw
-	handshake_key_cert_der := handshake_key_cert.Raw
-
 	root_self_cert_pem_block := &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: root_self_cert_der,
 	}
-	handshake_key_cert_pem_block := &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: handshake_key_cert_der,
-	}
-
 	var root_self_cert_pem_buf bytes.Buffer
 	err = pem.Encode(&root_self_cert_pem_buf, root_self_cert_pem_block)
 	if err != nil {
 		return nil, err
 	}
-	var handshake_key_cert_pem_buf bytes.Buffer
-	err = pem.Encode(&handshake_key_cert_pem_buf, handshake_key_cert_pem_block)
-	if err != nil {
-		return nil, err
+	root_self_cert_pem := root_self_cert_pem_buf.String()
+
+	result := &AbyssPeerIdentity{
+		id:                  id,
+		root_self_cert_x509: root_self_cert,
+		root_self_cert:      root_self_cert_pem,
+		root_self_cert_der:  root_self_cert_der,
+	}
+	return result, result.UpdateHandshakeInfo(handshake_info_cert)
+}
+
+func (p *AbyssPeerIdentity) UpdateHandshakeInfo(handshake_info_cert *x509.Certificate) error {
+	// validate handshake key cert
+	if err := handshake_info_cert.CheckSignatureFrom(p.root_self_cert_x509); err != nil {
+		return err
+	}
+	if handshake_info_cert.Issuer.CommonName != p.id {
+		return errors.New("invalid handshake key certificate; issuer mismatch")
+	}
+	if handshake_info_cert.Subject.CommonName != "h."+p.id {
+		return errors.New("invalid handshake key certificate name: " + handshake_info_cert.Subject.CommonName)
+	}
+	pkey, ok := handshake_info_cert.PublicKey.(*rsa.PublicKey)
+	if !ok {
+		return errors.New("unsupported public key")
 	}
 
-	root_self_cert_pem := root_self_cert_pem_buf.String()
-	handshake_key_cert_pem := handshake_key_cert_pem_buf.String()
+	// check if the certificate is newer
+	if p.issue_time.After(handshake_info_cert.NotBefore) {
+		return nil // ignore
+	}
 
-	return &AbyssPeerIdentity{
-		root_self_cert_x509: root_self_cert,
-		id:                  id,
-		handshake_pub_key:   pkey,
-		issue_time:          handshake_key_cert.NotBefore,
+	// parse address candidates
+	address_candidates := make([]netip.AddrPort, 0, len(handshake_info_cert.URIs))
+	ip_seen := make(map[netip.Addr]bool)
+	if len(handshake_info_cert.URIs) > 7 {
+		return errors.New("invalid handshake info certificate; too many address candidates")
+	}
+	for _, uri := range handshake_info_cert.URIs {
+		// Verify scheme
+		if uri.Scheme != "udp" {
+			continue
+		}
 
-		root_self_cert:         root_self_cert_pem,
-		root_self_cert_der:     root_self_cert_der,
-		handshake_key_cert:     handshake_key_cert_pem,
-		handshake_key_cert_der: handshake_key_cert_der,
-	}, nil
+		// Parse address
+		addr, err := netip.ParseAddrPort(uri.Host)
+		if err != nil {
+			continue // Skip invalid addresses
+		}
+
+		// Step 5: Check IP duplicates
+		ip := addr.Addr()
+		if ip_seen[ip] {
+			return errors.New("invalid address certificate; duplicate ip")
+		}
+
+		ip_seen[ip] = true
+		address_candidates = append(address_candidates, addr)
+	}
+	address_candidates = slices.Clip(address_candidates)
+
+	handshake_info_cert_der := handshake_info_cert.Raw
+	handshake_info_cert_pem_block := &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: handshake_info_cert_der,
+	}
+	var handshake_info_cert_pem_buf bytes.Buffer
+	if err := pem.Encode(&handshake_info_cert_pem_buf, handshake_info_cert_pem_block); err != nil {
+		return err
+	}
+	handshake_info_cert_pem := handshake_info_cert_pem_buf.String()
+
+	p.handshake_info_mtx.Lock()
+	defer p.handshake_info_mtx.Unlock()
+
+	p.handshake_info_cert = handshake_info_cert_pem
+	p.handshake_info_cert_der = handshake_info_cert_der
+	p.handshake_pub_key = pkey
+	p.address_candidates = address_candidates
+	p.issue_time = handshake_info_cert.NotBefore
+	return nil
 }
 
 // EncryptHandshake encrypts the payload with the handshake encryption key.
@@ -154,7 +175,11 @@ func (p *AbyssPeerIdentity) EncryptHandshake(payload []byte) ([]byte, []byte, er
 
 	// Encrypt the aes secret (key and nonce) in RSA OAEP
 	aes_secret := append(aesKey, nonce...)
+
+	p.handshake_info_mtx.RLock()
 	encrypted_aes_secret, err := rsa.EncryptOAEP(sha3.New256(), rand.Reader, p.handshake_pub_key, aes_secret, nil)
+	p.handshake_info_mtx.RUnlock()
+
 	return encrypted_payload, encrypted_aes_secret, err
 }
 func (p *AbyssPeerIdentity) VerifyTLSBinding(tls_binding_cert *x509.Certificate, tls_cert *x509.Certificate) error {
@@ -173,9 +198,26 @@ func (p *AbyssPeerIdentity) VerifyTLSBinding(tls_binding_cert *x509.Certificate,
 	return nil
 }
 
-func (p *AbyssPeerIdentity) ID() string                         { return p.id }
-func (p *AbyssPeerIdentity) RootCertificate() string            { return p.root_self_cert }
-func (p *AbyssPeerIdentity) RootCertificateDer() []byte         { return p.root_self_cert_der }
-func (p *AbyssPeerIdentity) HandshakeKeyCertificate() string    { return p.handshake_key_cert }
-func (p *AbyssPeerIdentity) HandshakeKeyCertificateDer() []byte { return p.handshake_key_cert_der }
-func (p *AbyssPeerIdentity) IssueTime() time.Time               { return p.issue_time }
+func (p *AbyssPeerIdentity) ID() string                 { return p.id }
+func (p *AbyssPeerIdentity) RootCertificate() string    { return p.root_self_cert }
+func (p *AbyssPeerIdentity) RootCertificateDer() []byte { return p.root_self_cert_der }
+func (p *AbyssPeerIdentity) HandshakeKeyCertificate() string {
+	p.handshake_info_mtx.RLock()
+	defer p.handshake_info_mtx.RUnlock()
+	return p.handshake_info_cert
+}
+func (p *AbyssPeerIdentity) HandshakeKeyCertificateDer() []byte {
+	p.handshake_info_mtx.RLock()
+	defer p.handshake_info_mtx.RUnlock()
+	return p.handshake_info_cert_der
+}
+func (p *AbyssPeerIdentity) AddressCandidates() []netip.AddrPort {
+	p.handshake_info_mtx.RLock()
+	defer p.handshake_info_mtx.RUnlock()
+	return p.address_candidates
+}
+func (p *AbyssPeerIdentity) IssueTime() time.Time {
+	p.handshake_info_mtx.RLock()
+	defer p.handshake_info_mtx.RUnlock()
+	return p.issue_time
+}

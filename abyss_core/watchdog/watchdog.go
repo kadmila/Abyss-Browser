@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/kadmila/Abyss-Browser/abyss_core/config"
 	"github.com/phuslu/log"
 )
 
@@ -64,7 +65,9 @@ func InfoV(head string, o any) {
 }
 
 func Info(msg string) {
-	log.Info().Msg(msg)
+	if config.DEBUG {
+		log.Info().Msg(msg)
+	}
 }
 
 func Warn(msg string) {

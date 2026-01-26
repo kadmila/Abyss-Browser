@@ -5,13 +5,13 @@
 /abyss_engine/obj
 /abyss_engine/bin
 Abyss-Browser.code-workspace
+abyss_engine/.vs/
 *.exe
 *.dll
 *.db
 *.vsidx
 *cache.v2
 *.suo
-*.json
 *.bin
 *copilot-chat*
 *.vsconfig
@@ -19,3 +19,12 @@ Abyss-Browser.code-workspace
 *.db-wal
 *.db-shm
 *.zip
+
+*/AGENTS.md
+AGENTS.md
+*.log
+
+*/CLAUDE.md
+*.claude/
+
+.vscode/

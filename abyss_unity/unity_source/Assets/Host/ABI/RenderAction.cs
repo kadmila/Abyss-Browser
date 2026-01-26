@@ -27,7 +27,7 @@ namespace AbyssCLI.ABI {
             "ChJSZW5kZXJBY3Rpb24ucHJvdG8aCm1pbWUucHJvdG8aElJlc291cmNlUm9s",
             "ZS5wcm90bxoQY29tbW9udHlwZS5wcm90byJFChFSZXNvdXJjZUNvbXBvbmVu",
             "dBITCgtyZXNvdXJjZV9pZBgBIAEoBRIbCgRyb2xlGAIgASgOMg0uUmVzb3Vy",
-            "Y2VSb2xlItUXCgxSZW5kZXJBY3Rpb24SMwoNY29uc29sZV9wcmludBhkIAEo",
+            "Y2VSb2xlIpcZCgxSZW5kZXJBY3Rpb24SMwoNY29uc29sZV9wcmludBhkIAEo",
             "CzIaLlJlbmRlckFjdGlvbi5Db25zb2xlUHJpbnRIABI2Cg5jcmVhdGVfZWxl",
             "bWVudBjIASABKAsyGy5SZW5kZXJBY3Rpb24uQ3JlYXRlRWxlbWVudEgAEjIK",
             "DG1vdmVfZWxlbWVudBjJASABKAsyGS5SZW5kZXJBY3Rpb24uTW92ZUVsZW1l",
@@ -58,49 +58,53 @@ namespace AbyssCLI.ABI {
             "QWN0aW9uLkxvY2FsSW5mb0gAEj8KE2luZm9fY29udGVudF9zaGFyZWQY2QQg",
             "ASgLMh8uUmVuZGVyQWN0aW9uLkluZm9Db250ZW50U2hhcmVkSAASQQoUaW5m",
             "b19jb250ZW50X2RlbGV0ZWQY2gQgASgLMiAuUmVuZGVyQWN0aW9uLkluZm9D",
-            "b250ZW50RGVsZXRlZEgAEjAKC2RlYnVnX2VudGVyGLwFIAEoCzIYLlJlbmRl",
-            "ckFjdGlvbi5EZWJ1Z0VudGVySAASMAoLZGVidWdfbGVhdmUYvQUgASgLMhgu",
-            "UmVuZGVyQWN0aW9uLkRlYnVnRW50ZXJIABocCgxDb25zb2xlUHJpbnQSDAoE",
-            "dGV4dBgBIAEoCRpQCg1DcmVhdGVFbGVtZW50EhEKCXBhcmVudF9pZBgBIAEo",
-            "BRISCgplbGVtZW50X2lkGAIgASgFEhgKA3RhZxgDIAEoDjILLkVsZW1lbnRU",
-            "YWcaOAoLTW92ZUVsZW1lbnQSEgoKZWxlbWVudF9pZBgBIAEoBRIVCg1uZXdf",
-            "cGFyZW50X2lkGAIgASgFGiMKDURlbGV0ZUVsZW1lbnQSEgoKZWxlbWVudF9p",
-            "ZBgBIAEoBRozCg1FbGVtU2V0QWN0aXZlEhIKCmVsZW1lbnRfaWQYASABKAUS",
-            "DgoGYWN0aXZlGAIgASgIGk4KEEVsZW1TZXRUcmFuc2Zvcm0SEgoKZWxlbWVu",
-            "dF9pZBgBIAEoBRISCgNwb3MYAiABKAsyBS5WZWMzEhIKA3JvdBgDIAEoCzIF",
-            "LlZlYzQaWgoSRWxlbUF0dGFjaFJlc291cmNlEhIKCmVsZW1lbnRfaWQYASAB",
-            "KAUSEwoLcmVzb3VyY2VfaWQYAiABKAUSGwoEcm9sZRgDIAEoDjINLlJlc291",
-            "cmNlUm9sZRo9ChJFbGVtRGV0YWNoUmVzb3VyY2USEgoKZWxlbWVudF9pZBgB",
-            "IAEoBRITCgtyZXNvdXJjZV9pZBgCIAEoBRpMCg1FbGVtU2V0VmFsdWVGEhIK",
-            "CmVsZW1lbnRfaWQYASABKAUSGAoEcm9sZRgCIAEoDjIKLlZhbHVlUm9sZRIN",
-            "CgV2YWx1ZRgDIAEoAhpDCgpDcmVhdGVJdGVtEhIKCmVsZW1lbnRfaWQYASAB",
-            "KAUSEwoLc2hhcmVyX2hhc2gYAiABKAkSDAoEdXVpZBgDIAEoDBogCgpEZWxl",
-            "dGVJdGVtEhIKCmVsZW1lbnRfaWQYASABKAUaMQoMSXRlbVNldFRpdGxlEhIK",
-            "CmVsZW1lbnRfaWQYASABKAUSDQoFdGl0bGUYAiABKAkaNgoLSXRlbVNldElj",
-            "b24SEgoKZWxlbWVudF9pZBgBIAEoBRITCgtyZXNvdXJjZV9pZBgCIAEoBRoz",
-            "Cg1JdGVtU2V0QWN0aXZlEhIKCmVsZW1lbnRfaWQYASABKAUSDgoGYWN0aXZl",
-            "GAIgASgIGjIKCUl0ZW1BbGVydBISCgplbGVtZW50X2lkGAEgASgFEhEKCWFs",
-            "ZXJ0X21zZxgCIAEoCRpRChJPcGVuU3RhdGljUmVzb3VyY2USEwoLcmVzb3Vy",
-            "Y2VfaWQYASABKAUSEwoEbWltZRgCIAEoDjIFLk1JTUUSEQoJZmlsZV9uYW1l",
-            "GAMgASgJGnAKF0NyZWF0ZUNvbXBvc2l0ZVJlc291cmNlEhMKC3Jlc291cmNl",
-            "X2lkGAEgASgFEhgKEGJhc2VfcmVzb3VyY2VfaWQYAiABKAUSJgoKY29tcG9u",
-            "ZW50cxgDIAMoCzISLlJlc291cmNlQ29tcG9uZW50GiQKDUNsb3NlUmVzb3Vy",
-            "Y2USEwoLcmVzb3VyY2VfaWQYASABKAUaHwoKTWVtYmVySW5mbxIRCglwZWVy",
-            "X2hhc2gYASABKAkaJAoQTWVtYmVyU2V0UHJvZmlsZRIQCghpbWFnZV9pZBgB",
-            "IAEoBRogCgtNZW1iZXJMZWF2ZRIRCglwZWVyX2hhc2gYASABKAkaLQoJTG9j",
-            "YWxJbmZvEgwKBGF1cmwYASABKAkSEgoKbG9jYWxfaGFzaBgCIAEoCRpnChFJ",
-            "bmZvQ29udGVudFNoYXJlZBIUCgxjb250ZW50X3V1aWQYASABKAkSEwoLY29u",
-            "dGVudF91cmwYAiABKAkSEwoLc2hhcmVyX2hhc2gYAyABKAkSEgoKd29ybGRf",
-            "dXVpZBgEIAEoCRpTChJJbmZvQ29udGVudERlbGV0ZWQSFAoMY29udGVudF91",
-            "dWlkGAEgASgJEhMKC3NoYXJlcl9oYXNoGAMgASgJEhIKCndvcmxkX3V1aWQY",
-            "BCABKAkaGQoKRGVidWdFbnRlchILCgNtc2cYASABKAkaGQoKRGVidWdMZWF2",
-            "ZRILCgNtc2cYASABKAlCBwoFaW5uZXJCD6oCDEFieXNzQ0xJLkFCSWIGcHJv",
-            "dG8z"));
+            "b250ZW50RGVsZXRlZEgAEjYKDnBlZXJfY29ubmVjdGVkGLwFIAEoCzIbLlJl",
+            "bmRlckFjdGlvbi5QZWVyQ29ubmVjdGVkSAASPAoRcGVlcl9kaXNjb25uZWN0",
+            "ZWQYvQUgASgLMh4uUmVuZGVyQWN0aW9uLlBlZXJEaXNjb25uZWN0ZWRIABIu",
+            "CgpwZWVyX2ZvdW5kGL4FIAEoCzIXLlJlbmRlckFjdGlvbi5QZWVyRm91bmRI",
+            "ABIwCgtwZWVyX2ZvcmdvdBi/BSABKAsyGC5SZW5kZXJBY3Rpb24uUGVlckZv",
+            "cmdvdEgAGhwKDENvbnNvbGVQcmludBIMCgR0ZXh0GAEgASgJGlAKDUNyZWF0",
+            "ZUVsZW1lbnQSEQoJcGFyZW50X2lkGAEgASgFEhIKCmVsZW1lbnRfaWQYAiAB",
+            "KAUSGAoDdGFnGAMgASgOMgsuRWxlbWVudFRhZxo4CgtNb3ZlRWxlbWVudBIS",
+            "CgplbGVtZW50X2lkGAEgASgFEhUKDW5ld19wYXJlbnRfaWQYAiABKAUaIwoN",
+            "RGVsZXRlRWxlbWVudBISCgplbGVtZW50X2lkGAEgASgFGjMKDUVsZW1TZXRB",
+            "Y3RpdmUSEgoKZWxlbWVudF9pZBgBIAEoBRIOCgZhY3RpdmUYAiABKAgaTgoQ",
+            "RWxlbVNldFRyYW5zZm9ybRISCgplbGVtZW50X2lkGAEgASgFEhIKA3BvcxgC",
+            "IAEoCzIFLlZlYzMSEgoDcm90GAMgASgLMgUuVmVjNBpaChJFbGVtQXR0YWNo",
+            "UmVzb3VyY2USEgoKZWxlbWVudF9pZBgBIAEoBRITCgtyZXNvdXJjZV9pZBgC",
+            "IAEoBRIbCgRyb2xlGAMgASgOMg0uUmVzb3VyY2VSb2xlGj0KEkVsZW1EZXRh",
+            "Y2hSZXNvdXJjZRISCgplbGVtZW50X2lkGAEgASgFEhMKC3Jlc291cmNlX2lk",
+            "GAIgASgFGkwKDUVsZW1TZXRWYWx1ZUYSEgoKZWxlbWVudF9pZBgBIAEoBRIY",
+            "CgRyb2xlGAIgASgOMgouVmFsdWVSb2xlEg0KBXZhbHVlGAMgASgCGkMKCkNy",
+            "ZWF0ZUl0ZW0SEgoKZWxlbWVudF9pZBgBIAEoBRITCgtzaGFyZXJfaGFzaBgC",
+            "IAEoCRIMCgR1dWlkGAMgASgMGiAKCkRlbGV0ZUl0ZW0SEgoKZWxlbWVudF9p",
+            "ZBgBIAEoBRoxCgxJdGVtU2V0VGl0bGUSEgoKZWxlbWVudF9pZBgBIAEoBRIN",
+            "CgV0aXRsZRgCIAEoCRo2CgtJdGVtU2V0SWNvbhISCgplbGVtZW50X2lkGAEg",
+            "ASgFEhMKC3Jlc291cmNlX2lkGAIgASgFGjMKDUl0ZW1TZXRBY3RpdmUSEgoK",
+            "ZWxlbWVudF9pZBgBIAEoBRIOCgZhY3RpdmUYAiABKAgaMgoJSXRlbUFsZXJ0",
+            "EhIKCmVsZW1lbnRfaWQYASABKAUSEQoJYWxlcnRfbXNnGAIgASgJGlEKEk9w",
+            "ZW5TdGF0aWNSZXNvdXJjZRITCgtyZXNvdXJjZV9pZBgBIAEoBRITCgRtaW1l",
+            "GAIgASgOMgUuTUlNRRIRCglmaWxlX25hbWUYAyABKAkacAoXQ3JlYXRlQ29t",
+            "cG9zaXRlUmVzb3VyY2USEwoLcmVzb3VyY2VfaWQYASABKAUSGAoQYmFzZV9y",
+            "ZXNvdXJjZV9pZBgCIAEoBRImCgpjb21wb25lbnRzGAMgAygLMhIuUmVzb3Vy",
+            "Y2VDb21wb25lbnQaJAoNQ2xvc2VSZXNvdXJjZRITCgtyZXNvdXJjZV9pZBgB",
+            "IAEoBRofCgpNZW1iZXJJbmZvEhEKCXBlZXJfaGFzaBgBIAEoCRokChBNZW1i",
+            "ZXJTZXRQcm9maWxlEhAKCGltYWdlX2lkGAEgASgFGiAKC01lbWJlckxlYXZl",
+            "EhEKCXBlZXJfaGFzaBgBIAEoCRotCglMb2NhbEluZm8SDAoEYXVybBgBIAEo",
+            "CRISCgpsb2NhbF9oYXNoGAIgASgJGmcKEUluZm9Db250ZW50U2hhcmVkEhQK",
+            "DGNvbnRlbnRfdXVpZBgBIAEoCRITCgtjb250ZW50X3VybBgCIAEoCRITCgtz",
+            "aGFyZXJfaGFzaBgDIAEoCRISCgp3b3JsZF91dWlkGAQgASgJGlMKEkluZm9D",
+            "b250ZW50RGVsZXRlZBIUCgxjb250ZW50X3V1aWQYASABKAkSEwoLc2hhcmVy",
+            "X2hhc2gYAyABKAkSEgoKd29ybGRfdXVpZBgEIAEoCRogCg1QZWVyQ29ubmVj",
+            "dGVkEg8KB3BlZXJfaWQYASABKAkaIwoQUGVlckRpc2Nvbm5lY3RlZBIPCgdw",
+            "ZWVyX2lkGAEgASgJGhwKCVBlZXJGb3VuZBIPCgdwZWVyX2lkGAEgASgJGh0K",
+            "ClBlZXJGb3Jnb3QSDwoHcGVlcl9pZBgBIAEoCUIHCgVpbm5lckIPqgIMQWJ5",
+            "c3NDTEkuQUJJYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::MimeReflection.Descriptor, global::ResourceRoleReflection.Descriptor, global::AbyssCLI.ABI.CommontypeReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.ResourceComponent), global::AbyssCLI.ABI.ResourceComponent.Parser, new[]{ "ResourceId", "Role" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.RenderAction), global::AbyssCLI.ABI.RenderAction.Parser, new[]{ "ConsolePrint", "CreateElement", "MoveElement", "DeleteElement", "ElemSetActive", "ElemSetTransform", "ElemAttachResource", "ElemDetachResource", "ElemSetValueF", "CreateItem", "DeleteItem", "ItemSetTitle", "ItemSetIcon", "ItemSetActive", "ItemAlert", "OpenStaticResource", "CreateCompositeResource", "CloseResource", "MemberInfo", "MemberLeave", "MemberSetProfile", "LocalInfo", "InfoContentShared", "InfoContentDeleted", "DebugEnter", "DebugLeave" }, new[]{ "Inner" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.RenderAction.Types.ConsolePrint), global::AbyssCLI.ABI.RenderAction.Types.ConsolePrint.Parser, new[]{ "Text" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.RenderAction), global::AbyssCLI.ABI.RenderAction.Parser, new[]{ "ConsolePrint", "CreateElement", "MoveElement", "DeleteElement", "ElemSetActive", "ElemSetTransform", "ElemAttachResource", "ElemDetachResource", "ElemSetValueF", "CreateItem", "DeleteItem", "ItemSetTitle", "ItemSetIcon", "ItemSetActive", "ItemAlert", "OpenStaticResource", "CreateCompositeResource", "CloseResource", "MemberInfo", "MemberLeave", "MemberSetProfile", "LocalInfo", "InfoContentShared", "InfoContentDeleted", "PeerConnected", "PeerDisconnected", "PeerFound", "PeerForgot" }, new[]{ "Inner" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.RenderAction.Types.ConsolePrint), global::AbyssCLI.ABI.RenderAction.Types.ConsolePrint.Parser, new[]{ "Text" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.RenderAction.Types.CreateElement), global::AbyssCLI.ABI.RenderAction.Types.CreateElement.Parser, new[]{ "ParentId", "ElementId", "Tag" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.RenderAction.Types.MoveElement), global::AbyssCLI.ABI.RenderAction.Types.MoveElement.Parser, new[]{ "ElementId", "NewParentId" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.RenderAction.Types.DeleteElement), global::AbyssCLI.ABI.RenderAction.Types.DeleteElement.Parser, new[]{ "ElementId" }, null, null, null, null),
@@ -124,8 +128,10 @@ namespace AbyssCLI.ABI {
             new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.RenderAction.Types.LocalInfo), global::AbyssCLI.ABI.RenderAction.Types.LocalInfo.Parser, new[]{ "Aurl", "LocalHash" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.RenderAction.Types.InfoContentShared), global::AbyssCLI.ABI.RenderAction.Types.InfoContentShared.Parser, new[]{ "ContentUuid", "ContentUrl", "SharerHash", "WorldUuid" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.RenderAction.Types.InfoContentDeleted), global::AbyssCLI.ABI.RenderAction.Types.InfoContentDeleted.Parser, new[]{ "ContentUuid", "SharerHash", "WorldUuid" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.RenderAction.Types.DebugEnter), global::AbyssCLI.ABI.RenderAction.Types.DebugEnter.Parser, new[]{ "Msg" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.RenderAction.Types.DebugLeave), global::AbyssCLI.ABI.RenderAction.Types.DebugLeave.Parser, new[]{ "Msg" }, null, null, null, null)})
+            new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.RenderAction.Types.PeerConnected), global::AbyssCLI.ABI.RenderAction.Types.PeerConnected.Parser, new[]{ "PeerId" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.RenderAction.Types.PeerDisconnected), global::AbyssCLI.ABI.RenderAction.Types.PeerDisconnected.Parser, new[]{ "PeerId" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.RenderAction.Types.PeerFound), global::AbyssCLI.ABI.RenderAction.Types.PeerFound.Parser, new[]{ "PeerId" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.RenderAction.Types.PeerForgot), global::AbyssCLI.ABI.RenderAction.Types.PeerForgot.Parser, new[]{ "PeerId" }, null, null, null, null)})
           }));
     }
     #endregion
@@ -478,11 +484,17 @@ namespace AbyssCLI.ABI {
         case InnerOneofCase.InfoContentDeleted:
           InfoContentDeleted = other.InfoContentDeleted.Clone();
           break;
-        case InnerOneofCase.DebugEnter:
-          DebugEnter = other.DebugEnter.Clone();
+        case InnerOneofCase.PeerConnected:
+          PeerConnected = other.PeerConnected.Clone();
           break;
-        case InnerOneofCase.DebugLeave:
-          DebugLeave = other.DebugLeave.Clone();
+        case InnerOneofCase.PeerDisconnected:
+          PeerDisconnected = other.PeerDisconnected.Clone();
+          break;
+        case InnerOneofCase.PeerFound:
+          PeerFound = other.PeerFound.Clone();
+          break;
+        case InnerOneofCase.PeerForgot:
+          PeerForgot = other.PeerForgot.Clone();
           break;
       }
 
@@ -783,27 +795,51 @@ namespace AbyssCLI.ABI {
       }
     }
 
-    /// <summary>Field number for the "debug_enter" field.</summary>
-    public const int DebugEnterFieldNumber = 700;
+    /// <summary>Field number for the "peer_connected" field.</summary>
+    public const int PeerConnectedFieldNumber = 700;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::AbyssCLI.ABI.RenderAction.Types.DebugEnter DebugEnter {
-      get { return innerCase_ == InnerOneofCase.DebugEnter ? (global::AbyssCLI.ABI.RenderAction.Types.DebugEnter) inner_ : null; }
+    public global::AbyssCLI.ABI.RenderAction.Types.PeerConnected PeerConnected {
+      get { return innerCase_ == InnerOneofCase.PeerConnected ? (global::AbyssCLI.ABI.RenderAction.Types.PeerConnected) inner_ : null; }
       set {
         inner_ = value;
-        innerCase_ = value == null ? InnerOneofCase.None : InnerOneofCase.DebugEnter;
+        innerCase_ = value == null ? InnerOneofCase.None : InnerOneofCase.PeerConnected;
       }
     }
 
-    /// <summary>Field number for the "debug_leave" field.</summary>
-    public const int DebugLeaveFieldNumber = 701;
+    /// <summary>Field number for the "peer_disconnected" field.</summary>
+    public const int PeerDisconnectedFieldNumber = 701;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::AbyssCLI.ABI.RenderAction.Types.DebugEnter DebugLeave {
-      get { return innerCase_ == InnerOneofCase.DebugLeave ? (global::AbyssCLI.ABI.RenderAction.Types.DebugEnter) inner_ : null; }
+    public global::AbyssCLI.ABI.RenderAction.Types.PeerDisconnected PeerDisconnected {
+      get { return innerCase_ == InnerOneofCase.PeerDisconnected ? (global::AbyssCLI.ABI.RenderAction.Types.PeerDisconnected) inner_ : null; }
       set {
         inner_ = value;
-        innerCase_ = value == null ? InnerOneofCase.None : InnerOneofCase.DebugLeave;
+        innerCase_ = value == null ? InnerOneofCase.None : InnerOneofCase.PeerDisconnected;
+      }
+    }
+
+    /// <summary>Field number for the "peer_found" field.</summary>
+    public const int PeerFoundFieldNumber = 702;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::AbyssCLI.ABI.RenderAction.Types.PeerFound PeerFound {
+      get { return innerCase_ == InnerOneofCase.PeerFound ? (global::AbyssCLI.ABI.RenderAction.Types.PeerFound) inner_ : null; }
+      set {
+        inner_ = value;
+        innerCase_ = value == null ? InnerOneofCase.None : InnerOneofCase.PeerFound;
+      }
+    }
+
+    /// <summary>Field number for the "peer_forgot" field.</summary>
+    public const int PeerForgotFieldNumber = 703;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::AbyssCLI.ABI.RenderAction.Types.PeerForgot PeerForgot {
+      get { return innerCase_ == InnerOneofCase.PeerForgot ? (global::AbyssCLI.ABI.RenderAction.Types.PeerForgot) inner_ : null; }
+      set {
+        inner_ = value;
+        innerCase_ = value == null ? InnerOneofCase.None : InnerOneofCase.PeerForgot;
       }
     }
 
@@ -835,8 +871,10 @@ namespace AbyssCLI.ABI {
       LocalInfo = 600,
       InfoContentShared = 601,
       InfoContentDeleted = 602,
-      DebugEnter = 700,
-      DebugLeave = 701,
+      PeerConnected = 700,
+      PeerDisconnected = 701,
+      PeerFound = 702,
+      PeerForgot = 703,
     }
     private InnerOneofCase innerCase_ = InnerOneofCase.None;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -891,8 +929,10 @@ namespace AbyssCLI.ABI {
       if (!object.Equals(LocalInfo, other.LocalInfo)) return false;
       if (!object.Equals(InfoContentShared, other.InfoContentShared)) return false;
       if (!object.Equals(InfoContentDeleted, other.InfoContentDeleted)) return false;
-      if (!object.Equals(DebugEnter, other.DebugEnter)) return false;
-      if (!object.Equals(DebugLeave, other.DebugLeave)) return false;
+      if (!object.Equals(PeerConnected, other.PeerConnected)) return false;
+      if (!object.Equals(PeerDisconnected, other.PeerDisconnected)) return false;
+      if (!object.Equals(PeerFound, other.PeerFound)) return false;
+      if (!object.Equals(PeerForgot, other.PeerForgot)) return false;
       if (InnerCase != other.InnerCase) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -925,8 +965,10 @@ namespace AbyssCLI.ABI {
       if (innerCase_ == InnerOneofCase.LocalInfo) hash ^= LocalInfo.GetHashCode();
       if (innerCase_ == InnerOneofCase.InfoContentShared) hash ^= InfoContentShared.GetHashCode();
       if (innerCase_ == InnerOneofCase.InfoContentDeleted) hash ^= InfoContentDeleted.GetHashCode();
-      if (innerCase_ == InnerOneofCase.DebugEnter) hash ^= DebugEnter.GetHashCode();
-      if (innerCase_ == InnerOneofCase.DebugLeave) hash ^= DebugLeave.GetHashCode();
+      if (innerCase_ == InnerOneofCase.PeerConnected) hash ^= PeerConnected.GetHashCode();
+      if (innerCase_ == InnerOneofCase.PeerDisconnected) hash ^= PeerDisconnected.GetHashCode();
+      if (innerCase_ == InnerOneofCase.PeerFound) hash ^= PeerFound.GetHashCode();
+      if (innerCase_ == InnerOneofCase.PeerForgot) hash ^= PeerForgot.GetHashCode();
       hash ^= (int) innerCase_;
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -1042,13 +1084,21 @@ namespace AbyssCLI.ABI {
         output.WriteRawTag(210, 37);
         output.WriteMessage(InfoContentDeleted);
       }
-      if (innerCase_ == InnerOneofCase.DebugEnter) {
+      if (innerCase_ == InnerOneofCase.PeerConnected) {
         output.WriteRawTag(226, 43);
-        output.WriteMessage(DebugEnter);
+        output.WriteMessage(PeerConnected);
       }
-      if (innerCase_ == InnerOneofCase.DebugLeave) {
+      if (innerCase_ == InnerOneofCase.PeerDisconnected) {
         output.WriteRawTag(234, 43);
-        output.WriteMessage(DebugLeave);
+        output.WriteMessage(PeerDisconnected);
+      }
+      if (innerCase_ == InnerOneofCase.PeerFound) {
+        output.WriteRawTag(242, 43);
+        output.WriteMessage(PeerFound);
+      }
+      if (innerCase_ == InnerOneofCase.PeerForgot) {
+        output.WriteRawTag(250, 43);
+        output.WriteMessage(PeerForgot);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
@@ -1156,13 +1206,21 @@ namespace AbyssCLI.ABI {
         output.WriteRawTag(210, 37);
         output.WriteMessage(InfoContentDeleted);
       }
-      if (innerCase_ == InnerOneofCase.DebugEnter) {
+      if (innerCase_ == InnerOneofCase.PeerConnected) {
         output.WriteRawTag(226, 43);
-        output.WriteMessage(DebugEnter);
+        output.WriteMessage(PeerConnected);
       }
-      if (innerCase_ == InnerOneofCase.DebugLeave) {
+      if (innerCase_ == InnerOneofCase.PeerDisconnected) {
         output.WriteRawTag(234, 43);
-        output.WriteMessage(DebugLeave);
+        output.WriteMessage(PeerDisconnected);
+      }
+      if (innerCase_ == InnerOneofCase.PeerFound) {
+        output.WriteRawTag(242, 43);
+        output.WriteMessage(PeerFound);
+      }
+      if (innerCase_ == InnerOneofCase.PeerForgot) {
+        output.WriteRawTag(250, 43);
+        output.WriteMessage(PeerForgot);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
@@ -1246,11 +1304,17 @@ namespace AbyssCLI.ABI {
       if (innerCase_ == InnerOneofCase.InfoContentDeleted) {
         size += 2 + pb::CodedOutputStream.ComputeMessageSize(InfoContentDeleted);
       }
-      if (innerCase_ == InnerOneofCase.DebugEnter) {
-        size += 2 + pb::CodedOutputStream.ComputeMessageSize(DebugEnter);
+      if (innerCase_ == InnerOneofCase.PeerConnected) {
+        size += 2 + pb::CodedOutputStream.ComputeMessageSize(PeerConnected);
       }
-      if (innerCase_ == InnerOneofCase.DebugLeave) {
-        size += 2 + pb::CodedOutputStream.ComputeMessageSize(DebugLeave);
+      if (innerCase_ == InnerOneofCase.PeerDisconnected) {
+        size += 2 + pb::CodedOutputStream.ComputeMessageSize(PeerDisconnected);
+      }
+      if (innerCase_ == InnerOneofCase.PeerFound) {
+        size += 2 + pb::CodedOutputStream.ComputeMessageSize(PeerFound);
+      }
+      if (innerCase_ == InnerOneofCase.PeerForgot) {
+        size += 2 + pb::CodedOutputStream.ComputeMessageSize(PeerForgot);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -1409,17 +1473,29 @@ namespace AbyssCLI.ABI {
           }
           InfoContentDeleted.MergeFrom(other.InfoContentDeleted);
           break;
-        case InnerOneofCase.DebugEnter:
-          if (DebugEnter == null) {
-            DebugEnter = new global::AbyssCLI.ABI.RenderAction.Types.DebugEnter();
+        case InnerOneofCase.PeerConnected:
+          if (PeerConnected == null) {
+            PeerConnected = new global::AbyssCLI.ABI.RenderAction.Types.PeerConnected();
           }
-          DebugEnter.MergeFrom(other.DebugEnter);
+          PeerConnected.MergeFrom(other.PeerConnected);
           break;
-        case InnerOneofCase.DebugLeave:
-          if (DebugLeave == null) {
-            DebugLeave = new global::AbyssCLI.ABI.RenderAction.Types.DebugEnter();
+        case InnerOneofCase.PeerDisconnected:
+          if (PeerDisconnected == null) {
+            PeerDisconnected = new global::AbyssCLI.ABI.RenderAction.Types.PeerDisconnected();
           }
-          DebugLeave.MergeFrom(other.DebugLeave);
+          PeerDisconnected.MergeFrom(other.PeerDisconnected);
+          break;
+        case InnerOneofCase.PeerFound:
+          if (PeerFound == null) {
+            PeerFound = new global::AbyssCLI.ABI.RenderAction.Types.PeerFound();
+          }
+          PeerFound.MergeFrom(other.PeerFound);
+          break;
+        case InnerOneofCase.PeerForgot:
+          if (PeerForgot == null) {
+            PeerForgot = new global::AbyssCLI.ABI.RenderAction.Types.PeerForgot();
+          }
+          PeerForgot.MergeFrom(other.PeerForgot);
           break;
       }
 
@@ -1659,21 +1735,39 @@ namespace AbyssCLI.ABI {
             break;
           }
           case 5602: {
-            global::AbyssCLI.ABI.RenderAction.Types.DebugEnter subBuilder = new global::AbyssCLI.ABI.RenderAction.Types.DebugEnter();
-            if (innerCase_ == InnerOneofCase.DebugEnter) {
-              subBuilder.MergeFrom(DebugEnter);
+            global::AbyssCLI.ABI.RenderAction.Types.PeerConnected subBuilder = new global::AbyssCLI.ABI.RenderAction.Types.PeerConnected();
+            if (innerCase_ == InnerOneofCase.PeerConnected) {
+              subBuilder.MergeFrom(PeerConnected);
             }
             input.ReadMessage(subBuilder);
-            DebugEnter = subBuilder;
+            PeerConnected = subBuilder;
             break;
           }
           case 5610: {
-            global::AbyssCLI.ABI.RenderAction.Types.DebugEnter subBuilder = new global::AbyssCLI.ABI.RenderAction.Types.DebugEnter();
-            if (innerCase_ == InnerOneofCase.DebugLeave) {
-              subBuilder.MergeFrom(DebugLeave);
+            global::AbyssCLI.ABI.RenderAction.Types.PeerDisconnected subBuilder = new global::AbyssCLI.ABI.RenderAction.Types.PeerDisconnected();
+            if (innerCase_ == InnerOneofCase.PeerDisconnected) {
+              subBuilder.MergeFrom(PeerDisconnected);
             }
             input.ReadMessage(subBuilder);
-            DebugLeave = subBuilder;
+            PeerDisconnected = subBuilder;
+            break;
+          }
+          case 5618: {
+            global::AbyssCLI.ABI.RenderAction.Types.PeerFound subBuilder = new global::AbyssCLI.ABI.RenderAction.Types.PeerFound();
+            if (innerCase_ == InnerOneofCase.PeerFound) {
+              subBuilder.MergeFrom(PeerFound);
+            }
+            input.ReadMessage(subBuilder);
+            PeerFound = subBuilder;
+            break;
+          }
+          case 5626: {
+            global::AbyssCLI.ABI.RenderAction.Types.PeerForgot subBuilder = new global::AbyssCLI.ABI.RenderAction.Types.PeerForgot();
+            if (innerCase_ == InnerOneofCase.PeerForgot) {
+              subBuilder.MergeFrom(PeerForgot);
+            }
+            input.ReadMessage(subBuilder);
+            PeerForgot = subBuilder;
             break;
           }
         }
@@ -1912,21 +2006,39 @@ namespace AbyssCLI.ABI {
             break;
           }
           case 5602: {
-            global::AbyssCLI.ABI.RenderAction.Types.DebugEnter subBuilder = new global::AbyssCLI.ABI.RenderAction.Types.DebugEnter();
-            if (innerCase_ == InnerOneofCase.DebugEnter) {
-              subBuilder.MergeFrom(DebugEnter);
+            global::AbyssCLI.ABI.RenderAction.Types.PeerConnected subBuilder = new global::AbyssCLI.ABI.RenderAction.Types.PeerConnected();
+            if (innerCase_ == InnerOneofCase.PeerConnected) {
+              subBuilder.MergeFrom(PeerConnected);
             }
             input.ReadMessage(subBuilder);
-            DebugEnter = subBuilder;
+            PeerConnected = subBuilder;
             break;
           }
           case 5610: {
-            global::AbyssCLI.ABI.RenderAction.Types.DebugEnter subBuilder = new global::AbyssCLI.ABI.RenderAction.Types.DebugEnter();
-            if (innerCase_ == InnerOneofCase.DebugLeave) {
-              subBuilder.MergeFrom(DebugLeave);
+            global::AbyssCLI.ABI.RenderAction.Types.PeerDisconnected subBuilder = new global::AbyssCLI.ABI.RenderAction.Types.PeerDisconnected();
+            if (innerCase_ == InnerOneofCase.PeerDisconnected) {
+              subBuilder.MergeFrom(PeerDisconnected);
             }
             input.ReadMessage(subBuilder);
-            DebugLeave = subBuilder;
+            PeerDisconnected = subBuilder;
+            break;
+          }
+          case 5618: {
+            global::AbyssCLI.ABI.RenderAction.Types.PeerFound subBuilder = new global::AbyssCLI.ABI.RenderAction.Types.PeerFound();
+            if (innerCase_ == InnerOneofCase.PeerFound) {
+              subBuilder.MergeFrom(PeerFound);
+            }
+            input.ReadMessage(subBuilder);
+            PeerFound = subBuilder;
+            break;
+          }
+          case 5626: {
+            global::AbyssCLI.ABI.RenderAction.Types.PeerForgot subBuilder = new global::AbyssCLI.ABI.RenderAction.Types.PeerForgot();
+            if (innerCase_ == InnerOneofCase.PeerForgot) {
+              subBuilder.MergeFrom(PeerForgot);
+            }
+            input.ReadMessage(subBuilder);
+            PeerForgot = subBuilder;
             break;
           }
         }
@@ -7709,17 +7821,20 @@ namespace AbyssCLI.ABI {
 
       }
 
+      /// <summary>
+      /// peer connection
+      /// </summary>
       [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-      public sealed partial class DebugEnter : pb::IMessage<DebugEnter>
+      public sealed partial class PeerConnected : pb::IMessage<PeerConnected>
       #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
           , pb::IBufferMessage
       #endif
       {
-        private static readonly pb::MessageParser<DebugEnter> _parser = new pb::MessageParser<DebugEnter>(() => new DebugEnter());
+        private static readonly pb::MessageParser<PeerConnected> _parser = new pb::MessageParser<PeerConnected>(() => new PeerConnected());
         private pb::UnknownFieldSet _unknownFields;
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public static pb::MessageParser<DebugEnter> Parser { get { return _parser; } }
+        public static pb::MessageParser<PeerConnected> Parser { get { return _parser; } }
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -7735,7 +7850,7 @@ namespace AbyssCLI.ABI {
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public DebugEnter() {
+        public PeerConnected() {
           OnConstruction();
         }
 
@@ -7743,45 +7858,45 @@ namespace AbyssCLI.ABI {
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public DebugEnter(DebugEnter other) : this() {
-          msg_ = other.msg_;
+        public PeerConnected(PeerConnected other) : this() {
+          peerId_ = other.peerId_;
           _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
         }
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public DebugEnter Clone() {
-          return new DebugEnter(this);
+        public PeerConnected Clone() {
+          return new PeerConnected(this);
         }
 
-        /// <summary>Field number for the "msg" field.</summary>
-        public const int MsgFieldNumber = 1;
-        private string msg_ = "";
+        /// <summary>Field number for the "peer_id" field.</summary>
+        public const int PeerIdFieldNumber = 1;
+        private string peerId_ = "";
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public string Msg {
-          get { return msg_; }
+        public string PeerId {
+          get { return peerId_; }
           set {
-            msg_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+            peerId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
           }
         }
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public override bool Equals(object other) {
-          return Equals(other as DebugEnter);
+          return Equals(other as PeerConnected);
         }
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public bool Equals(DebugEnter other) {
+        public bool Equals(PeerConnected other) {
           if (ReferenceEquals(other, null)) {
             return false;
           }
           if (ReferenceEquals(other, this)) {
             return true;
           }
-          if (Msg != other.Msg) return false;
+          if (PeerId != other.PeerId) return false;
           return Equals(_unknownFields, other._unknownFields);
         }
 
@@ -7789,7 +7904,7 @@ namespace AbyssCLI.ABI {
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public override int GetHashCode() {
           int hash = 1;
-          if (Msg.Length != 0) hash ^= Msg.GetHashCode();
+          if (PeerId.Length != 0) hash ^= PeerId.GetHashCode();
           if (_unknownFields != null) {
             hash ^= _unknownFields.GetHashCode();
           }
@@ -7808,9 +7923,9 @@ namespace AbyssCLI.ABI {
         #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
           output.WriteRawMessage(this);
         #else
-          if (Msg.Length != 0) {
+          if (PeerId.Length != 0) {
             output.WriteRawTag(10);
-            output.WriteString(Msg);
+            output.WriteString(PeerId);
           }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(output);
@@ -7822,9 +7937,9 @@ namespace AbyssCLI.ABI {
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-          if (Msg.Length != 0) {
+          if (PeerId.Length != 0) {
             output.WriteRawTag(10);
-            output.WriteString(Msg);
+            output.WriteString(PeerId);
           }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(ref output);
@@ -7836,8 +7951,8 @@ namespace AbyssCLI.ABI {
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public int CalculateSize() {
           int size = 0;
-          if (Msg.Length != 0) {
-            size += 1 + pb::CodedOutputStream.ComputeStringSize(Msg);
+          if (PeerId.Length != 0) {
+            size += 1 + pb::CodedOutputStream.ComputeStringSize(PeerId);
           }
           if (_unknownFields != null) {
             size += _unknownFields.CalculateSize();
@@ -7847,12 +7962,12 @@ namespace AbyssCLI.ABI {
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public void MergeFrom(DebugEnter other) {
+        public void MergeFrom(PeerConnected other) {
           if (other == null) {
             return;
           }
-          if (other.Msg.Length != 0) {
-            Msg = other.Msg;
+          if (other.PeerId.Length != 0) {
+            PeerId = other.PeerId;
           }
           _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
         }
@@ -7874,7 +7989,7 @@ namespace AbyssCLI.ABI {
                 _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
                 break;
               case 10: {
-                Msg = input.ReadString();
+                PeerId = input.ReadString();
                 break;
               }
             }
@@ -7897,7 +8012,7 @@ namespace AbyssCLI.ABI {
                 _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
                 break;
               case 10: {
-                Msg = input.ReadString();
+                PeerId = input.ReadString();
                 break;
               }
             }
@@ -7908,16 +8023,16 @@ namespace AbyssCLI.ABI {
       }
 
       [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-      public sealed partial class DebugLeave : pb::IMessage<DebugLeave>
+      public sealed partial class PeerDisconnected : pb::IMessage<PeerDisconnected>
       #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
           , pb::IBufferMessage
       #endif
       {
-        private static readonly pb::MessageParser<DebugLeave> _parser = new pb::MessageParser<DebugLeave>(() => new DebugLeave());
+        private static readonly pb::MessageParser<PeerDisconnected> _parser = new pb::MessageParser<PeerDisconnected>(() => new PeerDisconnected());
         private pb::UnknownFieldSet _unknownFields;
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public static pb::MessageParser<DebugLeave> Parser { get { return _parser; } }
+        public static pb::MessageParser<PeerDisconnected> Parser { get { return _parser; } }
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -7933,7 +8048,7 @@ namespace AbyssCLI.ABI {
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public DebugLeave() {
+        public PeerDisconnected() {
           OnConstruction();
         }
 
@@ -7941,45 +8056,45 @@ namespace AbyssCLI.ABI {
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public DebugLeave(DebugLeave other) : this() {
-          msg_ = other.msg_;
+        public PeerDisconnected(PeerDisconnected other) : this() {
+          peerId_ = other.peerId_;
           _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
         }
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public DebugLeave Clone() {
-          return new DebugLeave(this);
+        public PeerDisconnected Clone() {
+          return new PeerDisconnected(this);
         }
 
-        /// <summary>Field number for the "msg" field.</summary>
-        public const int MsgFieldNumber = 1;
-        private string msg_ = "";
+        /// <summary>Field number for the "peer_id" field.</summary>
+        public const int PeerIdFieldNumber = 1;
+        private string peerId_ = "";
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public string Msg {
-          get { return msg_; }
+        public string PeerId {
+          get { return peerId_; }
           set {
-            msg_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+            peerId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
           }
         }
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public override bool Equals(object other) {
-          return Equals(other as DebugLeave);
+          return Equals(other as PeerDisconnected);
         }
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public bool Equals(DebugLeave other) {
+        public bool Equals(PeerDisconnected other) {
           if (ReferenceEquals(other, null)) {
             return false;
           }
           if (ReferenceEquals(other, this)) {
             return true;
           }
-          if (Msg != other.Msg) return false;
+          if (PeerId != other.PeerId) return false;
           return Equals(_unknownFields, other._unknownFields);
         }
 
@@ -7987,7 +8102,7 @@ namespace AbyssCLI.ABI {
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public override int GetHashCode() {
           int hash = 1;
-          if (Msg.Length != 0) hash ^= Msg.GetHashCode();
+          if (PeerId.Length != 0) hash ^= PeerId.GetHashCode();
           if (_unknownFields != null) {
             hash ^= _unknownFields.GetHashCode();
           }
@@ -8006,9 +8121,9 @@ namespace AbyssCLI.ABI {
         #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
           output.WriteRawMessage(this);
         #else
-          if (Msg.Length != 0) {
+          if (PeerId.Length != 0) {
             output.WriteRawTag(10);
-            output.WriteString(Msg);
+            output.WriteString(PeerId);
           }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(output);
@@ -8020,9 +8135,9 @@ namespace AbyssCLI.ABI {
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-          if (Msg.Length != 0) {
+          if (PeerId.Length != 0) {
             output.WriteRawTag(10);
-            output.WriteString(Msg);
+            output.WriteString(PeerId);
           }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(ref output);
@@ -8034,8 +8149,8 @@ namespace AbyssCLI.ABI {
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public int CalculateSize() {
           int size = 0;
-          if (Msg.Length != 0) {
-            size += 1 + pb::CodedOutputStream.ComputeStringSize(Msg);
+          if (PeerId.Length != 0) {
+            size += 1 + pb::CodedOutputStream.ComputeStringSize(PeerId);
           }
           if (_unknownFields != null) {
             size += _unknownFields.CalculateSize();
@@ -8045,12 +8160,12 @@ namespace AbyssCLI.ABI {
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public void MergeFrom(DebugLeave other) {
+        public void MergeFrom(PeerDisconnected other) {
           if (other == null) {
             return;
           }
-          if (other.Msg.Length != 0) {
-            Msg = other.Msg;
+          if (other.PeerId.Length != 0) {
+            PeerId = other.PeerId;
           }
           _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
         }
@@ -8072,7 +8187,7 @@ namespace AbyssCLI.ABI {
                 _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
                 break;
               case 10: {
-                Msg = input.ReadString();
+                PeerId = input.ReadString();
                 break;
               }
             }
@@ -8095,7 +8210,406 @@ namespace AbyssCLI.ABI {
                 _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
                 break;
               case 10: {
-                Msg = input.ReadString();
+                PeerId = input.ReadString();
+                break;
+              }
+            }
+          }
+        }
+        #endif
+
+      }
+
+      /// <summary>
+      /// peer information
+      /// </summary>
+      [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+      public sealed partial class PeerFound : pb::IMessage<PeerFound>
+      #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+          , pb::IBufferMessage
+      #endif
+      {
+        private static readonly pb::MessageParser<PeerFound> _parser = new pb::MessageParser<PeerFound>(() => new PeerFound());
+        private pb::UnknownFieldSet _unknownFields;
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public static pb::MessageParser<PeerFound> Parser { get { return _parser; } }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public static pbr::MessageDescriptor Descriptor {
+          get { return global::AbyssCLI.ABI.RenderAction.Descriptor.NestedTypes[26]; }
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        pbr::MessageDescriptor pb::IMessage.Descriptor {
+          get { return Descriptor; }
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public PeerFound() {
+          OnConstruction();
+        }
+
+        partial void OnConstruction();
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public PeerFound(PeerFound other) : this() {
+          peerId_ = other.peerId_;
+          _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public PeerFound Clone() {
+          return new PeerFound(this);
+        }
+
+        /// <summary>Field number for the "peer_id" field.</summary>
+        public const int PeerIdFieldNumber = 1;
+        private string peerId_ = "";
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public string PeerId {
+          get { return peerId_; }
+          set {
+            peerId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+          }
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public override bool Equals(object other) {
+          return Equals(other as PeerFound);
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public bool Equals(PeerFound other) {
+          if (ReferenceEquals(other, null)) {
+            return false;
+          }
+          if (ReferenceEquals(other, this)) {
+            return true;
+          }
+          if (PeerId != other.PeerId) return false;
+          return Equals(_unknownFields, other._unknownFields);
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public override int GetHashCode() {
+          int hash = 1;
+          if (PeerId.Length != 0) hash ^= PeerId.GetHashCode();
+          if (_unknownFields != null) {
+            hash ^= _unknownFields.GetHashCode();
+          }
+          return hash;
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public override string ToString() {
+          return pb::JsonFormatter.ToDiagnosticString(this);
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public void WriteTo(pb::CodedOutputStream output) {
+        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+          output.WriteRawMessage(this);
+        #else
+          if (PeerId.Length != 0) {
+            output.WriteRawTag(10);
+            output.WriteString(PeerId);
+          }
+          if (_unknownFields != null) {
+            _unknownFields.WriteTo(output);
+          }
+        #endif
+        }
+
+        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+          if (PeerId.Length != 0) {
+            output.WriteRawTag(10);
+            output.WriteString(PeerId);
+          }
+          if (_unknownFields != null) {
+            _unknownFields.WriteTo(ref output);
+          }
+        }
+        #endif
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public int CalculateSize() {
+          int size = 0;
+          if (PeerId.Length != 0) {
+            size += 1 + pb::CodedOutputStream.ComputeStringSize(PeerId);
+          }
+          if (_unknownFields != null) {
+            size += _unknownFields.CalculateSize();
+          }
+          return size;
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public void MergeFrom(PeerFound other) {
+          if (other == null) {
+            return;
+          }
+          if (other.PeerId.Length != 0) {
+            PeerId = other.PeerId;
+          }
+          _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public void MergeFrom(pb::CodedInputStream input) {
+        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+          input.ReadRawMessage(this);
+        #else
+          uint tag;
+          while ((tag = input.ReadTag()) != 0) {
+          if ((tag & 7) == 4) {
+            // Abort on any end group tag.
+            return;
+          }
+          switch(tag) {
+              default:
+                _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+                break;
+              case 10: {
+                PeerId = input.ReadString();
+                break;
+              }
+            }
+          }
+        #endif
+        }
+
+        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+          uint tag;
+          while ((tag = input.ReadTag()) != 0) {
+          if ((tag & 7) == 4) {
+            // Abort on any end group tag.
+            return;
+          }
+          switch(tag) {
+              default:
+                _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+                break;
+              case 10: {
+                PeerId = input.ReadString();
+                break;
+              }
+            }
+          }
+        }
+        #endif
+
+      }
+
+      [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+      public sealed partial class PeerForgot : pb::IMessage<PeerForgot>
+      #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+          , pb::IBufferMessage
+      #endif
+      {
+        private static readonly pb::MessageParser<PeerForgot> _parser = new pb::MessageParser<PeerForgot>(() => new PeerForgot());
+        private pb::UnknownFieldSet _unknownFields;
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public static pb::MessageParser<PeerForgot> Parser { get { return _parser; } }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public static pbr::MessageDescriptor Descriptor {
+          get { return global::AbyssCLI.ABI.RenderAction.Descriptor.NestedTypes[27]; }
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        pbr::MessageDescriptor pb::IMessage.Descriptor {
+          get { return Descriptor; }
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public PeerForgot() {
+          OnConstruction();
+        }
+
+        partial void OnConstruction();
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public PeerForgot(PeerForgot other) : this() {
+          peerId_ = other.peerId_;
+          _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public PeerForgot Clone() {
+          return new PeerForgot(this);
+        }
+
+        /// <summary>Field number for the "peer_id" field.</summary>
+        public const int PeerIdFieldNumber = 1;
+        private string peerId_ = "";
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public string PeerId {
+          get { return peerId_; }
+          set {
+            peerId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+          }
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public override bool Equals(object other) {
+          return Equals(other as PeerForgot);
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public bool Equals(PeerForgot other) {
+          if (ReferenceEquals(other, null)) {
+            return false;
+          }
+          if (ReferenceEquals(other, this)) {
+            return true;
+          }
+          if (PeerId != other.PeerId) return false;
+          return Equals(_unknownFields, other._unknownFields);
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public override int GetHashCode() {
+          int hash = 1;
+          if (PeerId.Length != 0) hash ^= PeerId.GetHashCode();
+          if (_unknownFields != null) {
+            hash ^= _unknownFields.GetHashCode();
+          }
+          return hash;
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public override string ToString() {
+          return pb::JsonFormatter.ToDiagnosticString(this);
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public void WriteTo(pb::CodedOutputStream output) {
+        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+          output.WriteRawMessage(this);
+        #else
+          if (PeerId.Length != 0) {
+            output.WriteRawTag(10);
+            output.WriteString(PeerId);
+          }
+          if (_unknownFields != null) {
+            _unknownFields.WriteTo(output);
+          }
+        #endif
+        }
+
+        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+          if (PeerId.Length != 0) {
+            output.WriteRawTag(10);
+            output.WriteString(PeerId);
+          }
+          if (_unknownFields != null) {
+            _unknownFields.WriteTo(ref output);
+          }
+        }
+        #endif
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public int CalculateSize() {
+          int size = 0;
+          if (PeerId.Length != 0) {
+            size += 1 + pb::CodedOutputStream.ComputeStringSize(PeerId);
+          }
+          if (_unknownFields != null) {
+            size += _unknownFields.CalculateSize();
+          }
+          return size;
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public void MergeFrom(PeerForgot other) {
+          if (other == null) {
+            return;
+          }
+          if (other.PeerId.Length != 0) {
+            PeerId = other.PeerId;
+          }
+          _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+        }
+
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public void MergeFrom(pb::CodedInputStream input) {
+        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+          input.ReadRawMessage(this);
+        #else
+          uint tag;
+          while ((tag = input.ReadTag()) != 0) {
+          if ((tag & 7) == 4) {
+            // Abort on any end group tag.
+            return;
+          }
+          switch(tag) {
+              default:
+                _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+                break;
+              case 10: {
+                PeerId = input.ReadString();
+                break;
+              }
+            }
+          }
+        #endif
+        }
+
+        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+          uint tag;
+          while ((tag = input.ReadTag()) != 0) {
+          if ((tag & 7) == 4) {
+            // Abort on any end group tag.
+            return;
+          }
+          switch(tag) {
+              default:
+                _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+                break;
+              case 10: {
+                PeerId = input.ReadString();
                 break;
               }
             }

@@ -1,5 +1,4 @@
-﻿#nullable enable
-namespace AbyssCLI.AML.JavaScriptAPI;
+﻿namespace AbyssCLI.AML.JavaScriptAPI;
 
 internal class Body : Transform
 {

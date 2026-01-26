@@ -7,21 +7,28 @@ package ann
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"net"
 	"net/http"
 	"net/netip"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/kadmila/Abyss-Browser/abyss_core/abyst"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
+	"github.com/kadmila/Abyss-Browser/abyss_core/config"
 	"github.com/kadmila/Abyss-Browser/abyss_core/sec"
 	"github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/http3"
 )
 
 type backLogEntry struct {
 	peer *AbyssPeer
-	err  error
+	err  *HandshakeError
 }
 
 // AbyssNode handles abyss/abyst handshakes, listening inbound connections.
@@ -46,6 +53,11 @@ type AbyssNode struct {
 	registry *AbyssPeerRegistry
 
 	backlog chan backLogEntry
+
+	serve_wg sync.WaitGroup // For serveRoutine/dialRoutine
+
+	close_check_mtx sync.Mutex
+	close_cause     error
 
 	abyst_hub *abyst.AbystGateway
 }
@@ -100,10 +112,14 @@ func (n *AbyssNode) Listen() error {
 	}
 
 	// debug tool
-	n.testConn = NewDelayConn(n.udpConn, time.Millisecond*10, time.Millisecond*20)
-	n.transport = &quic.Transport{Conn: n.testConn}
+	if config.DEBUG {
+		n.testConn = NewDelayConn(n.udpConn, time.Millisecond*10, time.Millisecond*20)
+		n.transport = &quic.Transport{Conn: n.testConn}
+	} else {
+		n.transport = &quic.Transport{Conn: n.udpConn}
+	}
 	// or
-	// n.transport = &quic.Transport{Conn: n.udpConn}
+	//
 	// normal
 
 	n.listener, err = n.transport.Listen(n.NewServerTlsConf(n.registry), newQuicConfig())
@@ -153,6 +169,11 @@ func (n *AbyssNode) Listen() error {
 			)
 		}
 	}
+
+	// update handshake certificate
+	if err := n.UpdateHandshakeInfo(n.local_addr_candidates); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -160,35 +181,52 @@ func (n *AbyssNode) Listen() error {
 // It waits for incoming connections on quic.Listener in a loop.
 func (n *AbyssNode) Serve() error {
 	var err error
+MAIN_LOOP:
 	for {
 		var connection quic.Connection
 		connection, err = n.listener.Accept(n.service_ctx)
 		if err != nil {
-			var remote_addr netip.AddrPort
+			var addr netip.AddrPort
 			if connection != nil {
-				a := connection.RemoteAddr().(*net.UDPAddr)
-				remote_addr = netip.AddrPortFrom(netip.AddrFrom4([4]byte(a.IP.To4())), uint16(a.Port))
+				addr = connection.RemoteAddr().(*net.UDPAddr).AddrPort()
 			}
-			switch v := err.(type) {
-			case net.Error:
-				if v.Timeout() {
-					n.backlogAppendError(remote_addr, false, v)
-					continue
-				}
-			case *quic.ApplicationError, *quic.TransportError, *quic.VersionNegotiationError:
-				n.backlogAppendError(remote_addr, false, v)
-				continue
-			}
-			break
+			n.backlogPushErr(NewHandshakeError(
+				err,
+				addr,
+				"",
+				false,
+				HS_Connection,
+				HS_Fail_TransportFail,
+			))
+			// Currently, we don't recover from Accept() failure.
+			// But, should we?
+			break MAIN_LOOP
 		}
 
 		switch connection.ConnectionState().TLS.NegotiatedProtocol {
 		case sec.NextProtoAbyss:
+			n.serve_wg.Add(1)
 			go n.serveRoutine(connection)
+		case http3.NextProtoH3:
+			// get ephemeral TLS certificate
+			tls_info := connection.ConnectionState().TLS
+			client_tls_cert := tls_info.PeerCertificates[0]
+			peer_id, ok := n.registry.GetPeerIdFromTlsCertificate(client_tls_cert)
+			if !ok {
+				connection.CloseWithError(AbystQuicNoAbyss, "no abyss connection")
+				break
+			}
+			n.abyst_hub.ServeConnection(connection, peer_id)
 		default:
 			connection.CloseWithError(0, "unsupported application layer protocol")
 		}
 	}
+	n.close_check_mtx.Lock()
+	n.close_cause = err
+	n.close_check_mtx.Unlock()
+
+	n.serve_wg.Wait()
+	close(n.backlog)
 	return n.cleanUp(err)
 }
 
@@ -202,40 +240,79 @@ func (n *AbyssNode) cleanUp(serve_err error) error {
 
 func (n *AbyssNode) LocalAddrCandidates() []netip.AddrPort { return n.local_addr_candidates }
 
-func (n *AbyssNode) AppendKnownPeer(root_cert string, handshake_key_cert string) error {
-	identity, err := sec.NewAbyssPeerIdentityFromPEM(root_cert, handshake_key_cert)
-	if err != nil {
-		return err
+// AppendKnownPeer returns true if the peer is newly added
+func (n *AbyssNode) AppendKnownPeer(root_cert string, handshake_info_cert string) (string, bool, error) {
+	root_self_cert_der, _ := pem.Decode([]byte(root_cert))
+	if root_self_cert_der == nil {
+		return "", false, errors.New("failed to parse certificate")
 	}
-
-	n.registry.UpdatePeerIdentity(identity)
-	return nil
-}
-func (n *AbyssNode) AppendKnownPeerDer(root_cert []byte, handshake_key_cert []byte) error {
-	identity, err := sec.NewAbyssPeerIdentityFromDER(root_cert, handshake_key_cert)
-	if err != nil {
-		return err
+	handshake_info_cert_der, _ := pem.Decode([]byte(handshake_info_cert))
+	if handshake_info_cert_der == nil {
+		return "", false, errors.New("failed to parse certificate")
 	}
-
-	n.registry.UpdatePeerIdentity(identity)
-	return nil
+	return n.AppendKnownPeerDer(root_self_cert_der.Bytes, handshake_info_cert_der.Bytes)
 }
 
-func (n *AbyssNode) EraseKnownPeer(id string) {
-	n.registry.RemovePeerIdentity(id)
+// AppendKnownPeerDer returns true if the peer is newly added
+func (n *AbyssNode) AppendKnownPeerDer(root_cert []byte, handshake_info_cert []byte) (string, bool, error) {
+	root_self_cert_x509, err := x509.ParseCertificate(root_cert)
+	if err != nil {
+		return "", false, err
+	}
+	handshake_info_cert_x509, err := x509.ParseCertificate(handshake_info_cert)
+	if err != nil {
+		return "", false, err
+	}
+	ok, err := n.registry.AddOrUpdatePeerIdentity(root_self_cert_x509, handshake_info_cert_x509)
+	return root_self_cert_x509.Issuer.CommonName, ok, err
+}
+
+func (n *AbyssNode) EraseKnownPeer(id string) bool {
+	return n.registry.TryRemovePeerIdentity(id)
 }
 
 // Dial synchronously check for dialing plausibility, and
 // start a goroutine for handshake procedure.
-func (n *AbyssNode) Dial(id string, addr netip.AddrPort) error {
+func (n *AbyssNode) Dial(id string) error {
 	// query identity and dialing permission
 	// TODO: this should be separated.
-	peer_identity, err := n.registry.GetPeerIdentityIfDialable(id, addr.Addr())
-	if err != nil {
-		return err
+	peer_identity, registry_status := n.registry.GetPeerIdentityIfDialable(id)
+	switch registry_status {
+	case RE_OK:
+		// Proceed.
+	case RE_Redundant:
+		return NewHandshakeError(
+			errors.New("redundant dial"),
+			netip.AddrPort{},
+			id,
+			true,
+			HS_Connection,
+			HS_Fail_Redundant,
+		)
+	case RE_UnknownPeer:
+		return NewHandshakeError(
+			errors.New("unknown peer"),
+			netip.AddrPort{},
+			id,
+			true,
+			HS_Connection,
+			HS_Fail_UnknownPeer,
+		)
 	}
 
-	go n.dialRoutine(addr, peer_identity)
+	// Checks if AbyssNode is not yet closed, and also register for waitgroup for each goroutine.
+	n.close_check_mtx.Lock()
+	defer n.close_check_mtx.Unlock()
+
+	if n.close_cause != nil {
+		return n.close_cause
+	}
+
+	address_candidates := peer_identity.AddressCandidates()
+	for _, addr := range address_candidates {
+		n.serve_wg.Add(1)
+		go n.dialRoutine(addr, peer_identity)
+	}
 	return nil
 }
 
@@ -243,8 +320,20 @@ func (n *AbyssNode) Accept(ctx context.Context) (ani.IAbyssPeer, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
-	case backlog_entry := <-n.backlog:
-		return backlog_entry.peer, backlog_entry.err
+	case backlog_entry, ok := <-n.backlog:
+		if !ok {
+			// This lock is pretty much unnecessary (memory barrier due to channel close),
+			// but just in case..
+			n.close_check_mtx.Lock()
+			err := n.close_cause
+			n.close_check_mtx.Unlock()
+
+			return nil, err
+		}
+		if backlog_entry.err != nil {
+			return backlog_entry.peer, backlog_entry.err
+		}
+		return backlog_entry.peer, nil
 	}
 }
 
@@ -252,12 +341,58 @@ func (n *AbyssNode) ConfigAbystGateway(config string) error {
 	return n.abyst_hub.SetInternalMuxFromJson(config)
 }
 
-func (n *AbyssNode) NewAbystClient() (ani.IAbystClient, error) {
-	return nil, nil
+func (n *AbyssNode) AbystDial(
+	ctx context.Context,
+	dial_subject string,
+	_ *tls.Config, _ *quic.Config,
+) (quic.EarlyConnection, error) {
+	peer_id := strings.Split(dial_subject, ".")[0]
+	peer, ok := n.registry.GetPeer(peer_id)
+	if !ok {
+		return nil, errors.New("abyst: host unreachable")
+	}
+	netip_addr := peer.remote_addr
+	earlyconn, err := n.transport.DialEarly(
+		ctx,
+		&net.UDPAddr{
+			IP:   netip_addr.Addr().AsSlice(),
+			Port: int(netip_addr.Port()),
+		},
+		n.TLSIdentity.NewAbystClientTlsConf(n.registry),
+		newQuicConfig(),
+	)
+	return earlyconn, err
 }
 
-func (n *AbyssNode) NewCollocatedHttp3Client() (*http.Client, error) {
-	return nil, nil
+func (n *AbyssNode) NewAbystClient() *abyst.AbystClient {
+	return &abyst.AbystClient{
+		Client: &http.Client{
+			Transport: &http3.Transport{
+				TLSClientConfig: n.NewAbystClientTlsConf(n.registry),
+				QUICConfig:      newQuicConfig(),
+				Dial:            n.AbystDial,
+			},
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse // force no redirect
+			},
+		},
+	}
+}
+
+func (n *AbyssNode) NewCollocatedHttp3Client() *http.Client {
+	return &http.Client{
+		Transport: &http3.Transport{
+			TLSClientConfig: n.NewCollocatedH3TlsConf(),
+			QUICConfig:      newQuicConfig(),
+			Dial: func(ctx context.Context, addr string, _ *tls.Config, _ *quic.Config) (quic.EarlyConnection, error) {
+				udpAddr, err := net.ResolveUDPAddr("udp", addr)
+				if err != nil {
+					return nil, err
+				}
+				return n.transport.DialEarly(ctx, udpAddr, n.NewCollocatedH3TlsConf(), nil)
+			},
+		},
+	}
 }
 
 // Close gracefully closes AbyssNode.

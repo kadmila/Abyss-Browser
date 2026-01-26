@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/kadmila/Abyss-Browser/abyss_core/sec"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 )
@@ -71,22 +70,22 @@ func dfsConstructHttpMux(mux *http.ServeMux, data map[string]any, prev_path stri
 }
 
 // ServeConnection creates a dedicated handler for the abyst connection, and serve it.
-func (g *AbystGateway) ServeConnection(conn quic.Connection, peer_identity *sec.AbyssPeerIdentity) error {
+func (g *AbystGateway) ServeConnection(conn quic.Connection, peer_id string) error {
 	server := &http3.Server{
-		Handler: g.newAbystHandler(peer_identity),
+		Handler: g.newAbystHandler(peer_id),
 	}
 	return server.ServeQUICConn(conn)
 }
 
 type AbystHandler struct {
-	abyst_hub     *AbystGateway
-	peer_identity *sec.AbyssPeerIdentity
+	abyst_hub *AbystGateway
+	peer_id   string
 }
 
-func (g *AbystGateway) newAbystHandler(peer_identity *sec.AbyssPeerIdentity) *AbystHandler {
+func (g *AbystGateway) newAbystHandler(peer_id string) *AbystHandler {
 	return &AbystHandler{
-		abyst_hub:     g,
-		peer_identity: peer_identity,
+		abyst_hub: g,
+		peer_id:   peer_id,
 	}
 }
 
@@ -95,7 +94,7 @@ func (h *AbystHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r_copy := new(http.Request)
 	*r_copy = *r
 
-	r_copy.Header.Set("X-Abyss-ID", h.peer_identity.ID())
+	r_copy.Header.Set("X-Abyss-ID", h.peer_id)
 
 	h.abyst_hub.internalMux.Load().ServeHTTP(w, r_copy)
 }

@@ -25,4 +25,5 @@ require (
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 	golang.org/x/tools v0.36.1-0.20250903222949-a5c0eb837c9f // indirect
+	gonum.org/v1/gonum v0.16.0 // direct
 )

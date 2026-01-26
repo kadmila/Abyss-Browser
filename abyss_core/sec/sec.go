@@ -5,6 +5,7 @@
 // In abyss certificate chain, subdomain represents a specific role/use case.
 // h.{id} indicates a handshake encryption key for OAEP-SHA3-256-AES-256-GCM.
 // tls.{id} indicates a TLS binding certificate.
+// loc.{id} indicates a short-lived address location certificate (< 1 hour validity).
 package sec
 
 import (

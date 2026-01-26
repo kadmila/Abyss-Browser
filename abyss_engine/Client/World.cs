@@ -1,224 +1,167 @@
-﻿using AbyssCLI.Tool;
+using AbyssCLI.HL;
+using System.Collections.Generic;
 using System.Numerics;
 
 namespace AbyssCLI.Client;
 
-public class World
+// World is only accessed from Client. It is not thread safe.
+public class World : IDisposable
 {
-    private readonly AbyssLib.Host _host;
-    private readonly AbyssLib.World _world;
-    internal readonly HL.ContentB _environment;
-    private readonly Dictionary<string, HL.Member> _members = []; //peer hash - [uuid - item]
-    private readonly Dictionary<Guid, HL.Item> _local_items = []; //UUID - item
-    private readonly object _lock = new();
-    private readonly Thread _world_th;
+    public Guid WSID; // set when WorldEnter event arrives
 
-    public World(AbyssLib.Host host, AbyssLib.World world, AbyssURL URL)
-    {
-        _host = host;
-        _world = world;
-        _environment = new(URL, new()
-        {
-            title = URL.ToString()
-        });
-        _world_th = new Thread(() =>
-        {
-            while (true)
-            {
-                dynamic evnt_raw = world.WaitForEvent();
-                switch (evnt_raw)
-                {
-                case AbyssLib.WorldMemberRequest evnt:
-                    OnMemberRequest(evnt);
-                    break;
-                case AbyssLib.WorldMember evnt:
-                    OnMemberReady(evnt);
-                    break;
-                case AbyssLib.MemberObjectAppend evnt:
-                    OnMemberObjectAppend(evnt);
-                    break;
-                case AbyssLib.MemberObjectDelete evnt:
-                    OnMemberObjectDelete(evnt);
-                    break;
-                case AbyssLib.WorldMemberLeave evnt:
-                    OnMemberLeave(evnt.peer_hash);
-                    break;
-                case int: //world termination
-                    return;
-                }
-            }
-        });
-        _world_th.Start();
+    private readonly AbyssLibB.Host _host;
+	private readonly AbyssLibB.World _world;
+	private HL.Content? _environment;
+	private readonly Dictionary<string, Member> _members = []; //peer ids - WSID
+	private readonly Dictionary<Guid, HL.Item> _local_items = []; //UUID - item
+
+	public World(AbyssLibB.Host host, AbyssLibB.World world)
+	{
+		_host = host;
+		_world = world;
+		WSID = world.WSID;
+	}
+
+    public void ShareItem(Guid uuid, string url, float[] transform)
+	{
+		var item = new HL.Item(_host.ID, uuid, url, transform);
+        _local_items[uuid] = item;
+
+		if (_members.Count == 0)
+			return;
+
+        // Convert members to targets for ObjectAppend
+        var targets = _members.Values.Select(m => (m.PeerId, m.WSID)).ToArray();
+        _world.ObjectAppend(targets, [item.SerializedObjectInfo]);
     }
 
-    public void ShareItem(Guid uuid, AbyssURL url, float[] transform)
+	public void UnshareItem(Guid item_id)
     {
-        var item = new HL.Item(_host.local_aurl.Id, uuid, url,
-            new(transform[0], transform[1], transform[2]),
-            new(transform[4], transform[5], transform[6], transform[3]));
+        HL.Item item = _local_items[item_id];
+        item.Dispose();
+        _ = _local_items.Remove(item_id);
 
-        lock (_lock)
-        {
-            _local_items[uuid] = item;
-            foreach (KeyValuePair<string, HL.Member> entry in _members)
-            {
-                _ = entry.Value.network_handle.AppendObjects([Tuple.Create(uuid, url.Raw, transform)]);
-            }
-        }
+        if (_members.Count == 0)
+            return;
+
+        // Convert members to targets for ObjectDelete
+        var targets = _members.Values.Select(m => (m.PeerId, m.WSID)).ToArray();
+        _world.ObjectDelete(targets, [item_id]);
     }
 
-    public void UnshareItem(Guid guid)
+	//internals
+	public void OnWorldEnter(AbyssLibB.EWorldEnter evnt)
     {
-        lock (_lock)
+        Client.Cerr.WriteLine($"OnWorldEnter: {evnt.URL}");
+		var metadata = new AML.AmlMetadata()
+		{
+			title = evnt.URL.ToString()
+		};
+        _environment = new(evnt.URL, metadata);
+
+		// expose world except for the empty world.
+		if (evnt.URL == "")
+            return;
+
+        var expose_err = Client.Host.ExposeWorldForJoin(_world, "/");
+        if (expose_err != null)
+		{
+			Client.Cerr.WriteLine("failed to expose the world: " + expose_err.Message);
+		}
+    }
+	public void OnMemberRequest(AbyssLibB.ESessionRequest evnt)
+	{
+		Client.Cerr.WriteLine($"OnMemberRequest from {evnt.PeerID}");
+		_world.AcceptSession(evnt.PeerID, evnt.PeerWSID);
+	}
+	public void OnMemberReady(AbyssLibB.ESessionReady evnt)
+	{
+		Client.Cerr.WriteLine($"OnMemberReady: {evnt.PeerID}");
+		_members[evnt.PeerID] = new Member(evnt.PeerID, evnt.PeerWSID);
+        Client.RenderWriter.MemberInfo(evnt.PeerID);
+
+		if (_local_items.Count == 0)
+			return;
+
+        var targets = _members.Values.Select(m => (m.PeerId, m.WSID)).ToArray();
+        _world.ObjectAppend(targets, [.. _local_items.Values.Select(e => e.SerializedObjectInfo)]);
+    }
+	public void OnMemberObjectAppend(AbyssLibB.EObjectAppend evnt)
+	{
+		Client.Cerr.WriteLine($"OnMemberObjectAppend from {evnt.PeerID}");
+        if (!_members.TryGetValue(evnt.PeerID, out var member))
         {
-            HL.Item item = _local_items[guid];
-            item.Stop();
-            _ = _local_items.Remove(guid);
-            foreach (KeyValuePair<string, HL.Member> member in _members)
-            {
-                _ = member.Value.network_handle.DeleteObjects([guid]);
-            }
+            Client.Cerr.WriteLine("failed to find member");
+            return;
         }
+
+		var items = evnt.Objects.Select(e => new HL.Item(evnt.PeerID, e.Id, e.Address, e.Transform));
+        foreach (var item in items)
+        {
+			if (!member.RemoteItems.TryAdd(item.UUID, item))
+			{
+                // destroy items that failed to add. - this is a failure of remote peer, should never happen.
+                Client.Cerr.WriteLine("warning: item id collided, discarding colliding item");
+                item.Dispose();
+			}
+        }
+	}
+	public void OnMemberObjectDelete(AbyssLibB.EObjectDelete evnt)
+	{
+		Client.Cerr.WriteLine($"OnMemberObjectDelete from {evnt.PeerID}");
+        if (!_members.TryGetValue(evnt.PeerID, out var member))
+        {
+            Client.Cerr.WriteLine("failed to find member");
+            return;
+        }
+
+        foreach (var object_id in evnt.ObjectIDs)
+        {
+            if (!member.RemoteItems.Remove(object_id, out var item))
+            {
+                Client.Cerr.WriteLine("warning: tried to delete nonexisting item");
+                continue;
+            }
+            item.Dispose();
+        }
+	}
+	public void OnMemberLeave(string peerID)
+	{
+		Client.Cerr.WriteLine($"OnMemberLeave: {peerID}");
+        if (!_members.Remove(peerID, out var member))
+        {
+            Client.Cerr.WriteLine("fatal:::nonexisting member leave. This is AND bug");
+            return;
+        }
+        member.Dispose();
+        Client.RenderWriter.MemberLeave(peerID);
+    }
+	public bool TryExecuteJavascript(string javascript)
+    {
+		if (_environment == null)
+			return false;
+		return _environment.Document.TryRunScript("<console>", javascript);
     }
 
-    public void Leave()
+    public void Dispose()
     {
-        _environment.Dispose();
-        if (_world.Leave() != 0)
-        {
-            Client.CerrWriteLine("failed to leave world");
-        }
-        _world_th.Join();
+        _environment?.Dispose();
+        _world.Dispose();
 
-        foreach (KeyValuePair<string, HL.Member> member in _members)
+        foreach (var member in _members.Values)
         {
-            foreach (HL.Item item in member.Value.remote_items.Values)
-            {
-                item.Stop();
-            }
+            member.Dispose();
         }
-        foreach (HL.Item item in _local_items.Values)
+        foreach (var item in _local_items.Values)
         {
-            item.Stop();
+            item.Dispose();
         }
-        _members.Clear(); //do we need this?
-        _local_items.Clear(); //do we need this?
+
+		GC.SuppressFinalize(this);
     }
-
-    //internals
-    private static void OnMemberRequest(AbyssLib.WorldMemberRequest evnt)
+	~World()
     {
-        Client.CerrWriteLine("OnMemberRequest");
-        _ = evnt.Accept();
-    }
-    private void OnMemberReady(AbyssLib.WorldMember member)
-    {
-        Client.CerrWriteLine("OnMemberReady");
-        lock (_lock)
-        {
-            if (!_members.TryAdd(member.hash, new(member)))
-            {
-                Client.CerrWriteLine("failed to append peer; old peer session pends");
-                return;
-            }
-            Client.RenderWriter.MemberInfo(member.hash);
-
-            static float[] PosRotSerialize(Vector3 pos, Quaternion rot) =>
-                [pos.X, pos.Y, pos.Z, rot.W, rot.X, rot.Y, rot.Z];
-
-            Tuple<Guid, string, float[]>[] list_of_local_items =
-                [.. _local_items.Select(kvp =>
-                    Tuple.Create(
-                        kvp.Key,
-                        kvp.Value._url.ToString(),
-                        PosRotSerialize(
-                            kvp.Value._content.Document.Metadata.pos.Native,
-                            kvp.Value._content.Document.Metadata.rot.Native
-                        )
-                    )
-                )];
-            if (list_of_local_items.Length != 0)
-            {
-                _ = member.AppendObjects(list_of_local_items);
-            }
-        }
-    }
-
-    private void OnMemberObjectAppend(AbyssLib.MemberObjectAppend evnt)
-    {
-        Client.CerrWriteLine("OnMemberObjectAppend");
-        var parsed_objects = evnt.objects
-            .Select(gst =>
-            {
-                if (!AbyssURLParser.TryParse(gst.Item2, out AbyssURL abyss_url))
-                {
-                    Client.CerrWriteLine("failed to parse object url: " + gst.Item2);
-                }
-                return Tuple.Create(gst.Item1, abyss_url, gst.Item3);
-            })
-            .Where(gst => gst.Item2 != null)
-            .ToList();
-
-        lock (_lock)
-        {
-            if (!_members.TryGetValue(evnt.peer_hash, out HL.Member member))
-            {
-                Client.CerrWriteLine("failed to find member");
-                return;
-            }
-
-            foreach (Tuple<Guid, AbyssURL, float[]> obj in parsed_objects)
-            {
-                Client.CerrWriteLine("member object: " + obj.Item2.ToString());
-                var item = new HL.Item(evnt.peer_hash, obj.Item1, obj.Item2,
-                    new(obj.Item3[0], obj.Item3[1], obj.Item3[2]),
-                    new(obj.Item3[4], obj.Item3[5], obj.Item3[6], obj.Item3[3]));
-                if (!member.remote_items.TryAdd(obj.Item1, item))
-                {
-                    Client.CerrWriteLine("uid collision of objects appended from peer");
-                    continue;
-                }
-            }
-        }
-    }
-    private void OnMemberObjectDelete(AbyssLib.MemberObjectDelete evnt)
-    {
-        Client.CerrWriteLine("OnMemberObjectDelete");
-        lock (_lock)
-        {
-            if (!_members.TryGetValue(evnt.peer_hash, out HL.Member member))
-            {
-                Client.CerrWriteLine("failed to find member");
-                return;
-            }
-
-            foreach (Guid id in evnt.object_ids)
-            {
-                if (!member.remote_items.Remove(id, out HL.Item item))
-                {
-                    Client.CerrWriteLine("peer tried to delete unshared objects");
-                    continue;
-                }
-                item.Stop();
-            }
-        }
-    }
-    private void OnMemberLeave(string peer_hash)
-    {
-        Client.CerrWriteLine("OnMemberLeave");
-        lock (_lock)
-        {
-            if (!_members.Remove(peer_hash, out HL.Member value))
-            {
-                Client.CerrWriteLine("non-existing peer leaved");
-                return;
-            }
-            Client.RenderWriter.MemberLeave(peer_hash);
-
-            foreach (HL.Item item in value.remote_items.Values)
-            {
-                item.Stop();
-            }
-        }
+        Client.Cerr.WriteLine("Warning:::World must be manually disposed. This is a bug");
+        Dispose();
     }
 }

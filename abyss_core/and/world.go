@@ -5,861 +5,913 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gonum.org/v1/gonum/stat/distuv"
 
-	"github.com/kadmila/Abyss-Browser/abyss_core/aurl"
-	abyss "github.com/kadmila/Abyss-Browser/abyss_core/interfaces"
+	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
+	"github.com/kadmila/Abyss-Browser/abyss_core/config"
+	"github.com/kadmila/Abyss-Browser/abyss_core/tools/ds"
+	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
 )
 
-const (
-	WS_DC_JT     int = iota + 1 //disconnected join target
-	WS_DC_JNI                   //disconnected, JNI received
-	WS_CC                       //connected, no info
-	WS_JT                       //JN sent
-	WS_JN                       //JN received
-	WS_RMEM_NJNI                //MEM received, JNI not received
-	WS_JNI                      //JNI received
-	WS_RMEM                     //MEM received
-	WS_TMEM                     //MEM sent
-	WS_MEM                      //member
-)
+// World is a state machine for a world and its member/related peers.
+// Removing join target from a world breakes it, so be careful.
+// A world must be externally locked, using the embedded sync.Mutex.
+// This gives better control over call and event synchronization for the host.
+type World struct {
+	o *AND //origin
 
-// ANDPeerSessionState represents the peer's state in world session lifecycle.
-// timestamp is used only for JNI.
-type ANDPeerSessionState struct {
-	//latest
-	abyss.ANDPeerSessionWithTimeStamp
-	state int
-	sjnp  bool //is sjn suppressed
-	sjnc  int  //sjn receive count
+	weibull_dist *distuv.Weibull
+
+	is_closed bool // this is set true after firing EANDWorldLeave.
+
+	lsid         uuid.UUID                         // local world session id
+	timestamp    time.Time                         // local world session creation timestamp
+	join_target  *peerWorldSessionState            // (when constructed with Join) join target peer, turns null after firing EANDWorldEnter
+	join_path    string                            // (when constructed with Join) world request path
+	url          string                            // (when constructed with Open, or Join accepted) environmental content URL.
+	entries      map[string]*peerWorldSessionState // key: id, value: peer states
+	member_count int                               // the number of WS_MEM sessions
 }
 
-func NewANDPeerSessionState(peer abyss.IANDPeer, session_id uuid.UUID, timestamp time.Time, state int) *ANDPeerSessionState {
-	return &ANDPeerSessionState{
-		abyss.ANDPeerSessionWithTimeStamp{
-			ANDPeerSession: abyss.ANDPeerSession{
-				Peer:          peer,
-				PeerSessionID: session_id,
-			},
-			TimeStamp: timestamp,
+const INITIAL_WORLD_TIMER = 1000
+
+func newWorld_Open(events ds.Queue, origin *AND, world_url string) *World {
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	result := &World{
+		o:            origin,
+		weibull_dist: &distuv.Weibull{K: 2, Lambda: 2.0, Src: rng},
+		lsid:         uuid.New(),
+		timestamp:    time.Now(),
+		join_target:  nil,
+		join_path:    "",
+		url:          world_url,
+		entries:      make(map[string]*peerWorldSessionState),
+	}
+	events.Push(&EANDWorldEnter{
+		World: result,
+		URL:   world_url,
+	})
+	events.Push(&EANDTimerRequest{
+		World:    result,
+		Duration: time.Millisecond * INITIAL_WORLD_TIMER,
+	})
+	return result
+}
+
+func newWorld_Join(origin *AND, target ani.IAbyssPeer, path string) (*World, error) {
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	result := &World{
+		o:            origin,
+		weibull_dist: &distuv.Weibull{K: 2, Lambda: 2.0, Src: rng},
+		lsid:         uuid.New(),
+		timestamp:    time.Now(),
+		join_target: &peerWorldSessionState{
+			PeerID: target.ID(),
+			Peer:   target,
 		},
-		state,
-		false,
-		0,
+		join_path: path,
+		url:       "",
+		entries:   make(map[string]*peerWorldSessionState),
 	}
+	err := result.sendJN(result.join_target)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
-func (s *ANDPeerSessionState) Clear() {
-	s.PeerSessionID = uuid.Nil
-	s.TimeStamp = time.Time{}
-	if s.Peer != nil {
-		s.state = WS_CC
+func (w *World) SessionID() uuid.UUID {
+	return w.lsid
+}
+
+func (w *World) CheckSanity() {
+	if !config.DEBUG {
+		return
+	}
+
+	if w.o == nil {
+		panic("world origin nil")
+	}
+	if w.lsid == uuid.Nil {
+		panic("world lsid nil")
+	}
+	if w.timestamp.After(time.Now()) {
+		panic("invalid world timestamp")
+	}
+	// check member count
+	mem_count := 0
+	for _, entry := range w.entries {
+		if entry.state == WS_MEM {
+			mem_count++
+		}
+	}
+	if mem_count != w.member_count {
+		panic("mem count mismatch")
+	}
+
+	if w.join_target != nil {
+		// joining
+		if w.join_path == "" {
+			panic("world join path nil")
+		}
+		if w.url != "" {
+			panic("world url non-nil")
+		}
+		for id, entry := range w.entries {
+			if id == "" {
+				panic(entry.state.String() + " entry with nil id")
+			}
+			switch entry.state {
+			case WS_DC_JNI:
+				panic(entry.state.String() + " must not exist (no MEM)")
+			case WS_CC:
+				// expecting early MEM
+				if id != entry.PeerID || id != entry.Peer.ID() {
+					panic(entry.state.String() + " peer id mismatch")
+				}
+				if entry.SessionID != uuid.Nil {
+					panic(entry.state.String() + " must have nil session id")
+				}
+				if !entry.TimeStamp.Equal(time.Time{}) {
+					panic(entry.state.String() + " must have nil timestamp")
+				}
+				if entry.is_session_requested {
+					panic(entry.state.String() + " is_session_requested true")
+				}
+			case WS_JN:
+				panic("World too early to be exposed")
+			case WS_RMEM_NJNI:
+				// early MEM
+				if id != entry.PeerID || id != entry.Peer.ID() {
+					panic(entry.state.String() + " peer id mismatch")
+				}
+				if entry.SessionID != uuid.Nil {
+					panic(entry.state.String() + " must have non-nil session id")
+				}
+				if entry.TimeStamp.Equal(time.Time{}) {
+					panic(entry.state.String() + " must have non-nil timestamp")
+				}
+				if entry.is_session_requested {
+					panic(entry.state.String() + " is_session_requested true")
+				}
+			case WS_JNI:
+				panic(entry.state.String() + " must not exist (no MEM)")
+			case WS_RMEM:
+				panic(entry.state.String() + " must not exist (no JNI)")
+			case WS_TMEM:
+				panic(entry.state.String() + " must not exist (no JNI)")
+			case WS_MEM:
+				panic("MEM must not exist")
+			default:
+				panic(entry.state.String())
+			}
+		}
 	} else {
-		panic("this peer must be removed, not cleared")
-	}
-	s.sjnp = false
-	s.sjnc = 0
-}
-
-type ANDWorld struct {
-	o *AND //origin (debug purpose)
-
-	local     string //local hash
-	lsid      uuid.UUID
-	timestamp time.Time
-	join_hash string                          //const
-	join_path string                          //const
-	wurl      string                          //const
-	peers     map[string]*ANDPeerSessionState //key: hash
-
-	ech chan abyss.NeighborEvent
-}
-
-func (w *ANDWorld) CheckSanity() {
-	jc := 0
-	for peer_id, peer := range w.peers {
-		if peer_id == w.local {
-			panic("and sanity check failed: loopback connection")
+		// working
+		if w.join_path != "" {
+			panic("world join path non-nil")
 		}
-
-		switch peer.state {
-		case WS_DC_JT:
-		case WS_DC_JNI:
-		case WS_CC:
-		case WS_JT:
-		case WS_JN:
-		case WS_RMEM_NJNI:
-		case WS_JNI:
-		case WS_RMEM:
-		case WS_TMEM:
-		case WS_MEM:
-		default:
-			panic("and sanity check failed: non-existing state")
+		if w.url == "" {
+			panic("world url nil")
 		}
-	}
-	if w.join_hash == "" && jc != 0 {
-		panic("and sanity check failed: both join and open")
-	}
-	if jc > 1 {
-		panic("and sanity check failed: multiple join targets")
-	}
-}
-
-func NewWorldOpen(origin *AND, local_hash string, local_session_id uuid.UUID, world_url string, connected_members map[string]abyss.IANDPeer, event_ch chan abyss.NeighborEvent) *ANDWorld {
-	result := &ANDWorld{
-		o:         origin,
-		local:     local_hash,
-		lsid:      local_session_id,
-		timestamp: time.Now(),
-		join_hash: "",
-		join_path: "",
-		wurl:      world_url,
-		peers:     make(map[string]*ANDPeerSessionState),
-		ech:       event_ch,
-	}
-	for peer_id, peer := range connected_members {
-		origin.stat.W(0)
-
-		result.peers[peer_id] = NewANDPeerSessionState(peer, uuid.Nil, time.Time{}, WS_CC)
-	}
-	result.ech <- abyss.NeighborEvent{
-		Type:           abyss.ANDJoinSuccess,
-		LocalSessionID: local_session_id,
-		Text:           world_url,
-	}
-	result.ech <- abyss.NeighborEvent{
-		Type:           abyss.ANDTimerRequest,
-		LocalSessionID: result.lsid,
-		Value:          500,
-	}
-	return result
-}
-
-func NewWorldJoin(origin *AND, local_hash string, local_session_id uuid.UUID, target *aurl.AURL, connected_members map[string]abyss.IANDPeer, event_ch chan abyss.NeighborEvent) *ANDWorld {
-	result := &ANDWorld{
-		o:         origin,
-		local:     local_hash,
-		lsid:      local_session_id,
-		timestamp: time.Now(),
-		join_hash: target.Hash,
-		join_path: target.Path,
-		peers:     make(map[string]*ANDPeerSessionState),
-		ech:       event_ch,
-	}
-	for peer_id, peer := range connected_members {
-		origin.stat.W(1)
-
-		result.peers[peer_id] = NewANDPeerSessionState(peer, uuid.Nil, time.Time{}, WS_CC)
-	}
-
-	if connected_target, ok := result.peers[target.Hash]; ok {
-		origin.stat.W(2)
-
-		connected_target.state = WS_JT
-		origin.stat.JN_TX++
-		connected_target.Peer.TrySendJN(local_session_id, target.Path, result.timestamp)
-	} else {
-		origin.stat.W(3)
-
-		result.peers[target.Hash] = NewANDPeerSessionState(nil, uuid.Nil, time.Time{}, WS_DC_JT)
-		result.ech <- abyss.NeighborEvent{
-			Type:   abyss.ANDConnectRequest,
-			Object: target,
+		for id, entry := range w.entries {
+			if id == "" {
+				panic(entry.state.String() + " entry with nil id")
+			}
+			switch entry.state {
+			case WS_DC_JNI:
+				if id != entry.PeerID {
+					panic(entry.state.String() + " peer id mismatch")
+				}
+				if entry.Peer != nil {
+					panic(entry.state.String() + " must have nil Peer")
+				}
+				if entry.SessionID == uuid.Nil {
+					panic(entry.state.String() + " must have non nil session id")
+				}
+				if entry.TimeStamp.Equal(time.Time{}) {
+					panic(entry.state.String() + " must have non nil TimeStamp")
+				}
+				if entry.is_session_requested {
+					panic(entry.state.String() + " is_session_requested true")
+				}
+			case WS_CC:
+				if id != entry.PeerID || id != entry.Peer.ID() {
+					panic(entry.state.String() + " peer id mismatch")
+				}
+				if entry.SessionID != uuid.Nil {
+					panic(entry.state.String() + " must have nil session id")
+				}
+				if !entry.TimeStamp.Equal(time.Time{}) {
+					panic(entry.state.String() + " must have nil timestamp")
+				}
+				if entry.is_session_requested {
+					panic(entry.state.String() + " is_session_requested true")
+				}
+			case WS_JN, WS_JNI, WS_RMEM, WS_TMEM, WS_MEM:
+				if id != entry.PeerID || id != entry.Peer.ID() {
+					panic(entry.state.String() + " peer id mismatch")
+				}
+				if entry.SessionID == uuid.Nil {
+					panic(entry.state.String() + " must have non-nil session id")
+				}
+				if entry.TimeStamp.Equal(time.Time{}) {
+					panic(entry.state.String() + " must have non-nil timestamp")
+				}
+				if !entry.is_session_requested {
+					panic(entry.state.String() + " is_session_requested false")
+				}
+			case WS_RMEM_NJNI:
+				if id != entry.PeerID || id != entry.Peer.ID() {
+					panic(entry.state.String() + " peer id mismatch")
+				}
+				if entry.SessionID == uuid.Nil {
+					panic(entry.state.String() + " must have non-nil session id")
+				}
+				if entry.TimeStamp.Equal(time.Time{}) {
+					panic(entry.state.String() + " must have non-nil timestamp")
+				}
+				if entry.is_session_requested {
+					panic(entry.state.String() + " is_session_requested true")
+				}
+			default:
+				panic(entry.state.String())
+			}
 		}
 	}
-	return result
 }
 
-func (w *ANDWorld) ClearStates(peer_id string, info *ANDPeerSessionState, message string) {
-	switch info.state {
-	case WS_DC_JT, WS_DC_JNI:
-		delete(w.peers, peer_id)
-	case WS_CC:
-		info.Clear()
-	case WS_JT:
-		w.o.stat.RST_TX++
-		info.Peer.TrySendRST(w.lsid, info.PeerSessionID, "ClearStates::WS_JT "+message)
-		w.ech <- abyss.NeighborEvent{
-			Type:           abyss.ANDJoinFail,
-			LocalSessionID: w.lsid,
-			Text:           JNM_INVALID_STATES,
-			Value:          JNC_INVALID_STATES,
-		}
-		info.Clear()
+func (w *World) Peers() []ani.IAbyssPeer {
+	peers := functional.Filter_MtS_ok(w.entries, func(s *peerWorldSessionState) (ani.IAbyssPeer, bool) {
+		return s.Peer, s.Peer != nil
+	})
+	if w.join_target != nil {
+		peers = append(peers, w.join_target.Peer)
+	}
+	return peers
+}
+
+// IsExposable checks if the world joining procedure is finished and the world information is set.
+func (w *World) IsExposable() bool {
+	if w.join_target != nil || w.url == "" {
+		return false
+	}
+	return true
+}
+
+// removeEntry should only be called for unexpected malfunction of the opponent.
+// is this a good design? IDK ¯\_(ツ)_/¯
+// **note: when modifying this code, you may need to revise RST() also.
+func (w *World) removeEntry(events ds.Queue, entry *peerWorldSessionState, code int, message string) {
+	switch entry.state {
+	case WS_DC_JNI:
+		// no send
 	case WS_JN:
-		w.o.stat.JDN_TX++
-		info.Peer.TrySendJDN(info.PeerSessionID, JNC_INVALID_STATES, JNM_INVALID_STATES)
-		info.Clear()
+		w.sendJDN(entry, code, message)
 	case WS_MEM:
-		w.ech <- abyss.NeighborEvent{
-			Type:           abyss.ANDSessionClose,
-			LocalSessionID: w.lsid,
-			ANDPeerSession: info.ANDPeerSession,
+		w.member_count--
+		w.sendRST(entry, code, message)
+	default:
+		if entry.SessionID != uuid.Nil {
+			w.sendRST(entry, code, message)
 		}
-		fallthrough
-	case WS_RMEM_NJNI, WS_JNI, WS_RMEM, WS_TMEM:
-		w.o.stat.RST_TX++
-		info.Peer.TrySendRST(w.lsid, info.PeerSessionID, "ClearStates::else "+message)
-		info.Clear()
 	}
+
+	if entry.is_session_requested {
+		events.Push(&EANDSessionClose{
+			World:          w,
+			ANDPeerSession: entry.ANDPeerSession(),
+		})
+	}
+	if entry.Peer != nil {
+		events.Push(&EANDPeerDiscard{
+			World: w,
+			Peer:  entry.Peer,
+		})
+	}
+	delete(w.entries, entry.PeerID)
 }
 
-// TryUpdateSessionID returns (old session ID, success). old session ID is nil if not updated
-func (w *ANDWorld) TryUpdateSessionID(s *ANDPeerSessionState, session_id uuid.UUID, timestamp time.Time) bool {
-	if s.TimeStamp.Before(timestamp) {
-		w.ClearStates(s.Peer.IDHash(), s, "session id update failure")
-		s.PeerSessionID = session_id
-		s.TimeStamp = timestamp
+// removeEntrySilent is equivalent to removeEntry, but does not send ahmp message to the peer.
+// This should only be used when the peer is disconnected, or the peer request seize of communication (RST)
+func (w *World) removeEntrySilent(events ds.Queue, entry *peerWorldSessionState) {
+	if entry.state == WS_MEM {
+		w.member_count--
+	}
+	if entry.is_session_requested {
+		events.Push(&EANDSessionClose{
+			World:          w,
+			ANDPeerSession: entry.ANDPeerSession(),
+		})
+	}
+	if entry.Peer != nil {
+		events.Push(&EANDPeerDiscard{
+			World: w,
+			Peer:  entry.Peer,
+		})
+	}
+	delete(w.entries, entry.PeerID)
+}
+
+// tryOverwritePeerSession cleanly resets peer states if newer session id was given.
+// This is kinda dangerous; impact is high. Can we ever prevent/detect forgery?
+func (w *World) tryOverwritePeerSession(events ds.Queue, entry *peerWorldSessionState, session_id uuid.UUID, timestamp time.Time) bool {
+	if entry.TimeStamp.Before(timestamp) {
+		switch entry.state {
+		case WS_JN:
+			w.sendJDN(entry, JNC_OVERRUN, JNM_OVERRUN)
+		case WS_MEM:
+			w.member_count--
+			w.sendRST(entry, JNC_OVERRUN, JNM_OVERRUN)
+		default:
+			if entry.SessionID != uuid.Nil {
+				w.sendRST(entry, JNC_OVERRUN, JNM_OVERRUN)
+			}
+		}
+		if entry.is_session_requested {
+			events.Push(&EANDSessionClose{
+				World:          w,
+				ANDPeerSession: entry.ANDPeerSession(),
+			})
+		}
+		entry.state = 0 // state must be defined right afterwards.
+		entry.SessionID = session_id
+		entry.TimeStamp = timestamp
+		entry.is_session_requested = false
+		entry.sjnp = false
+		entry.sjnc = 0
 		return true
 	} else {
 		return false
 	}
 }
-func (w *ANDWorld) IsProperMemberOrReset(info *ANDPeerSessionState, peer_session abyss.ANDPeerSession) bool {
-	switch info.state {
-	case WS_DC_JT, WS_DC_JNI:
-		panic("not connected")
-	case WS_MEM:
-		if info.PeerSessionID == peer_session.PeerSessionID {
-			return true
-		}
-		fallthrough
-	default:
-		w.ClearStates(info.Peer.IDHash(), info, "non-member reset")
-	}
-	return false
-}
 
-func (w *ANDWorld) PeerConnected(peer abyss.IANDPeer) {
-	info, ok := w.peers[peer.IDHash()]
-	if ok { // known peer
-		w.o.stat.W(4)
-
-		switch info.state {
-		case WS_DC_JT:
-			w.o.stat.W(5)
-
-			info.Peer = peer
-			w.o.stat.JN_TX++
-			peer.TrySendJN(w.lsid, w.join_path, w.timestamp)
-			info.state = WS_JT
-		case WS_DC_JNI:
-			w.o.stat.W(6)
-
-			info.Peer = peer
-			info.state = WS_JNI
-
-			w.ech <- abyss.NeighborEvent{
-				Type:           abyss.ANDSessionRequest,
-				LocalSessionID: w.lsid,
-				ANDPeerSession: info.ANDPeerSession,
-			}
-		default:
-			panic("and: duplicate connection")
-		}
-
-		return
-	}
-	//unknown peer
-	w.peers[peer.IDHash()] = NewANDPeerSessionState(peer, uuid.Nil, time.Time{}, WS_CC)
-}
-func (w *ANDWorld) JN(peer_session abyss.ANDPeerSession, timestamp time.Time) {
-	w.o.stat.JN_RX++
-
-	info := w.peers[peer_session.Peer.IDHash()]
-	switch info.state {
-	case WS_CC:
-		w.o.stat.W(7)
-
-		info.ANDPeerSession = peer_session
-		info.TimeStamp = timestamp
-		info.state = WS_JN
-		w.ech <- abyss.NeighborEvent{
-			Type:           abyss.ANDSessionRequest,
-			LocalSessionID: w.lsid,
-			ANDPeerSession: peer_session,
-		}
-	case WS_JT: //should not happen. during joining, the world must be hidden, not accepting JN.
-		w.o.stat.W(8)
-
-		w.o.stat.JDN_TX++
-		peer_session.Peer.TrySendJDN(peer_session.PeerSessionID, JNC_INVALID_STATES, JNM_INVALID_STATES)
-	case WS_JN, WS_RMEM_NJNI, WS_JNI, WS_RMEM, WS_TMEM, WS_MEM:
-		w.o.stat.W(9)
-
-		if w.TryUpdateSessionID(info, peer_session.PeerSessionID, timestamp) {
-			w.o.stat.W(10)
-
-			info.state = WS_JN
-			w.ech <- abyss.NeighborEvent{
-				Type:           abyss.ANDSessionRequest,
-				LocalSessionID: w.lsid,
-				ANDPeerSession: peer_session,
-			}
-		} else {
-			w.o.stat.W(11)
-
-			w.o.stat.JDN_TX++
-			peer_session.Peer.TrySendJDN(peer_session.PeerSessionID, JNC_DUPLICATE, JNM_DUPLICATE) //must not happen
-		}
-	default:
-		panic("and invalid state: JN")
-	}
-}
-func (w *ANDWorld) JOK(peer_session abyss.ANDPeerSession, timestamp time.Time, world_url string, member_infos []abyss.ANDFullPeerSessionIdentity) {
-	w.o.stat.JOK_RX++
-
-	sender_id := peer_session.Peer.IDHash()
-	info := w.peers[sender_id]
-	if w.join_hash != sender_id ||
-		info.state != WS_JT {
-		w.o.stat.W(12)
-
-		w.o.stat.RST_TX++
-		peer_session.Peer.TrySendRST(w.lsid, peer_session.PeerSessionID, "JOK::not WS_JT")
-		return
-	}
-
-	w.o.stat.W(13)
-
-	info.ANDPeerSession = peer_session
-	info.TimeStamp = timestamp
-	w.ech <- abyss.NeighborEvent{
-		Type:           abyss.ANDJoinSuccess,
-		LocalSessionID: w.lsid,
-		Text:           world_url,
-	}
-	w.ech <- abyss.NeighborEvent{
-		Type:           abyss.ANDSessionRequest,
-		LocalSessionID: w.lsid,
-		ANDPeerSession: peer_session,
-	}
-	info.state = WS_RMEM
-	info.sjnp = true
-
-	for _, mem_info := range member_infos {
-		w.o.stat.W(14)
-
-		w.JNI_MEMS(sender_id, mem_info)
-	}
-}
-func (w *ANDWorld) JDN(peer abyss.IANDPeer, code int, message string) { //no branch number here... :(
-	w.o.stat.JDN_RX++
-
-	info := w.peers[peer.IDHash()]
-	if w.join_hash != peer.IDHash() ||
-		info.state != WS_JT {
-		w.o.stat.W(15)
-
-		return
-	}
-
-	w.o.stat.W(16)
-
-	w.ech <- abyss.NeighborEvent{
-		Type:           abyss.ANDJoinFail,
-		LocalSessionID: w.lsid,
-		Text:           message,
-		Value:          code,
-	}
-	info.Clear()
-}
-
-func (w *ANDWorld) JNI(peer_session abyss.ANDPeerSession, member_info abyss.ANDFullPeerSessionIdentity) {
-	w.o.stat.JNI_RX++
-
-	sender_id := peer_session.Peer.IDHash()
-	info := w.peers[sender_id]
-
-	if !w.IsProperMemberOrReset(info, peer_session) {
-		w.o.stat.W(17)
-
-		return
-	}
-
-	w.o.stat.W(18)
-
-	w.JNI_MEMS(sender_id, member_info)
-}
-func (w *ANDWorld) JNI_MEMS(sender_id string, mem_info abyss.ANDFullPeerSessionIdentity) {
-	peer_id := mem_info.AURL.Hash
-	if peer_id == w.local {
-		w.o.stat.W(19)
-		return
-	}
-
-	info, ok := w.peers[peer_id]
+// mustBeMemberCheck can only be used as a barrier for handling a message that must be sent from a member.
+func (w *World) mustBeMemberCheck(events ds.Queue, peer_session ANDPeerSession) (*peerWorldSessionState, bool) {
+	entry, ok := w.entries[peer_session.Peer.ID()]
 	if !ok {
-		w.o.stat.W(20)
-
-		w.peers[peer_id] = NewANDPeerSessionState(nil, mem_info.SessionID, mem_info.TimeStamp, WS_DC_JNI)
-		w.ech <- abyss.NeighborEvent{
-			Type: abyss.ANDPeerRegister,
-			Object: &abyss.PeerCertificates{
-				RootCertDer:         mem_info.RootCertificateDer,
-				HandshakeKeyCertDer: mem_info.HandshakeKeyCertificateDer,
-			},
-		}
-		w.ech <- abyss.NeighborEvent{
-			Type:   abyss.ANDConnectRequest,
-			Object: mem_info.AURL,
-		}
-		return
-	}
-
-	switch info.state {
-	case WS_DC_JT, WS_JT:
-		panic("and: proper member check failed (JNI)")
-	case WS_DC_JNI:
-		w.o.stat.W(21)
-
-		if info.TimeStamp.Before(mem_info.TimeStamp) {
-			info.PeerSessionID = mem_info.SessionID
-			info.TimeStamp = mem_info.TimeStamp
-			info.state = WS_DC_JNI
-		}
-		//previously, tried connecting. may need to refresh connection trials
-	case WS_CC:
-		w.o.stat.W(22)
-
-		info.PeerSessionID = mem_info.SessionID
-		info.TimeStamp = mem_info.TimeStamp
-		info.state = WS_JNI
-		w.ech <- abyss.NeighborEvent{
-			Type:           abyss.ANDSessionRequest,
-			LocalSessionID: w.lsid,
-			ANDPeerSession: info.ANDPeerSession,
-		}
-	case WS_JN:
-		w.o.stat.W(23)
-
-		if w.TryUpdateSessionID(info, mem_info.SessionID, mem_info.TimeStamp) {
-			//unlikely to happen
-			info.state = WS_JNI
-			w.ech <- abyss.NeighborEvent{
-				Type:           abyss.ANDSessionRequest,
-				LocalSessionID: w.lsid,
-				ANDPeerSession: info.ANDPeerSession,
-			}
-		}
-	case WS_RMEM_NJNI:
-		w.o.stat.W(24)
-
-		if w.TryUpdateSessionID(info, mem_info.SessionID, mem_info.TimeStamp) {
-			w.o.stat.W(25)
-
-			info.state = WS_JNI
-			w.ech <- abyss.NeighborEvent{
-				Type:           abyss.ANDSessionRequest,
-				LocalSessionID: w.lsid,
-				ANDPeerSession: info.ANDPeerSession,
-			}
-			return
-		}
-		if info.PeerSessionID == mem_info.SessionID {
-			w.o.stat.W(26)
-
-			info.state = WS_RMEM
-			w.ech <- abyss.NeighborEvent{
-				Type:           abyss.ANDSessionRequest,
-				LocalSessionID: w.lsid,
-				ANDPeerSession: info.ANDPeerSession,
-			}
-		}
-		//else: old session
-	case WS_JNI, WS_RMEM, WS_TMEM, WS_MEM:
-		if w.TryUpdateSessionID(info, mem_info.SessionID, mem_info.TimeStamp) {
-			w.o.stat.W(27)
-
-			info.state = WS_JNI
-			w.ech <- abyss.NeighborEvent{
-				Type:           abyss.ANDSessionRequest,
-				LocalSessionID: w.lsid,
-				ANDPeerSession: info.ANDPeerSession,
-			}
-			return
-		}
-		w.o.stat.W(28)
-
-	default:
-		panic("and invalid state: JNI_MEMS")
-	}
-}
-func (w *ANDWorld) MEM(peer_session abyss.ANDPeerSession, timestamp time.Time) {
-	w.o.stat.MEM_RX++
-
-	info := w.peers[peer_session.Peer.IDHash()]
-	switch info.state {
-	case WS_CC:
-		w.o.stat.W(29)
-
-		info.ANDPeerSession = peer_session
-		info.TimeStamp = timestamp
-		info.state = WS_RMEM_NJNI
-	case WS_JT:
-		w.o.stat.W(30)
-
-		w.ClearStates(peer_session.Peer.IDHash(), info, "received MEM from WS_JT")
-	case WS_JN, WS_RMEM_NJNI, WS_RMEM, WS_MEM:
-		if w.TryUpdateSessionID(info, peer_session.PeerSessionID, timestamp) {
-			w.o.stat.W(31)
-
-			info.state = WS_RMEM_NJNI
-			return
-		}
-		w.o.stat.W(32)
-
-	case WS_JNI:
-		if w.TryUpdateSessionID(info, peer_session.PeerSessionID, timestamp) {
-			w.o.stat.W(33)
-
-			info.state = WS_RMEM_NJNI
-			return
-		}
-		if info.PeerSessionID == peer_session.PeerSessionID {
-			w.o.stat.W(34)
-
-			info.state = WS_RMEM
-		}
-		w.o.stat.W(35)
-
-	case WS_TMEM:
-		w.o.stat.W(36)
-
-		if w.TryUpdateSessionID(info, peer_session.PeerSessionID, timestamp) {
-			w.o.stat.W(37)
-
-			info.state = WS_RMEM_NJNI
-			return
-		}
-		if info.PeerSessionID == peer_session.PeerSessionID {
-			w.o.stat.W(38)
-
-			info.state = WS_MEM
-			w.ech <- abyss.NeighborEvent{
-				Type:           abyss.ANDSessionReady,
-				LocalSessionID: w.lsid,
-				ANDPeerSession: info.ANDPeerSession,
-			}
-		}
-		w.o.stat.W(39)
-
-	default:
-		panic("and: impossible disconnected state")
-	}
-}
-func (w *ANDWorld) SJN(peer_session abyss.ANDPeerSession, member_infos []abyss.ANDPeerSessionIdentity) {
-	w.o.stat.SJN_RX++
-
-	info := w.peers[peer_session.Peer.IDHash()]
-	if !w.IsProperMemberOrReset(info, peer_session) {
-		w.o.stat.W(40)
-
-		return
-	}
-	for _, mem_info := range member_infos {
-		w.o.stat.W(41)
-
-		w.SJN_MEMS(peer_session, mem_info)
-	}
-}
-func (w *ANDWorld) SJN_MEMS(origin abyss.ANDPeerSession, mem_info abyss.ANDPeerSessionIdentity) {
-	if mem_info.PeerHash == w.local {
-		w.o.stat.W(42)
-		return
-	}
-
-	info, ok := w.peers[mem_info.PeerHash]
-	if ok && info.state == WS_MEM && info.PeerSessionID == mem_info.SessionID {
-		w.o.stat.W(43)
-
-		info.sjnc++
-		return
-	}
-	w.o.stat.CRR_TX++
-	origin.Peer.TrySendCRR(w.lsid, origin.PeerSessionID, []abyss.ANDPeerSessionIdentity{mem_info})
-}
-func (w *ANDWorld) CRR(peer_session abyss.ANDPeerSession, member_infos []abyss.ANDPeerSessionIdentity) {
-	w.o.stat.CRR_RX++
-
-	info := w.peers[peer_session.Peer.IDHash()]
-	if !w.IsProperMemberOrReset(info, peer_session) {
-		w.o.stat.W(44)
-
-		return
-	}
-	for _, mem_info := range member_infos {
-		w.o.stat.W(45)
-
-		w.CRR_MEMS(info, mem_info)
-	}
-}
-func (w *ANDWorld) CRR_MEMS(origin *ANDPeerSessionState, mem_info abyss.ANDPeerSessionIdentity) {
-	if mem_info.PeerHash == w.local {
-		w.o.stat.W(46)
-		return
-	}
-
-	info, ok := w.peers[mem_info.PeerHash]
-	if ok && info.PeerSessionID == mem_info.SessionID {
-		w.o.stat.W(47)
-
-		w.o.stat.JNI_TX++
-		origin.Peer.TrySendJNI(w.lsid, origin.PeerSessionID, info.ANDPeerSessionWithTimeStamp)
-		w.o.stat.JNI_TX++
-		info.Peer.TrySendJNI(w.lsid, info.PeerSessionID, origin.ANDPeerSessionWithTimeStamp)
-	}
-}
-func (w *ANDWorld) SOA(peer_session abyss.ANDPeerSession, objects []abyss.ObjectInfo) {
-	w.o.stat.SOA_RX++
-
-	info := w.peers[peer_session.Peer.IDHash()]
-	if info.PeerSessionID != peer_session.PeerSessionID {
-		w.o.stat.W(48)
-
-		w.o.stat.RST_TX++
-		peer_session.Peer.TrySendRST(w.lsid, peer_session.PeerSessionID, "SOA::sessionID mismatch")
-		return
-	}
-	switch info.state {
-	case WS_MEM:
-		w.o.stat.W(49)
-
-		w.ech <- abyss.NeighborEvent{
-			Type:           abyss.ANDObjectAppend,
-			LocalSessionID: w.lsid,
-			ANDPeerSession: peer_session,
-			Object:         objects,
-		}
-	default:
-		w.o.stat.W(50)
-	}
-}
-func (w *ANDWorld) SOD(peer_session abyss.ANDPeerSession, objectIDs []uuid.UUID) {
-	w.o.stat.SOD_RX++
-
-	info := w.peers[peer_session.Peer.IDHash()]
-	if info.PeerSessionID != peer_session.PeerSessionID {
-		w.o.stat.W(51)
-
-		w.o.stat.RST_TX++
-		peer_session.Peer.TrySendRST(w.lsid, peer_session.PeerSessionID, "SOA::sessionID mismatch")
-		return
-	}
-	switch info.state {
-	case WS_MEM:
-		w.o.stat.W(52)
-
-		w.ech <- abyss.NeighborEvent{
-			Type:           abyss.ANDObjectDelete,
-			LocalSessionID: w.lsid,
-			ANDPeerSession: peer_session,
-			Object:         objectIDs,
-		}
-	default:
-		w.o.stat.W(53)
-	}
-}
-func (w *ANDWorld) RST(peer_session abyss.ANDPeerSession) {
-	w.o.stat.RST_RX++
-
-	info := w.peers[peer_session.Peer.IDHash()]
-	w.ClearStates(info.Peer.IDHash(), info, "RST received")
-}
-
-func (w *ANDWorld) AcceptSession(peer_session abyss.ANDPeerSession) {
-	info, ok := w.peers[peer_session.Peer.IDHash()]
-	if !ok {
-		w.o.stat.W(54)
-		return
-	}
-	switch info.state {
-	case WS_DC_JT:
-		panic("and invalid state: AcceptSession")
-	case WS_DC_JNI:
-		w.o.stat.W(55)
-
-	case WS_CC:
-		w.o.stat.W(56)
-
-		//ignore
-	case WS_JT:
-		panic("and invalid state: AcceptSession")
-	case WS_JN:
-		w.o.stat.W(57)
-
-		if info.PeerSessionID != peer_session.PeerSessionID {
-			w.o.stat.W(58)
-
-			return
-		}
-
-		member_infos := make([]abyss.ANDPeerSessionWithTimeStamp, 0)
-		for _, p := range w.peers {
-			if p.state != WS_MEM {
-				w.o.stat.W(59)
-
-				continue
-			}
-			w.o.stat.W(60)
-
-			member_infos = append(member_infos, abyss.ANDPeerSessionWithTimeStamp{
-				ANDPeerSession: p.ANDPeerSession,
-				TimeStamp:      p.TimeStamp,
+		// this must be w.join_target - join target's fault
+		if w.join_target != nil && w.join_target.Peer == peer_session.Peer {
+			events.Push(&EANDWorldLeave{
+				World:   w,
+				Code:    JNC_INVALID_STATES,
+				Message: JNM_INVALID_STATES,
 			})
-			w.o.stat.JNI_TX++
-			p.Peer.TrySendJNI(w.lsid, p.PeerSessionID, info.ANDPeerSessionWithTimeStamp)
+			w.is_closed = true
+		} else {
+			panic("world state corrupted")
 		}
-		w.o.stat.JOK_TX++
-		info.Peer.TrySendJOK(w.lsid, info.PeerSessionID, w.timestamp, w.wurl, member_infos)
-		info.state = WS_TMEM
-	case WS_RMEM_NJNI:
-		w.o.stat.W(61)
-
-		//ignore
-	case WS_JNI:
-		w.o.stat.W(62)
-
-		if info.PeerSessionID != peer_session.PeerSessionID {
-			w.o.stat.W(63)
-
-			return
-		}
-		w.o.stat.W(64)
-
-		w.o.stat.MEM_TX++
-		info.Peer.TrySendMEM(w.lsid, info.PeerSessionID, w.timestamp)
-		info.state = WS_TMEM
-	case WS_RMEM:
-		w.o.stat.W(65)
-
-		if info.PeerSessionID != peer_session.PeerSessionID {
-			w.o.stat.W(66)
-
-			return
-		}
-		w.o.stat.W(67)
-
-		w.o.stat.MEM_TX++
-		info.Peer.TrySendMEM(w.lsid, info.PeerSessionID, w.timestamp)
-		w.ech <- abyss.NeighborEvent{
-			Type:           abyss.ANDSessionReady,
-			LocalSessionID: w.lsid,
-			ANDPeerSession: info.ANDPeerSession,
-		}
-		info.state = WS_MEM
-	case WS_TMEM:
-		w.o.stat.W(68)
-
-		//ignore
-	case WS_MEM:
-		w.o.stat.W(69)
-
-		//ignore
-	default:
-		w.o.stat.W(70)
 	}
+
+	if entry.SessionID != peer_session.SessionID {
+		// session expired
+		w.sendRST_Direct(peer_session, JNC_OVERRUN, JNM_OVERRUN)
+		return nil, false
+	}
+
+	if entry.state != WS_MEM {
+		// same session, but not a member. This is a sign of peer failure.
+		w.removeEntry(events, entry, JNC_INVALID_STATES, JNM_INVALID_STATES)
+		return nil, false
+	}
+
+	return entry, true
 }
-func (w *ANDWorld) DeclineSession(peer_session abyss.ANDPeerSession, code int, message string) {
-	info, ok := w.peers[peer_session.Peer.IDHash()]
-	if !ok {
-		w.o.stat.W(71)
+
+// PeerConnected must never raise EANDPeerDiscard event for the connected peer.
+func (w *World) PeerConnected(events ds.Queue, peer ani.IAbyssPeer) {
+	if w.is_closed {
 		return
 	}
-	if info.PeerSessionID == peer_session.PeerSessionID {
-		w.o.stat.W(72)
 
-		//TODO: proper JDN
-		w.ClearStates(peer_session.Peer.IDHash(), info, "application-DeclineSession called")
-	}
-	w.o.stat.W(73)
-
-}
-func (w *ANDWorld) TimerExpire() {
-	sjn_mem := make([]abyss.ANDPeerSessionIdentity, 0)
-	for _, info := range w.peers {
-		if info.state != WS_MEM ||
-			time.Since(info.TimeStamp) < time.Second ||
-			info.sjnp || info.sjnc > 3 {
-			w.o.stat.W(74)
-
-			continue
+	config.IF_DEBUG(func() {
+		if w.join_target != nil && w.join_target.PeerID == peer.ID() {
+			panic("duplicate peer connection")
 		}
-		w.o.stat.W(75)
+	})
 
-		sjn_mem = append(sjn_mem, abyss.ANDPeerSessionIdentity{
-			PeerHash:  info.Peer.IDHash(),
-			SessionID: info.PeerSessionID,
+	entry, ok := w.entries[peer.ID()]
+	if ok { // WS_DC_JNI
+		config.IF_DEBUG(func() {
+			if entry.state != WS_DC_JNI {
+				panic("duplicate peer connection")
+			}
 		})
-		info.sjnc++
+		entry.state = WS_JNI
+		entry.Peer = peer
+		events.Push(&EANDSessionRequest{
+			World:          w,
+			ANDPeerSession: entry.ANDPeerSession(),
+		})
+		entry.is_session_requested = true
+		return
 	}
 
-	member_count := 0
-	for _, info := range w.peers {
-		if info.state != WS_MEM {
-			w.o.stat.W(76)
+	// new entry
+	w.entries[peer.ID()] = &peerWorldSessionState{
+		state:  WS_CC,
+		PeerID: peer.ID(),
+		Peer:   peer,
+	}
+}
 
+func (w *World) JN(events ds.Queue, peer_session ANDPeerSession, timestamp time.Time) {
+	if w.is_closed {
+		return
+	}
+
+	config.IF_DEBUG(func() {
+		if w.join_target != nil {
+			panic("JN: yet world joining") // JN is only forwarded by path - which should not be binded yet.
+		}
+	})
+
+	entry := w.entries[peer_session.Peer.ID()]
+	config.IF_DEBUG(func() {
+		if entry.Peer == nil {
+			panic("JN from " + entry.state.String())
+		}
+	})
+
+	if w.tryOverwritePeerSession(events, entry, peer_session.SessionID, timestamp) {
+		entry.state = WS_JN
+		events.Push(&EANDSessionRequest{
+			World:          w,
+			ANDPeerSession: peer_session,
+		})
+		entry.is_session_requested = true
+	} else {
+		w.sendJDN_Direct(peer_session, JNC_REDUNDANT, JNM_REDUNDANT)
+	}
+}
+
+func (w *World) JOK(events ds.Queue, peer_session ANDPeerSession, timestamp time.Time, world_url string, member_infos []ANDFullPeerSessionInfo) {
+	if w.is_closed {
+		return
+	}
+
+	// normal case
+	if w.join_target != nil && w.join_target.Peer == peer_session.Peer {
+		first_member := w.join_target
+
+		w.join_target = nil
+		w.join_path = ""
+		w.url = world_url
+
+		first_member.state = WS_MEM
+		w.member_count++
+		first_member.SessionID = peer_session.SessionID
+		first_member.TimeStamp = timestamp
+		first_member.is_session_requested = true
+		first_member.sjnp = true
+
+		w.entries[first_member.PeerID] = first_member
+
+		events.Push(&EANDWorldEnter{
+			World: w,
+			URL:   world_url,
+		})
+		events.Push(&EANDTimerRequest{
+			World:    w,
+			Duration: time.Millisecond * INITIAL_WORLD_TIMER,
+		})
+		events.Push(&EANDSessionReady{
+			World:          w,
+			ANDPeerSession: first_member.ANDPeerSession(),
+		})
+
+		for _, mem_info := range member_infos {
+			w.jni_mems(events, mem_info, true)
+		}
+		return
+	}
+
+	// faulty cases
+	if entry, ok := w.entries[peer_session.Peer.ID()]; ok {
+		w.sendRST_Direct(peer_session, JNC_INVALID_STATES, JNM_INVALID_STATES)
+		w.removeEntry(events, entry, JNC_INVALID_STATES, JNM_INVALID_STATES)
+		return
+	}
+	panic("JOK: World corrupted")
+}
+
+func (w *World) JDN(events ds.Queue, peer ani.IAbyssPeer, code int, message string) {
+	if w.is_closed {
+		return
+	}
+
+	// normal case
+	if w.join_target != nil && w.join_target.Peer == peer {
+		events.Push(&EANDWorldLeave{
+			World:   w,
+			Code:    code,
+			Message: message,
+		})
+		w.is_closed = true
+		return
+	}
+
+	// faulty cases
+	if entry, ok := w.entries[peer.ID()]; ok {
+		w.removeEntry(events, entry, JNC_INVALID_STATES, JNM_INVALID_STATES)
+		return
+	}
+	panic("JDN: World corrupted")
+}
+
+func (w *World) JNI(events ds.Queue, peer_session ANDPeerSession, member_info ANDFullPeerSessionInfo) {
+	if w.is_closed {
+		return
+	}
+
+	// only the members can send JNI.
+	_, ok := w.mustBeMemberCheck(events, peer_session)
+	if !ok {
+		return
+	}
+
+	w.jni_mems(events, member_info, false)
+}
+
+func (w *World) jni_mems(events ds.Queue, mem_info ANDFullPeerSessionInfo, sjnp bool) {
+	config.IF_DEBUG(func() {
+		if w.join_target != nil {
+			panic("jni_mems: world is joining")
+		}
+	})
+
+	mem_entry, ok := w.entries[mem_info.PeerID]
+	if !ok {
+		w.entries[mem_info.PeerID] = &peerWorldSessionState{
+			state:     WS_DC_JNI,
+			PeerID:    mem_info.PeerID,
+			SessionID: mem_info.SessionID,
+			TimeStamp: mem_info.TimeStamp,
+			sjnp:      sjnp,
+		}
+		events.Push(&EANDPeerRequest{
+			World:                      w,
+			PeerID:                     mem_info.PeerID,
+			AddressCandidates:          mem_info.AddressCandidates,
+			RootCertificateDer:         mem_info.RootCertificateDer,
+			HandshakeKeyCertificateDer: mem_info.HandshakeKeyCertificateDer,
+		})
+		return
+	}
+
+	// entry exists.
+	if w.tryOverwritePeerSession(events, mem_entry, mem_info.SessionID, mem_info.TimeStamp) {
+		if mem_entry.Peer == nil {
+			mem_entry.state = WS_DC_JNI
+			mem_entry.sjnp = sjnp
+			events.Push(&EANDPeerRequest{
+				World:                      w,
+				PeerID:                     mem_info.PeerID,
+				AddressCandidates:          mem_info.AddressCandidates,
+				RootCertificateDer:         mem_info.RootCertificateDer,
+				HandshakeKeyCertificateDer: mem_info.HandshakeKeyCertificateDer,
+			})
+		} else {
+			mem_entry.state = WS_JNI
+			mem_entry.sjnp = sjnp
+			events.Push(&EANDSessionRequest{
+				World:          w,
+				ANDPeerSession: mem_entry.ANDPeerSession(),
+			})
+			mem_entry.is_session_requested = true
+		}
+	}
+}
+
+func (w *World) MEM(events ds.Queue, peer_session ANDPeerSession, timestamp time.Time) {
+	if w.is_closed {
+		return
+	}
+
+	// MEM is onemost simple but tricky message. Any peer can send MEM, and
+	// MEM can overrun old session; and it is forced, as it is from the peer.
+
+	// only malicious case - join target sending MEM.
+	if w.join_target != nil && w.join_target.Peer == peer_session.Peer {
+		// join process corrupted
+		events.Push(&EANDWorldLeave{
+			World:   w,
+			Code:    JNC_INVALID_STATES,
+			Message: JNM_INVALID_STATES,
+		})
+		w.is_closed = true
+		return
+	}
+
+	entry := w.entries[peer_session.Peer.ID()]
+	if entry.SessionID != peer_session.SessionID {
+		// MEM for unexpected session, or
+		// no previous session information exists.
+		if w.tryOverwritePeerSession(events, entry, peer_session.SessionID, timestamp) {
+			// re-configure state, no further action can be taken.
+			entry.state = WS_RMEM_NJNI
+			return
+		} else {
+			// reset this MEM.
+			w.sendRST_Direct(peer_session, JNC_OVERRUN, JNM_OVERRUN)
+			return
+		}
+	}
+	// Confirmed: This MEM is from an expected peer.
+
+	switch entry.state {
+	case WS_DC_JNI, WS_CC:
+		panic("impossible")
+	case WS_JN:
+		// Joined and also sent MEM.
+		// This is a failure, because
+		// 1) joining session does not have a member.
+		// 2) MEM can only be fired for JNI.
+		// 3) JNI can only be sent from a member.
+		// Therefore, a joining peer must not send MEM.
+		w.sendRST_Direct(peer_session, JNC_INVALID_STATES, JNM_INVALID_STATES)
+		w.removeEntry(events, entry, JNC_INVALID_STATES, JNM_INVALID_STATES)
+		return
+	case WS_RMEM_NJNI, WS_RMEM, WS_MEM:
+		// very weird case - session check passed, duplicate MEM.
+		// There is absolutely no need for this.
+		w.removeEntry(events, entry, JNC_INVALID_STATES, JNM_INVALID_STATES)
+		return
+	case WS_JNI:
+		entry.state = WS_RMEM
+	case WS_TMEM:
+		entry.state = WS_MEM
+		w.member_count++
+		events.Push(&EANDSessionReady{
+			World:          w,
+			ANDPeerSession: peer_session,
+		})
+	}
+}
+
+func (w *World) AcceptSession(events ds.Queue, peer_session_identity ANDPeerSessionIdentity) {
+	if w.is_closed {
+		return
+	}
+
+	entry, ok := w.entries[peer_session_identity.PeerID]
+	if !ok {
+		// entry deleted
+		return
+	}
+	peer_session := entry.ANDPeerSession()
+
+	if entry.SessionID != peer_session_identity.SessionID {
+		// session expired
+		return
+	}
+	// Confirmed: corresponding peer session exists.
+
+	switch entry.state {
+	case WS_JN:
+		w.sendJOK_JNI(entry)
+		entry.state = WS_MEM
+		w.member_count++
+		events.Push(&EANDSessionReady{
+			World:          w,
+			ANDPeerSession: peer_session,
+		})
+	case WS_JNI:
+		w.sendMEM(entry)
+		entry.state = WS_TMEM
+	case WS_RMEM:
+		w.sendMEM(entry)
+		entry.state = WS_MEM
+		w.member_count++
+		events.Push(&EANDSessionReady{
+			World:          w,
+			ANDPeerSession: peer_session,
+		})
+	default:
+		panic("invalied peer state for AcceptSession")
+	}
+}
+
+func (w *World) DeclineSession(events ds.Queue, peer_session_identity ANDPeerSessionIdentity, code int, message string) {
+	if w.is_closed {
+		return
+	}
+
+	entry, ok := w.entries[peer_session_identity.PeerID]
+	if !ok {
+		// entry deleted
+		return
+	}
+
+	if entry.SessionID != peer_session_identity.SessionID {
+		// session expired
+		return
+	}
+	// Confirmed: corresponding peer session exists.
+
+	config.IF_DEBUG(func() {
+		if entry.state != WS_JN && entry.state != WS_JNI && entry.state != WS_RMEM {
+			panic("invalied peer state for DeclineSession")
+		}
+	})
+
+	w.removeEntry(events, entry, JNC_REJECTED, JNM_REJECTED)
+}
+
+func (w *World) ObjectAppend(peer_session_identities []ANDPeerSessionIdentity, objects []ObjectInfo) {
+	if w.is_closed {
+		return
+	}
+
+	for _, peer_session_identity := range peer_session_identities {
+		entry, ok := w.entries[peer_session_identity.PeerID]
+		if !ok {
+			// entry deleted
+			break
+		}
+		if entry.SessionID != peer_session_identity.SessionID {
+			// session expired
+			break
+		}
+		w.sendSOA(entry, objects)
+	}
+}
+
+func (w *World) ObjectDelete(peer_session_identities []ANDPeerSessionIdentity, objectIDs []uuid.UUID) {
+	if w.is_closed {
+		return
+	}
+
+	for _, peer_session_identity := range peer_session_identities {
+		entry, ok := w.entries[peer_session_identity.PeerID]
+		if !ok {
+			// entry deleted
+			break
+		}
+		if entry.SessionID != peer_session_identity.SessionID {
+			// session expired
+			break
+		}
+		w.sendSOD(entry, objectIDs)
+	}
+}
+
+func (w *World) TimerExpire(events ds.Queue) {
+	if w.is_closed {
+		return
+	}
+
+	w.broadcastSJN()
+
+	duration := 500 + int(w.weibull_dist.Rand()*float64(200*(w.member_count+1)))
+	events.Push(&EANDTimerRequest{
+		World:    w,
+		Duration: time.Millisecond * time.Duration(duration),
+	})
+}
+
+func (w *World) SJN(events ds.Queue, peer_session ANDPeerSession, member_infos []ANDPeerSessionIdentity) {
+	if w.is_closed {
+		return
+	}
+
+	entry, ok := w.mustBeMemberCheck(events, peer_session)
+	if !ok {
+		return
+	}
+
+	missing_members := functional.Filter_ok(member_infos, func(e ANDPeerSessionIdentity) (ANDPeerSessionIdentity, bool) {
+		if e.PeerID == w.o.local_id {
+			// exclude self
+			return e, false
+		}
+		entry, ok := w.entries[e.PeerID]
+		if !ok {
+			// peer not found
+			return e, true
+		}
+		if entry.SessionID != e.SessionID {
+			// no information for the current session
+			return e, true
+		}
+		// peer with corresponding session exists.
+		switch entry.state {
+		case WS_DC_JNI, WS_CC, WS_RMEM_NJNI:
+			// requires CRR
+			return e, true
+		case WS_MEM:
+			entry.sjnc++
+			config.IF_DEBUG(func() {
+				if entry.sjnc > 5 {
+					panic("too many SJN")
+				}
+			})
+			return e, false
+		default:
+			// not a member, but don't bother sending CRR
+			return e, false
+		}
+	})
+
+	if len(missing_members) != 0 {
+		w.sendCRR(entry, missing_members)
+	}
+}
+
+func (w *World) CRR(events ds.Queue, peer_session ANDPeerSession, member_infos []ANDPeerSessionIdentity) {
+	if w.is_closed {
+		return
+	}
+
+	sender, ok := w.mustBeMemberCheck(events, peer_session)
+	if !ok {
+		return
+	}
+
+	for _, mem_info := range member_infos {
+		entry, ok := w.entries[mem_info.PeerID]
+		if !ok || entry.SessionID != mem_info.SessionID || entry.state != WS_MEM {
 			continue
 		}
-		member_count++
-		if len(sjn_mem) != 0 {
-			w.o.stat.W(77)
-
-			w.o.stat.SJN_TX++
-			info.Peer.TrySendSJN(w.lsid, info.PeerSessionID, sjn_mem)
-		}
-	}
-
-	w.ech <- abyss.NeighborEvent{
-		Type:           abyss.ANDTimerRequest,
-		LocalSessionID: w.lsid,
-		Value:          300 + rand.Intn(300*(member_count+1)),
+		w.sendJNI(sender, entry)
+		w.sendJNI(entry, sender)
 	}
 }
 
-func (w *ANDWorld) RemovePeer(peer abyss.IANDPeer) {
-	w.ClearStates(peer.IDHash(), w.peers[peer.IDHash()], "")
-	delete(w.peers, peer.IDHash())
+func (w *World) SOA(events ds.Queue, peer_session ANDPeerSession, objects []ObjectInfo) {
+	if w.is_closed {
+		return
+	}
+
+	_, ok := w.mustBeMemberCheck(events, peer_session)
+	if !ok {
+		return
+	}
+
+	events.Push(&EANDObjectAppend{
+		World:          w,
+		ANDPeerSession: peer_session,
+		Objects:        objects,
+	})
 }
-func (w *ANDWorld) Close() {
-	for _, info := range w.peers {
-		switch info.state {
-		case WS_CC:
-			//nothing
-		case WS_JT:
-			w.o.stat.W(78)
 
-			w.o.stat.RST_TX++
-			info.Peer.TrySendRST(w.lsid, info.PeerSessionID, "Close")
-
-			w.ech <- abyss.NeighborEvent{
-				Type:           abyss.ANDJoinFail,
-				LocalSessionID: w.lsid,
-				Text:           JNM_CANCELED,
-				Value:          JNC_CANCELED,
-			}
-		case WS_JN, WS_RMEM_NJNI, WS_JNI, WS_RMEM, WS_TMEM:
-			w.o.stat.W(79)
-
-			w.o.stat.RST_TX++
-			info.Peer.TrySendRST(w.lsid, info.PeerSessionID, "Close")
-
-		case WS_MEM:
-			w.o.stat.W(80)
-
-			w.o.stat.RST_TX++
-			info.Peer.TrySendRST(w.lsid, info.PeerSessionID, "Close")
-
-			w.ech <- abyss.NeighborEvent{
-				Type:           abyss.ANDSessionClose,
-				LocalSessionID: w.lsid,
-				ANDPeerSession: info.ANDPeerSession,
-			}
-		}
+func (w *World) SOD(events ds.Queue, peer_session ANDPeerSession, objectIDs []uuid.UUID) {
+	if w.is_closed {
+		return
 	}
-	w.o.stat.W(81)
 
-	w.ech <- abyss.NeighborEvent{
-		Type:           abyss.ANDWorldLeave,
-		LocalSessionID: w.lsid,
+	_, ok := w.mustBeMemberCheck(events, peer_session)
+	if !ok {
+		return
 	}
+
+	events.Push(&EANDObjectDelete{
+		World:          w,
+		ANDPeerSession: peer_session,
+		ObjectIDs:      objectIDs,
+	})
+}
+
+func (w *World) RST(events ds.Queue, peer_session ANDPeerSession) {
+	if w.is_closed {
+		return
+	}
+
+	entry, ok := w.entries[peer_session.Peer.ID()]
+	if !ok || entry.SessionID != peer_session.SessionID {
+		return
+	}
+
+	w.removeEntrySilent(events, entry)
+}
+
+// We don't verify everything like we did for the other messages; we trust the caller.
+// PeerDisconnected should raise EANDPeerDiscoard event for the peer.
+func (w *World) PeerDisconnected(events ds.Queue, peer_id string) {
+	if w.is_closed {
+		return
+	}
+
+	if w.join_target != nil && w.join_target.PeerID == peer_id {
+		events.Push(&EANDWorldLeave{
+			World:   w,
+			Code:    JNC_DISCONNECTED,
+			Message: JNM_DISCONNECTED,
+		})
+		w.is_closed = true
+		return
+	}
+
+	w.removeEntrySilent(events, w.entries[peer_id])
+}
+
+// Close does not take events argument, as the world is closed immediately.
+// no events are meaningful afterwards.
+func (w *World) Close() {
+	if w.is_closed {
+		return
+	}
+
+	w.broadcastRST(JNC_CLOSED, JNM_CLOSED)
+	w.is_closed = true
 }

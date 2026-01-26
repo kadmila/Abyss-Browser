@@ -1,4 +1,5 @@
 ﻿using AbyssCLI.AML;
+using System.Net;
 
 namespace AbyssCLI.Cache;
 
@@ -8,9 +9,10 @@ namespace AbyssCLI.Cache;
 /// <param name="http_response"></param>
 public class CachedResource(HttpResponseMessage http_response) : IDisposable
 {
-    protected HttpResponseMessage _http_response = http_response;
     public readonly int ResourceID = RenderID.ResourceId;
     public string MIMEType => _http_response.Content.Headers.ContentType?.MediaType ?? "";
+
+    protected HttpResponseMessage _http_response = http_response;
 
     private bool _disposed = false;
     public virtual void Dispose() //this is called by Cache, in RcTaskCompletionSource.
@@ -19,9 +21,13 @@ public class CachedResource(HttpResponseMessage http_response) : IDisposable
             return;
 
         _http_response.Dispose();
+        _disposed = true;
 
         GC.SuppressFinalize(this);
-        _disposed = true;
     }
-    public static CachedResource DefaultFailedResource => default;
+
+    static readonly CachedResource _default_failed_resource = new(new HttpResponseMessage(HttpStatusCode.UnprocessableEntity));
+    public static CachedResource DefaultFailedResource => _default_failed_resource;
+
+    ~CachedResource() => Dispose();
 }

@@ -56,7 +56,7 @@ public class StaticResource : CachedResource
                 int next_CurrentSize = header.CurrentSize + read;
                 if (next_CurrentSize > header.TotalSize)
                 {
-                    Client.Client.CerrWriteLine("Received over Content-Length. faulty server");
+                    Client.Client.Cerr.WriteLine("Received over Content-Length. faulty server");
                     break;
                 }
 
@@ -80,7 +80,7 @@ public class StaticResource : CachedResource
         }
         catch (Exception ex)
         {
-            Client.Client.CerrWriteLine("fatal:::StaticResource.LoadLoop throwed an unexpected exception: " + ex.ToString());
+            Client.Client.Cerr.WriteLine("fatal:::StaticResource.LoadLoop throwed an unexpected exception: " + ex.ToString());
         }
         header.IsLoading = false;
         _accessor.Write(0, ref header);
@@ -115,6 +115,7 @@ public class StaticResource : CachedResource
         base.Dispose();
 
         _disposed = true;
+        GC.SuppressFinalize(this);
     }
     public static MIME GetMimeType(string mime_type)
     {
@@ -122,6 +123,7 @@ public class StaticResource : CachedResource
         _ = Enum.TryParse(typeof(MIME), marsh, out var mime);
         return (mime as MIME?) ?? MIME.Invalid;
     }
+    ~StaticResource() => Dispose();
 }
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 internal struct StaticResourceHeader

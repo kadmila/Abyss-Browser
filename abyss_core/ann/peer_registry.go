@@ -3,7 +3,6 @@ package ann
 import (
 	"crypto/x509"
 	"net/netip"
-	"slices"
 	"sync"
 	"time"
 
@@ -20,7 +19,6 @@ type dialHistory struct {
 type AbyssPeerRegistry struct {
 	mtx         sync.Mutex
 	known       map[string]*sec.AbyssPeerIdentity
-	dialed      map[string]dialHistory
 	peer_id_cnt uint64
 	connected   map[string]*AbyssPeer
 	tls_certs   map[[32]byte]string // for abyst
@@ -29,93 +27,104 @@ type AbyssPeerRegistry struct {
 func NewAbyssPeerRegistry() *AbyssPeerRegistry {
 	return &AbyssPeerRegistry{
 		known:     make(map[string]*sec.AbyssPeerIdentity),
-		dialed:    make(map[string]dialHistory),
 		connected: make(map[string]*AbyssPeer),
 		tls_certs: make(map[[32]byte]string),
 	}
 }
 
-func (r *AbyssPeerRegistry) UpdatePeerIdentity(identity *sec.AbyssPeerIdentity) {
+// AddOrUpdatePeerIdentity tries to add or update peer identity.
+// It returns true only when the peer identity was newly added.
+func (r *AbyssPeerRegistry) AddOrUpdatePeerIdentity(root_cert *x509.Certificate, handshake_info *x509.Certificate) (bool, error) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 
-	// when there is an old identity, replace it and return.
-	old_identity, ok := r.known[identity.ID()]
-	if ok && old_identity.IssueTime().After(identity.IssueTime()) {
-		return
+	peer_id := root_cert.Issuer.CommonName
+
+	// when there is an old identity, update it and return.
+	old_identity, ok := r.known[peer_id]
+	if ok {
+		return false, old_identity.UpdateHandshakeInfo(handshake_info)
 	}
 
-	r.known[identity.ID()] = identity
-
-	// peer identity updated - new handshake key, all old ongoing dials will fail.
-	delete(r.dialed, identity.ID())
+	new_identity, err := sec.NewAbyssPeerIdentity(root_cert, handshake_info)
+	if err != nil {
+		return false, err
+	}
+	r.known[peer_id] = new_identity
+	return true, nil
 }
 
-// RemovePeerIdentity removes every information for the peer, and
+// TryRemovePeerIdentity removes every information for the peer, and
 // Kills everything from the peer.
 // We don't delete the peer from dialed or connected,
 // as it should be removed by ReportDialTermination and ReportPeerClose.
 // However, we signal the connection silently.
-func (r *AbyssPeerRegistry) RemovePeerIdentity(id string) {
+func (r *AbyssPeerRegistry) TryRemovePeerIdentity(id string) bool {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 
-	delete(r.known, id)
+	_, did_exist := r.known[id]
+	if did_exist {
+		delete(r.known, id)
+	}
+
+	// For entries of r.connected, we don't directly delete them.
+	// Instead, cut the connection and let the client-side Close() call handle it.
 	if old_peer, ok := r.connected[id]; ok {
 		delete(r.tls_certs, sec.HashTlsCertificate(old_peer.client_tls_cert))
 		old_peer.connection.CloseWithError(AbyssQuicClose, "")
 	}
+
+	return did_exist
 }
+
+type RegistryEntryStatus int
+
+const (
+	RE_Redundant RegistryEntryStatus = iota + 1
+	RE_UnknownPeer
+	RE_OK
+)
 
 // GetPeerIdentityIfAcceptable returns error if the dialing is considered redundant,
 // or the peer id is unknown.
-func (r *AbyssPeerRegistry) GetPeerIdentityIfAcceptable(id string) (*sec.AbyssPeerIdentity, *DialError) {
+func (r *AbyssPeerRegistry) GetPeerIdentityIfAcceptable(id string) (*sec.AbyssPeerIdentity, RegistryEntryStatus) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 
 	// Cannot accept if the peer is unknown.
 	identity, ok := r.known[id]
 	if !ok {
-		return nil, &DialError{T: DE_UnknownPeer}
+		return nil, RE_UnknownPeer
 	}
 
 	// There is no need to accept a connected peer
 	if peer, ok := r.connected[id]; ok {
-		return peer.AbyssPeerIdentity, &DialError{T: DE_Redundant}
+		return peer.AbyssPeerIdentity, RE_Redundant
 	}
 
-	return identity, nil
+	return identity, RE_OK
 }
 
 // GetPeerIdentityIfDialable behaves like GetPeerIdentityIfAcceptable.
 // As there is no occasion where a node binds to multiple ports in same host,
 // we only compare IP addresses.
-func (r *AbyssPeerRegistry) GetPeerIdentityIfDialable(id string, addr netip.Addr) (*sec.AbyssPeerIdentity, *DialError) {
+func (r *AbyssPeerRegistry) GetPeerIdentityIfDialable(id string) (*sec.AbyssPeerIdentity, RegistryEntryStatus) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 
 	// Cannot dial if the peer is unknown.
 	identity, ok := r.known[id]
 	if !ok {
-		return nil, &DialError{T: DE_UnknownPeer}
-	}
-
-	// There is no need to dial the same IP address twice.
-	history, ok := r.dialed[id]
-	if ok {
-		for _, v := range history.addresses {
-			if v.Compare(addr) != 0 {
-				return nil, &DialError{T: DE_Redundant}
-			}
-		}
+		return nil, RE_UnknownPeer
 	}
 
 	// There is no need to dial connected peer
 	if _, ok := r.connected[id]; ok {
-		return nil, &DialError{T: DE_Redundant}
+		return nil, RE_Redundant
 	}
 
-	return identity, nil
+	return identity, RE_OK
 }
 
 // ReportDialTermination removes entry from m.dialed map, allowing retry.
@@ -123,37 +132,29 @@ func (r *AbyssPeerRegistry) ReportDialTermination(identity *sec.AbyssPeerIdentit
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 
-	history, ok := r.dialed[identity.ID()]
-	if !ok || !history.handshake_key_issue_time.Equal(identity.IssueTime()) {
-		return
-	}
-	for i, v := range history.addresses {
-		if v.Compare(addr) != 0 {
-			history.addresses = slices.Delete(history.addresses, i, i+1)
-		}
-	}
+	//TODO
 }
 
 // TryCompletingPeer numbers the peer and registers it,
 // If there is no existing connection, and the peer is known.
-func (r *AbyssPeerRegistry) TryCompletingPeer(peer *AbyssPeer) (*AbyssPeer, *DialError) {
+func (r *AbyssPeerRegistry) TryCompletingPeer(peer *AbyssPeer) (*AbyssPeer, RegistryEntryStatus) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 
 	if _, ok := r.known[peer.ID()]; !ok {
-		return nil, &DialError{T: DE_UnknownPeer}
+		return nil, RE_UnknownPeer
 	}
 
 	_, ok := r.connected[peer.ID()]
 	if ok {
-		return nil, &DialError{T: DE_Redundant}
+		return nil, RE_Redundant
 	}
 
 	r.peer_id_cnt++
 	peer.internal_id = r.peer_id_cnt
 	r.connected[peer.ID()] = peer
 	r.tls_certs[sec.HashTlsCertificate(peer.client_tls_cert)] = peer.ID()
-	return peer, nil
+	return peer, RE_OK
 }
 
 // ReportPeerClose is called from AbyssPeer.
@@ -181,4 +182,11 @@ func (r *AbyssPeerRegistry) GetPeerIdFromTlsCertificate(abyst_tls_cert *x509.Cer
 
 	id, ok := r.tls_certs[sec.HashTlsCertificate(abyst_tls_cert)]
 	return id, ok
+}
+
+func (r *AbyssPeerRegistry) GetPeer(id string) (*AbyssPeer, bool) {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+	peer, ok := r.connected[id]
+	return peer, ok
 }

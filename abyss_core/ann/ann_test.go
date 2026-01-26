@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fxamacker/cbor/v2"
+	"github.com/kadmila/Abyss-Browser/abyss_core/ahmp"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ann"
 	"github.com/kadmila/Abyss-Browser/abyss_core/sec"
@@ -19,8 +21,7 @@ func TestNewAbyssNode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var node_A ani.IAbyssNode
-	node_A, err = ann.NewAbyssNode(root_key_A)
+	node_A, err := ann.NewAbyssNode(root_key_A)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,8 +30,7 @@ func TestNewAbyssNode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var node_B ani.IAbyssNode
-	node_B, err = ann.NewAbyssNode(root_key_B)
+	node_B, err := ann.NewAbyssNode(root_key_B)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,27 +56,23 @@ func TestNewAbyssNode(t *testing.T) {
 	}()
 
 	// Appending peer information
-	err = node_A.AppendKnownPeer(node_B.RootCertificate(), node_B.HandshakeKeyCertificate())
+	_, _, err = node_A.AppendKnownPeer(node_B.RootCertificate(), node_B.HandshakeKeyCertificate())
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = node_B.AppendKnownPeer(node_A.RootCertificate(), node_A.HandshakeKeyCertificate())
+	_, _, err = node_B.AppendKnownPeer(node_A.RootCertificate(), node_A.HandshakeKeyCertificate())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Mutual dialing (all address candidates)
-	for _, v := range node_A.LocalAddrCandidates() {
-		err = node_B.Dial(node_A.ID(), v)
-		if err != nil {
-			t.Fatal(err)
-		}
+	err = node_B.Dial(node_A.ID())
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, v := range node_B.LocalAddrCandidates() {
-		err = node_A.Dial(node_B.ID(), v)
-		if err != nil {
-			t.Fatal(err)
-		}
+	err = node_A.Dial(node_B.ID())
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	ctx, ctxcancel := context.WithTimeout(context.Background(), time.Second)
@@ -199,12 +195,8 @@ func TestReconnect(t *testing.T) {
 		ctx, ctxcancel := context.WithTimeout(context.Background(), time.Second)
 		defer ctxcancel()
 
-		for _, v := range node_B.LocalAddrCandidates() {
-			node_A.Dial(node_B.ID(), v)
-		}
-		for _, v := range node_A.LocalAddrCandidates() {
-			node_B.Dial(node_A.ID(), v)
-		}
+		node_A.Dial(node_B.ID())
+		node_B.Dial(node_A.ID())
 
 		var peer_A_B ani.IAbyssPeer
 		for {
@@ -232,9 +224,16 @@ func TestReconnect(t *testing.T) {
 		}
 
 		v_sent := rand.Int()
-		peer_A_B.Send(v_sent)
+		peer_A_B.Send(0, v_sent)
+
+		var msg_rcvd ahmp.AHMPMessage
+		peer_B_A.Recv(&msg_rcvd)
+
 		var v_rcvd int
-		peer_B_A.Recv(&v_rcvd)
+		if err := cbor.Unmarshal(msg_rcvd.Payload, &v_rcvd); err != nil {
+			t.Fatal(err)
+		}
+
 		if v_rcvd != v_sent {
 			t.Fatal("communication fail")
 		}
@@ -279,18 +278,26 @@ func TestDialTimeout(t *testing.T) {
 
 	root_key_B, _ := sec.NewRootPrivateKey()
 	node_B, _ := ann.NewAbyssNode(root_key_B)
+	node_B.Listen()
+
+	// force invalid address
+	node_B.UpdateHandshakeInfo([]netip.AddrPort{netip.MustParseAddrPort("127.0.0.1:10000")})
 
 	node_A.AppendKnownPeer(node_B.RootCertificate(), node_B.HandshakeKeyCertificate())
 
-	err := node_A.Dial(node_B.ID(), netip.MustParseAddrPort("127.0.0.1:10000"))
+	err := node_A.Dial(node_B.ID())
 	if err != nil {
 		t.Fatal(err)
 	}
 	ctx, ctxcancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer ctxcancel()
 	_, err = node_A.Accept(ctx)
-	if err == nil || errors.Is(err, context.DeadlineExceeded) {
-		t.Fatal("should throw error other than Accept context timeout")
+	hs_err, ok := err.(*ann.HandshakeError)
+	if !ok {
+		t.Fatal("should throw *ann.HandshakeError")
+	}
+	if !(hs_err.IsDialing && hs_err.Stage == ann.HS_Connection && hs_err.Reason == ann.HS_Fail_Timeout) {
+		t.Fatal("should throw dialing, timeout error during connecting.")
 	}
 }
 
@@ -304,16 +311,57 @@ func TestDialTimeout2(t *testing.T) {
 	node_B, _ := ann.NewAbyssNode(root_key_B)
 	node_B.Listen()
 
+	// force 1 address candidate (for testing)
+	node_B.UpdateHandshakeInfo([]netip.AddrPort{node_B.LocalAddrCandidates()[1]})
+
 	node_A.AppendKnownPeer(node_B.RootCertificate(), node_B.HandshakeKeyCertificate())
 
-	err := node_A.Dial(node_B.ID(), node_B.LocalAddrCandidates()[1])
+	err := node_A.Dial(node_B.ID())
 	if err != nil {
 		t.Fatal(err)
 	}
 	ctx, ctxcancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer ctxcancel()
 	_, err = node_A.Accept(ctx)
-	if err == nil || errors.Is(err, context.DeadlineExceeded) {
-		t.Fatal("should throw error other than Accept context timeout")
+	hs_err, ok := err.(*ann.HandshakeError)
+	if !ok {
+		t.Fatal("should throw *ann.HandshakeError")
+	}
+	if !(hs_err.IsDialing && hs_err.Stage == ann.HS_Handshake2 && hs_err.Reason == ann.HS_Fail_Timeout) {
+		t.Fatal("should throw dialing, timeout error during handshake 2.")
+	}
+}
+
+func TestDialLatePeerInfo(t *testing.T) {
+	root_key_A, _ := sec.NewRootPrivateKey()
+	node_A, _ := ann.NewAbyssNode(root_key_A)
+	node_A.Listen()
+	go node_A.Serve()
+
+	root_key_B, _ := sec.NewRootPrivateKey()
+	node_B, _ := ann.NewAbyssNode(root_key_B)
+	node_B.Listen()
+	go node_B.Serve()
+
+	// force 1 address candidate (for testing)
+	node_B.UpdateHandshakeInfo([]netip.AddrPort{node_B.LocalAddrCandidates()[1]})
+
+	node_A.AppendKnownPeer(node_B.RootCertificate(), node_B.HandshakeKeyCertificate())
+
+	err := node_A.Dial(node_B.ID())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, ctxcancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer ctxcancel()
+
+	go func() {
+		<-time.After(2 * time.Second)
+		node_B.AppendKnownPeer(node_A.RootCertificate(), node_A.HandshakeKeyCertificate())
+	}()
+
+	_, err = node_A.Accept(ctx)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

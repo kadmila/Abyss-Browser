@@ -13,7 +13,13 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"math/big"
+	"net/netip"
+	"net/url"
+	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
 )
 
 // PrivateKey interface ensures we only use private keys which can
@@ -38,11 +44,12 @@ type AbyssRootSecret struct {
 	root_self_cert_der  []byte
 	root_self_cert_x509 *x509.Certificate
 
+	// handshake_priv_key lives throughout the execution.
 	handshake_priv_key *rsa.PrivateKey //may support others in future
-	issue_time         time.Time       //handshake encryption key issue time
 
-	handshake_key_cert     string //pem
-	handshake_key_cert_der []byte
+	handshake_info_mtx      sync.RWMutex
+	handshake_info_cert     string //pem
+	handshake_info_cert_der []byte
 }
 
 func NewAbyssRootSecrets(root_private_key PrivateKey) (*AbyssRootSecret, error) {
@@ -93,50 +100,6 @@ func NewAbyssRootSecrets(root_private_key PrivateKey) (*AbyssRootSecret, error) 
 	if err != nil {
 		return nil, err
 	}
-	serialNumber, err = rand.Int(rand.Reader, serialNumberLimit)
-	if err != nil {
-		return nil, err
-	}
-	issue_time := time.Now().Add(time.Duration(-1) * time.Second) //1-sec backdate, for badly synced peers.
-	h_template := x509.Certificate{
-		Issuer: pkix.Name{
-			CommonName: id,
-		},
-		Subject: pkix.Name{
-			CommonName: "h." + id,
-		},
-		NotBefore:             issue_time,
-		SerialNumber:          serialNumber,
-		KeyUsage:              x509.KeyUsageEncipherOnly,
-		BasicConstraintsValid: true,
-	}
-	h_derBytes, err := x509.CreateCertificate(rand.Reader, &h_template, &r_template, &handshake_private_key.PublicKey, root_private_key)
-	if err != nil {
-		return nil, err
-	}
-	var h_pem_buf bytes.Buffer
-	err = pem.Encode(&h_pem_buf, &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: h_derBytes,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// { // debug
-	// 	err = r_x509.CheckSignatureFrom(r_x509)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	h_cert, err := x509.ParseCertificate(h_derBytes)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	err = h_cert.CheckSignatureFrom(r_x509)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// }
 
 	return &AbyssRootSecret{
 		root_priv_key: root_private_key,
@@ -147,11 +110,54 @@ func NewAbyssRootSecrets(root_private_key PrivateKey) (*AbyssRootSecret, error) 
 		root_self_cert_x509: r_x509,
 
 		handshake_priv_key: handshake_private_key,
-		issue_time:         issue_time,
-
-		handshake_key_cert:     h_pem_buf.String(),
-		handshake_key_cert_der: h_derBytes,
 	}, nil
+}
+
+func (r *AbyssRootSecret) UpdateHandshakeInfo(address_candidates []netip.AddrPort) error {
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128) // 2^128
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return err
+	}
+	// Convert addresses to standard URI format
+	address_urls := functional.Filter(address_candidates, func(addr netip.AddrPort) *url.URL {
+		return &url.URL{
+			Scheme: "udp",
+			Host:   addr.String(),
+		}
+	})
+	h_template := x509.Certificate{
+		Issuer: pkix.Name{
+			CommonName: r.id,
+		},
+		Subject: pkix.Name{
+			CommonName: "h." + r.id,
+		},
+		NotBefore:             time.Now().Add(time.Duration(-1) * time.Second), //1-sec backdate, for badly synced peers.
+		SerialNumber:          serialNumber,
+		KeyUsage:              x509.KeyUsageEncipherOnly,
+		BasicConstraintsValid: true,
+		URIs:                  address_urls,
+	}
+	h_derBytes, err := x509.CreateCertificate(rand.Reader, &h_template, r.root_self_cert_x509, &r.handshake_priv_key.PublicKey, r.root_priv_key)
+	if err != nil {
+		return err
+	}
+	var h_pem_buf bytes.Buffer
+	err = pem.Encode(&h_pem_buf, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: h_derBytes,
+	})
+	if err != nil {
+		return err
+	}
+
+	r.handshake_info_mtx.Lock()
+	defer r.handshake_info_mtx.Unlock()
+
+	r.handshake_info_cert = h_pem_buf.String()
+	r.handshake_info_cert_der = h_derBytes
+	return nil
 }
 
 func (r *AbyssRootSecret) DecryptHandshake(encrypted_payload, encrypted_aes_secret []byte) ([]byte, error) {
@@ -229,35 +235,64 @@ func (r *AbyssRootSecret) NewTLSIdentity() (*TLSIdentity, error) {
 		return nil, err
 	}
 
-	// { // debug
-	// 	tls_cert, err := x509.ParseCertificate(tls_self_derBytes)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	err = tls_cert.CheckSignatureFrom(tls_cert)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	bind_cert, err := x509.ParseCertificate(bind_derBytes)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	err = bind_cert.CheckSignatureFrom(r.root_self_cert_x509)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// }
-
 	return &TLSIdentity{
-		priv_key:        tls_private_key,
+		tls_priv_key:    tls_private_key,
 		tls_self_cert:   tls_self_derBytes,
 		abyss_bind_cert: bind_derBytes,
+		root_self_cert:  r.root_self_cert_der,
 	}, nil
 }
 
-func (r *AbyssRootSecret) ID() string                         { return r.id }
-func (r *AbyssRootSecret) RootCertificate() string            { return r.root_self_cert }
-func (r *AbyssRootSecret) RootCertificateDer() []byte         { return r.root_self_cert_der }
-func (r *AbyssRootSecret) HandshakeKeyCertificate() string    { return r.handshake_key_cert }
-func (r *AbyssRootSecret) HandshakeKeyCertificateDer() []byte { return r.handshake_key_cert_der }
-func (r *AbyssRootSecret) IssueTime() time.Time               { return r.issue_time }
+// NewWorldSessionCertificate creates a short-lived certificate (< 10 min) for a world session.
+// The certificate is signed by the peer's root key and has CN = "{world_id}.{session_id}.world.{peer_id}".
+// The environment URL is encoded in the certificate with SAN extension URI type (single entry).
+func (r *AbyssRootSecret) NewWorldSessionCertificate(world_id uuid.UUID, env_url *url.URL, session_id uuid.UUID) ([]byte, error) {
+	dummy_public_key, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128) // 2^128
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	// Construct subject CommonName: {world_id}.{session_id}.world.{peer_id}
+	subject_cn := world_id.String() + "." + session_id.String() + ".world." + r.id
+
+	now := time.Now()
+	world_template := x509.Certificate{
+		Issuer: pkix.Name{
+			CommonName: r.id,
+		},
+		Subject: pkix.Name{
+			CommonName: subject_cn,
+		},
+		NotBefore:             now.Add(-1 * time.Second), // 1-sec backdate for clock skew
+		NotAfter:              now.Add(10 * time.Minute), // < 10 min validity
+		SerialNumber:          serialNumber,
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		IsCA:                  false,
+		BasicConstraintsValid: true,
+		URIs:                  []*url.URL{env_url}, // Single URI entry
+	}
+
+	return x509.CreateCertificate(rand.Reader, &world_template, r.root_self_cert_x509, dummy_public_key, r.root_priv_key)
+}
+
+func (r *AbyssRootSecret) ID() string                 { return r.id }
+func (r *AbyssRootSecret) RootCertificate() string    { return r.root_self_cert }
+func (r *AbyssRootSecret) RootCertificateDer() []byte { return r.root_self_cert_der }
+func (r *AbyssRootSecret) HandshakeKeyCertificate() string {
+	r.handshake_info_mtx.RLock()
+	defer r.handshake_info_mtx.RUnlock()
+
+	return r.handshake_info_cert
+}
+func (r *AbyssRootSecret) HandshakeKeyCertificateDer() []byte {
+	r.handshake_info_mtx.RLock()
+	defer r.handshake_info_mtx.RUnlock()
+
+	return r.handshake_info_cert_der
+}

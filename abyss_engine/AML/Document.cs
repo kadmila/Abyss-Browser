@@ -1,40 +1,63 @@
 ﻿using AbyssCLI.Cache;
-using AbyssCLI.Tool;
+using AbyssCLI.HL;
 using Microsoft.ClearScript.V8;
 using System.Text;
 
 namespace AbyssCLI.AML;
 
-#nullable enable
-#pragma warning disable IDE1006 //naming convension
 /// <summary>
 /// [MEMO]
-/// When disposing elements in _detached_elements,
-/// it should be noted that some of them may have Rc.DoRefExist == false, but
-/// actually it may be before the initial reference creation.
+/// AML head tag and its descendents are immutable.
 /// </summary>
-public class Document
+public class Document: IDisposable
 {
+    public ElementLifespanMan ElementLifespanManager;
+    public readonly AmlMetadata Metadata;
+
+    private readonly Content _origin;
     private int _ui_element_id = 0;
-    private readonly DeallocStack _dealloc_stack;
-    public ElementLifespanMan _elem_lifespan_man;
+    private readonly Deallocator _script_dealloc_stack; // for fetched javascript source only.
     private readonly JavaScriptDispatcher _js_dispatcher;
-    public bool IsUiInitialized => _ui_element_id != 0;
-    public AmlMetadata Metadata
+    private bool IsUiInitialized => _ui_element_id != 0;
+
+    // AML attributes
+    private string _title;
+    private class DocumentIconResourceLink(Cache.Cache shared_cache, int ui_element_id, string src) : BetterResourceLink(shared_cache, src)
     {
-        get;
+        public override void Deploy()
+        {
+            switch (Resource)
+            {
+                case StaticResource staticResource:
+                    Client.Client.RenderWriter.ItemSetIcon(ui_element_id, staticResource.ResourceID);
+                    break;
+                case StaticSimpleResource staticSimpleResource:
+                    Client.Client.RenderWriter.ItemSetIcon(ui_element_id, staticSimpleResource.ResourceID);
+                    break;
+                default:
+                    Client.Client.RenderWriter.ConsolePrint("invalid content for icon");
+                    break;
+            }
+        }
+        public override void Remove() =>
+            Client.Client.RenderWriter.ItemSetIcon(ui_element_id, 0);
     }
+    private DocumentIconResourceLink? _iconSrc;
+
+    // Body holds the root ElementId.
+    public readonly Body Body;
 
     //document constructor must not allocate any resource that needs to be deallocated.
-    public Document(AmlMetadata metadata)
+    public Document(Content origin, AmlMetadata metadata)
     {
+        _origin = origin;
         Metadata = metadata;
-        _dealloc_stack = new();
-        head = new();
-        body = new(this);
-        _elem_lifespan_man = new(body);
-        var js_engine_constraints = new V8RuntimeConstraints();
-        _js_dispatcher = new(js_engine_constraints, this, new Console(), new(_elem_lifespan_man));
+
+        Body = new(origin);
+        ElementLifespanManager = new(Body);
+
+        _script_dealloc_stack = new();
+        _js_dispatcher = new(new V8RuntimeConstraints(), this, new(ElementLifespanManager));
         _title = string.Empty;
     }
     /// <summary>
@@ -42,12 +65,12 @@ public class Document
     /// </summary>
     public void Init()
     {
-        body.setTransformAsValues(Metadata.pos, Metadata.rot);
-        body.Init();
+        Body.setTransformAsValues(Metadata.pos, Metadata.rot);
+        Body.Init();
 
         if (Metadata.is_item)
             InitUI();
-        title = Metadata.title;
+        Title = Metadata.title;
     }
     private void InitUI()
     {
@@ -61,15 +84,6 @@ public class Document
     }
 
     /// <summary>
-    /// Add an entry to the deallocation stack. 
-    /// warning: _dealloc_stack is not thread safe.
-    /// All calls of this must be called synchronously by architecture.
-    /// </summary>
-    /// <param name="entry"></param>
-    public void AddToDeallocStack(DeallocEntry entry) =>
-        _dealloc_stack.Add(entry);
-
-    /// <summary>
     /// This starts JavaScriptDispatcher to push scripts
     /// If token cancels, no more scripts are added to engine, but engine keeps running.
     /// TODO: make JavaScriptDispatcher Disposal straightforward
@@ -78,54 +92,21 @@ public class Document
     public void StartJavaScript(CancellationToken token) =>
         _js_dispatcher.Start(token);
 
-    /// <summary>
-    /// Try to enqueue a javascript script to be executed.
-    /// This is thread safe, but fails when the queue is full.
-    /// </summary>
-    /// <param name="filename"></param>
-    /// <param name="script"></param>
-    /// <returns></returns>
-    public bool TryEnqueueJavaScript(string filename, object script) =>
+    public bool TryRunScript(string filename, string script) =>
         _js_dispatcher.TryEnqueue(filename, script);
+    
+    public bool TryFetchScript(string src)
+    {
+        var script_resource = _origin.Cache.GetReference(_origin.TranslateURL(src));
+        _script_dealloc_stack.Add(new(script_resource));
+        return _js_dispatcher.TryEnqueue(src, script_resource);
+    }
 
     public void ScheduleOphanedElementCleanup() =>
-        _js_dispatcher.TryEnqueue(string.Empty, new Action(_elem_lifespan_man.CleanupOrphans));
-
-    /// <summary>
-    /// Interrupt javascript execution and deactivates document. 
-    /// This must be called only after token cancellation.
-    /// </summary>
-    public void Interrupt()
-    {
-        body.setActive(false);
-        if (IsUiInitialized)
-            Client.Client.RenderWriter.ItemSetActive(_ui_element_id, false);
-        _js_dispatcher.Interrupt();
-    }
-
-    /// <summary>
-    /// Waits for javascript dispatcher to finish execution and deallocates all resources.
-    /// Calling this is mendatory.
-    /// </summary>
-    public void Join()
-    {
-        _js_dispatcher.Join();
-        _iconSrc?.Dispose();
-        _dealloc_stack.FreeAll();
-        _elem_lifespan_man.ClearAll();
-        if (IsUiInitialized)
-            Client.Client.RenderWriter.DeleteItem(_ui_element_id);
-    }
-
-    // inner attributes
-    private string _title;
-    private DocumentIconResourceLink? _iconSrc;
-
-    public readonly Head head;
-    public readonly Body body;
+        _js_dispatcher.TryEnqueue(string.Empty, new Action(ElementLifespanManager.CleanupOrphans));
 
     //features
-    public string title
+    public string Title
     {
         get => _title;
         set
@@ -134,7 +115,7 @@ public class Document
             Client.Client.RenderWriter.ItemSetTitle(_ui_element_id, value);
         }
     }
-    public string? iconSrc
+    public string? IconSrc
     {
         get => _iconSrc?.Src;
         set
@@ -150,94 +131,75 @@ public class Document
                 _iconSrc.IsRemovalRequired = false;
                 _iconSrc.Dispose();
             }
-            _iconSrc = new(_ui_element_id, value);
+            _iconSrc = new(_origin.Cache, _ui_element_id, value);
         }
     }
-    private class DocumentIconResourceLink(int ui_element_id, string src) : BetterResourceLink(src)
-    {
-        public override void Deploy()
-        {
-            switch (Resource)
-            {
-            case StaticResource staticResource:
-                Client.Client.RenderWriter.ItemSetIcon(ui_element_id, staticResource.ResourceID);
-                break;
-            case StaticSimpleResource staticSimpleResource:
-                Client.Client.RenderWriter.ItemSetIcon(ui_element_id, staticSimpleResource.ResourceID);
-                break;
-            default:
-                Client.Client.RenderWriter.ConsolePrint("invalid content for icon");
-                break;
-            }
-        }
-        public override void Remove() =>
-            Client.Client.RenderWriter.ItemSetIcon(ui_element_id, 0);
-    }
-    public Element createElement(string tag, object? options)
+    public Element CreateElement(string tag, object? options)
     {
         Element result = tag switch
         {
-            "o" => new Transform(this, tag, options),
-            "obj" => new StaticMesh(this, options),
-            "pbrm" => new PbrMaterial(this, options),
-            "bcol" => new BoxCollider(this, options),
+            "o" => new Transform(_origin, ElementTag.O, options),
+            "obj" => new StaticMesh(_origin, options),
+            "pbrm" => new PbrMaterial(_origin, options),
+            "bcol" => new BoxCollider(_origin, options),
             _ => throw new ArgumentException("invalid tag")
         };
-        _elem_lifespan_man.Add(result);
+        ElementLifespanManager.Add(result);
         return result;
     }
-    public Element? getElementById(string id)
+    public Element? GetElementById(string id)
     {
         if (id == null)
             return null;
         if (id.Length == 0)
             return null;
 
-        return body.getElementByIdHelper(id);
+        return Body.GetElementByIdHelper(id);
     }
-    public void setEventListener(string event_name, dynamic callback)
-    {
-        //If same id is used, throw an exception.
-        switch (event_name)
-        {
-        case "click":
-            break;
-        case "keydown":
-            break;
-        case "keyup":
-            break;
-        case "mousedown":
-            break;
-        case "mouseup":
-            break;
-        default:
-            throw new Exception("unknown event: " + event_name);
-        }
-    }
-    public void removeEventListener(string event_name)
-    {
-        switch (event_name)
-        {
-        case "click":
-            break;
-        case "keydown":
-            break;
-        case "keyup":
-            break;
-        case "mousedown":
-            break;
-        case "mouseup":
-            break;
-        default:
-            throw new Exception("unknown event: " + event_name);
-        }
-    }
+    // TODO: define event callback API
+    //public void setEventListener(string event_name, dynamic callback)
+    //{
+    //    //If same id is used, throw an exception.
+    //    switch (event_name)
+    //    {
+    //    case "click":
+    //        break;
+    //    case "keydown":
+    //        break;
+    //    case "keyup":
+    //        break;
+    //    case "mousedown":
+    //        break;
+    //    case "mouseup":
+    //        break;
+    //    default:
+    //        throw new Exception("unknown event: " + event_name);
+    //    }
+    //}
+    //public void removeEventListener(string event_name)
+    //{
+    //    switch (event_name)
+    //    {
+    //    case "click":
+    //        break;
+    //    case "keydown":
+    //        break;
+    //    case "keyup":
+    //        break;
+    //    case "mousedown":
+    //        break;
+    //    case "mouseup":
+    //        break;
+    //    default:
+    //        throw new Exception("unknown event: " + event_name);
+    //    }
+    //}
 
     public string GetStatistics(string prefix)
     {
         StringBuilder sb = new();
-        _ = sb.AppendLine(prefix + "title: " + title);
-        _ = sb.AppendLine(prefix + "iconSrc: " + (iconSrc ?? "<none>"));
+        _ = sb.AppendLine(prefix + "title: " + Title);
+        _ = sb.AppendLine(prefix + "iconSrc: " + (IconSrc ?? "<none>"));
         _ = sb.AppendLine(prefix + "Metadata:");
         _ = sb.AppendLine(prefix + "  title: " + Metadata.title);
         _ = sb.AppendLine(prefix + "  pos: " + Metadata.pos.ToString());
@@ -246,9 +208,33 @@ public class Document
         _ = sb.AppendLine(prefix + "  sharer_hash: " + Metadata.sharer_hash);
         _ = sb.AppendLine(prefix + "  uuid: " + Metadata.uuid.ToString());
         _ = sb.AppendLine(prefix + "ElementLifespanMan:");
-        _elem_lifespan_man.GetStatistics(sb, prefix + "  ");
+        ElementLifespanManager.GetStatistics(sb);
         return sb.ToString();
     }
+
+    public void Dispose()
+    {
+        Body.SetActive(false);
+        if (IsUiInitialized)
+            Client.Client.RenderWriter.ItemSetActive(_ui_element_id, false);
+
+        // kill Javascript Engine, and wait for termination.
+        _js_dispatcher.Dispose();
+        // After this, Document is not mutated by JS.
+
+        _iconSrc?.Dispose();
+        _script_dealloc_stack.FreeAll();
+        ElementLifespanManager.ClearAll();
+
+        if (IsUiInitialized)
+            Client.Client.RenderWriter.DeleteItem(_ui_element_id);
+
+        GC.SuppressFinalize(this);
+    }
+
+    ~Document()
+    {
+        Client.Client.Cerr.WriteLine("Warning:::Document disposed by the garbage collector. It must be manually disposed. This is a bug.");
+    }
 }
-#pragma warning restore IDE1006 //naming convension
 

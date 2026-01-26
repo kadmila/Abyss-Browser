@@ -133,11 +133,20 @@ message RenderAction {
 		string world_uuid = 4;
 	}
 
-	message DebugEnter {
-		string msg = 1;
+	// peer connection
+	message PeerConnected {
+		string peer_id = 1;
 	}
-	message DebugLeave {
-		string msg = 1;
+	message PeerDisconnected {
+		string peer_id = 1;
+	}
+
+	// peer information
+	message PeerFound {
+		string peer_id = 1;
+	}
+	message PeerForgot {
+		string peer_id = 1;
 	}
 
 	oneof inner {
@@ -171,7 +180,9 @@ message RenderAction {
 		InfoContentShared info_content_shared = 601;
 		InfoContentDeleted info_content_deleted = 602;
 
-		DebugEnter debug_enter = 700;
-		DebugEnter debug_leave = 701;
+		PeerConnected peer_connected = 700;
+		PeerDisconnected peer_disconnected = 701;
+		PeerFound peer_found = 702;
+		PeerForgot peer_forgot = 703;
 	}
 }

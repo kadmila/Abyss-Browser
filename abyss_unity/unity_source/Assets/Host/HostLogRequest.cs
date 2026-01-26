@@ -1,43 +1,24 @@
 using AbyssCLI.ABI;
+using DOM;
 using System;
 using System.Reflection;
 using System.Text;
+using UnityEngine;
 
 namespace Host
 {
     partial class Host
     {
+        // LogRequest is very slow; must be excluded in release build.
         private void LogRequest(RenderAction render_action)
         {
-            switch (render_action.InnerCase)
-            {
-            case RenderAction.InnerOneofCase.ConsolePrint: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.ConsolePrint)); return;
-            case RenderAction.InnerOneofCase.CreateElement: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.CreateElement)); return;
-            case RenderAction.InnerOneofCase.MoveElement: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.MoveElement)); return;
-            case RenderAction.InnerOneofCase.DeleteElement: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.DeleteElement)); return;
-            case RenderAction.InnerOneofCase.ElemSetActive: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.ElemSetActive)); return;
-            case RenderAction.InnerOneofCase.ElemSetTransform: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.ElemSetTransform)); return;
-            case RenderAction.InnerOneofCase.ElemAttachResource: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.ElemAttachResource)); return;
-            case RenderAction.InnerOneofCase.ElemDetachResource: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.ElemDetachResource)); return;
-            case RenderAction.InnerOneofCase.CreateItem: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.CreateItem)); return;
-            case RenderAction.InnerOneofCase.DeleteItem: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.DeleteItem)); return;
-            case RenderAction.InnerOneofCase.ItemSetTitle: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.ItemSetTitle)); return;
-            case RenderAction.InnerOneofCase.ItemSetIcon: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.ItemSetIcon)); return;
-            case RenderAction.InnerOneofCase.ItemSetActive: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.ItemSetActive)); return;
-            case RenderAction.InnerOneofCase.ItemAlert: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.ItemAlert)); return;
-            case RenderAction.InnerOneofCase.OpenStaticResource: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.OpenStaticResource)); return;
-            case RenderAction.InnerOneofCase.CloseResource: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.CloseResource)); return;
-            case RenderAction.InnerOneofCase.CreateCompositeResource: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.CreateCompositeResource)); return;
-            case RenderAction.InnerOneofCase.MemberInfo: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.MemberInfo)); return;
-            case RenderAction.InnerOneofCase.MemberSetProfile: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.MemberSetProfile)); return;
-            case RenderAction.InnerOneofCase.MemberLeave: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.MemberLeave)); return;
-            case RenderAction.InnerOneofCase.LocalInfo: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.LocalInfo)); return;
-            case RenderAction.InnerOneofCase.InfoContentShared: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.InfoContentShared)); return;
-            case RenderAction.InnerOneofCase.InfoContentDeleted: GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(render_action.InfoContentDeleted)); return;
-            case RenderAction.InnerOneofCase.DebugEnter: return;
-            case RenderAction.InnerOneofCase.DebugLeave: return;
-            default: StderrQueue.Enqueue("Executor: invalid RenderAction: " + render_action.InnerCase); return;
-            }
+            var type = render_action.GetType();
+            var prop = type.GetProperty(
+                render_action.InnerCase.ToString(),
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
+            );
+            var inner_action = prop.GetValue(render_action);
+            GlobalDependency.Logger.Writer.WriteLine(FormatFlatLogLine(inner_action));
         }
         string FormatFlatLogLine(object obj)
         {

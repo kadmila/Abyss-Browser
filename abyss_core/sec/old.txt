@@ -1,0 +1,140 @@
+
+// Experimental: This is combined with handshake key certificate
+//// NewAddressCertificate creates a short-lived certificate (< 1 hour) containing
+//// the peer's address candidates. The certificate is signed by the peer's root key
+//// and has CN = "loc.{peer_id}".
+////
+//// The addresses are encoded in the certificate with SAN extension URI type
+//func (r *AbyssRootSecret) NewAddressCertificate(addresses []netip.AddrPort) (string, error) {
+//	// Generate a temporary key pair for the address certificate
+//	dummy_public_key, _, err := ed25519.GenerateKey(rand.Reader)
+//	if err != nil {
+//		return "", err
+//	}
+//
+//	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128) // 2^128
+//	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+//	if err != nil {
+//		return "", err
+//	}
+//
+//	// Convert addresses to standard URI format
+//	address_urls := functional.Filter(addresses, func(addr netip.AddrPort) *url.URL {
+//		return &url.URL{
+//			Scheme: "udp",
+//			Host:   addr.String(),
+//		}
+//	})
+//
+//	now := time.Now()
+//	loc_template := x509.Certificate{
+//		Issuer: pkix.Name{
+//			CommonName: r.id,
+//		},
+//		Subject: pkix.Name{
+//			CommonName: "loc." + r.id,
+//		},
+//		NotBefore:             now.Add(-1 * time.Second), // 1-sec backdate for clock skew
+//		NotAfter:              now.Add(50 * time.Minute), // < 1 hour validity
+//		SerialNumber:          serialNumber,
+//		KeyUsage:              x509.KeyUsageDigitalSignature,
+//		IsCA:                  false,
+//		BasicConstraintsValid: true,
+//		URIs:                  address_urls,
+//	}
+//
+//	loc_derBytes, err := x509.CreateCertificate(rand.Reader, &loc_template, r.root_self_cert_x509, dummy_public_key, r.root_priv_key)
+//	if err != nil {
+//		return "", err
+//	}
+//
+//	// Encode to PEM format
+//	var loc_pem_buf bytes.Buffer
+//	err = pem.Encode(&loc_pem_buf, &pem.Block{
+//		Type:  "CERTIFICATE",
+//		Bytes: loc_derBytes,
+//	})
+//	if err != nil {
+//		return "", err
+//	}
+//
+//	return loc_pem_buf.String(), nil
+//}
+
+func (p *AbyssPeerIdentity) VerifyAndUnpackAddressCert(cert []byte) ([]netip.AddrPort, time.Time, error) {
+	address_cert, err := x509.ParseCertificate(cert)
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	if err := address_cert.CheckSignatureFrom(p.root_self_cert_x509); err != nil {
+		return nil, time.Time{}, err
+	}
+	if address_cert.Issuer.CommonName != p.id {
+		return nil, time.Time{}, errors.New("invalid address certificate; issuer mismatch")
+	}
+	if address_cert.Subject.CommonName != "loc."+p.id {
+		return nil, time.Time{}, errors.New("invalid address certificate; subject mismatch")
+	}
+
+	// Step 4: Parse URIs to extract addresses
+	addresses := make([]netip.AddrPort, 0, len(address_cert.URIs))
+	ip_seen := make(map[netip.Addr]bool)
+
+	if len(address_cert.URIs) > 7 {
+		return nil, time.Time{}, errors.New("invalid address certificate; too many entries")
+	}
+
+	for _, uri := range address_cert.URIs {
+		// Verify scheme
+		if uri.Scheme != "udp" {
+			continue
+		}
+
+		// Parse address
+		addr, err := netip.ParseAddrPort(uri.Host)
+		if err != nil {
+			continue // Skip invalid addresses
+		}
+
+		// Step 5: Check IP duplicates
+		ip := addr.Addr()
+		if ip_seen[ip] {
+			return nil, time.Time{}, errors.New("invalid address certificate; duplicate ip")
+		}
+
+		ip_seen[ip] = true
+		addresses = append(addresses, addr)
+	}
+
+	return slices.Clip(addresses), address_cert.NotBefore, nil
+}
+
+func (p *AbyssPeer) PatchAddressCertificate(cert []byte) error {
+	addr, time, err := p.VerifyAndUnpackAddressCert(cert)
+	if err != nil {
+		return err
+	}
+
+	p.addr_candidates_mtx.Lock()
+	defer p.addr_candidates_mtx.Unlock()
+
+	if p.addr_issue_time.After(time) {
+		return nil
+	}
+	p.addr_candidates = addr
+	return nil
+}
+
+func (p *AbyssPeer) AddressCandidates() []netip.AddrPort {
+	p.addr_candidates_mtx.RLock()
+	defer p.addr_candidates_mtx.RUnlock()
+
+	return p.addr_candidates
+}
+
+func (p *AbyssPeer) AddressCertificate() []byte {
+	p.addr_candidates_mtx.RLock()
+	defer p.addr_candidates_mtx.RUnlock()
+
+	return p.addr_cert
+}

@@ -61,7 +61,7 @@ public class StaticSimpleResource : CachedResource
         }
         catch (Exception ex)
         {
-            Client.Client.CerrWriteLine("fatal:::StaticResource.LoadLoop throwed an unexpected exception: " + ex.ToString());
+            Client.Client.Cerr.WriteLine("fatal:::StaticResource.LoadLoop throwed an unexpected exception: " + ex.ToString());
         }
     }
     private bool _disposed = false;
@@ -81,5 +81,7 @@ public class StaticSimpleResource : CachedResource
         base.Dispose();
 
         _disposed = true;
+        GC.SuppressFinalize(this);
     }
+    ~StaticSimpleResource() => Dispose();
 }

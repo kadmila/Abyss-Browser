@@ -24,30 +24,28 @@ namespace AbyssCLI.ABI {
     static UIActionReflection() {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
-            "Cg5VSUFjdGlvbi5wcm90bxoQY29tbW9udHlwZS5wcm90byLlBAoIVUlBY3Rp",
+            "Cg5VSUFjdGlvbi5wcm90bxoQY29tbW9udHlwZS5wcm90byKZBAoIVUlBY3Rp",
             "b24SHgoEaW5pdBgBIAEoCzIOLlVJQWN0aW9uLkluaXRIABIeCgRraWxsGAIg",
             "ASgLMg4uVUlBY3Rpb24uS2lsbEgAEikKCm1vdmVfd29ybGQYAyABKAsyEy5V",
             "SUFjdGlvbi5Nb3ZlV29ybGRIABIvCg1zaGFyZV9jb250ZW50GAQgASgLMhYu",
             "VUlBY3Rpb24uU2hhcmVDb250ZW50SAASMwoPdW5zaGFyZV9jb250ZW50GAUg",
-            "ASgLMhguVUlBY3Rpb24uVW5zaGFyZUNvbnRlbnRIABItCgxjb25uZWN0X3Bl",
-            "ZXIYCiABKAsyFS5VSUFjdGlvbi5Db25uZWN0UGVlckgAEjAKDWNvbnNvbGVf",
-            "aW5wdXQY5wcgASgLMhYuVUlBY3Rpb24uQ29uc29sZUlucHV0SAAaJgoESW5p",
-            "dBIQCghyb290X2tleRgBIAEoDBIMCgRuYW1lGAIgASgJGhQKBEtpbGwSDAoE",
-            "Y29kZRgBIAEoBRoeCglNb3ZlV29ybGQSEQoJd29ybGRfdXJsGAEgASgJGlEK",
-            "DFNoYXJlQ29udGVudBIMCgR1dWlkGAEgASgMEgsKA3VybBgCIAEoCRISCgNw",
-            "b3MYAyABKAsyBS5WZWMzEhIKA3JvdBgEIAEoCzIFLlZlYzQaHgoOVW5zaGFy",
-            "ZUNvbnRlbnQSDAoEdXVpZBgBIAEoDBobCgtDb25uZWN0UGVlchIMCgRhdXJs",
-            "GAEgASgJGjAKDENvbnNvbGVJbnB1dBISCgplbGVtZW50X2lkGAEgASgFEgwK",
-            "BHRleHQYAiABKAlCBwoFaW5uZXJCD6oCDEFieXNzQ0xJLkFCSWIGcHJvdG8z"));
+            "ASgLMhguVUlBY3Rpb24uVW5zaGFyZUNvbnRlbnRIABIwCg1jb25zb2xlX2lu",
+            "cHV0GOcHIAEoCzIWLlVJQWN0aW9uLkNvbnNvbGVJbnB1dEgAGiYKBEluaXQS",
+            "EAoIcm9vdF9rZXkYASABKAwSDAoEbmFtZRgCIAEoCRoUCgRLaWxsEgwKBGNv",
+            "ZGUYASABKAUaHgoJTW92ZVdvcmxkEhEKCXdvcmxkX3VybBgBIAEoCRpRCgxT",
+            "aGFyZUNvbnRlbnQSDAoEdXVpZBgBIAEoDBILCgN1cmwYAiABKAkSEgoDcG9z",
+            "GAMgASgLMgUuVmVjMxISCgNyb3QYBCABKAsyBS5WZWM0Gh4KDlVuc2hhcmVD",
+            "b250ZW50EgwKBHV1aWQYASABKAwaMAoMQ29uc29sZUlucHV0EhIKCmVsZW1l",
+            "bnRfaWQYASABKAUSDAoEdGV4dBgCIAEoCUIHCgVpbm5lckIPqgIMQWJ5c3ND",
+            "TEkuQUJJYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::AbyssCLI.ABI.CommontypeReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.UIAction), global::AbyssCLI.ABI.UIAction.Parser, new[]{ "Init", "Kill", "MoveWorld", "ShareContent", "UnshareContent", "ConnectPeer", "ConsoleInput" }, new[]{ "Inner" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.UIAction.Types.Init), global::AbyssCLI.ABI.UIAction.Types.Init.Parser, new[]{ "RootKey", "Name" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.UIAction), global::AbyssCLI.ABI.UIAction.Parser, new[]{ "Init", "Kill", "MoveWorld", "ShareContent", "UnshareContent", "ConsoleInput" }, new[]{ "Inner" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.UIAction.Types.Init), global::AbyssCLI.ABI.UIAction.Types.Init.Parser, new[]{ "RootKey", "Name" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.UIAction.Types.Kill), global::AbyssCLI.ABI.UIAction.Types.Kill.Parser, new[]{ "Code" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.UIAction.Types.MoveWorld), global::AbyssCLI.ABI.UIAction.Types.MoveWorld.Parser, new[]{ "WorldUrl" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.UIAction.Types.ShareContent), global::AbyssCLI.ABI.UIAction.Types.ShareContent.Parser, new[]{ "Uuid", "Url", "Pos", "Rot" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.UIAction.Types.UnshareContent), global::AbyssCLI.ABI.UIAction.Types.UnshareContent.Parser, new[]{ "Uuid" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.UIAction.Types.ConnectPeer), global::AbyssCLI.ABI.UIAction.Types.ConnectPeer.Parser, new[]{ "Aurl" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::AbyssCLI.ABI.UIAction.Types.ConsoleInput), global::AbyssCLI.ABI.UIAction.Types.ConsoleInput.Parser, new[]{ "ElementId", "Text" }, null, null, null, null)})
           }));
     }
@@ -105,9 +103,6 @@ namespace AbyssCLI.ABI {
           break;
         case InnerOneofCase.UnshareContent:
           UnshareContent = other.UnshareContent.Clone();
-          break;
-        case InnerOneofCase.ConnectPeer:
-          ConnectPeer = other.ConnectPeer.Clone();
           break;
         case InnerOneofCase.ConsoleInput:
           ConsoleInput = other.ConsoleInput.Clone();
@@ -183,18 +178,6 @@ namespace AbyssCLI.ABI {
       }
     }
 
-    /// <summary>Field number for the "connect_peer" field.</summary>
-    public const int ConnectPeerFieldNumber = 10;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::AbyssCLI.ABI.UIAction.Types.ConnectPeer ConnectPeer {
-      get { return innerCase_ == InnerOneofCase.ConnectPeer ? (global::AbyssCLI.ABI.UIAction.Types.ConnectPeer) inner_ : null; }
-      set {
-        inner_ = value;
-        innerCase_ = value == null ? InnerOneofCase.None : InnerOneofCase.ConnectPeer;
-      }
-    }
-
     /// <summary>Field number for the "console_input" field.</summary>
     public const int ConsoleInputFieldNumber = 999;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -216,7 +199,6 @@ namespace AbyssCLI.ABI {
       MoveWorld = 3,
       ShareContent = 4,
       UnshareContent = 5,
-      ConnectPeer = 10,
       ConsoleInput = 999,
     }
     private InnerOneofCase innerCase_ = InnerOneofCase.None;
@@ -253,7 +235,6 @@ namespace AbyssCLI.ABI {
       if (!object.Equals(MoveWorld, other.MoveWorld)) return false;
       if (!object.Equals(ShareContent, other.ShareContent)) return false;
       if (!object.Equals(UnshareContent, other.UnshareContent)) return false;
-      if (!object.Equals(ConnectPeer, other.ConnectPeer)) return false;
       if (!object.Equals(ConsoleInput, other.ConsoleInput)) return false;
       if (InnerCase != other.InnerCase) return false;
       return Equals(_unknownFields, other._unknownFields);
@@ -268,7 +249,6 @@ namespace AbyssCLI.ABI {
       if (innerCase_ == InnerOneofCase.MoveWorld) hash ^= MoveWorld.GetHashCode();
       if (innerCase_ == InnerOneofCase.ShareContent) hash ^= ShareContent.GetHashCode();
       if (innerCase_ == InnerOneofCase.UnshareContent) hash ^= UnshareContent.GetHashCode();
-      if (innerCase_ == InnerOneofCase.ConnectPeer) hash ^= ConnectPeer.GetHashCode();
       if (innerCase_ == InnerOneofCase.ConsoleInput) hash ^= ConsoleInput.GetHashCode();
       hash ^= (int) innerCase_;
       if (_unknownFields != null) {
@@ -309,10 +289,6 @@ namespace AbyssCLI.ABI {
         output.WriteRawTag(42);
         output.WriteMessage(UnshareContent);
       }
-      if (innerCase_ == InnerOneofCase.ConnectPeer) {
-        output.WriteRawTag(82);
-        output.WriteMessage(ConnectPeer);
-      }
       if (innerCase_ == InnerOneofCase.ConsoleInput) {
         output.WriteRawTag(186, 62);
         output.WriteMessage(ConsoleInput);
@@ -347,10 +323,6 @@ namespace AbyssCLI.ABI {
         output.WriteRawTag(42);
         output.WriteMessage(UnshareContent);
       }
-      if (innerCase_ == InnerOneofCase.ConnectPeer) {
-        output.WriteRawTag(82);
-        output.WriteMessage(ConnectPeer);
-      }
       if (innerCase_ == InnerOneofCase.ConsoleInput) {
         output.WriteRawTag(186, 62);
         output.WriteMessage(ConsoleInput);
@@ -379,9 +351,6 @@ namespace AbyssCLI.ABI {
       }
       if (innerCase_ == InnerOneofCase.UnshareContent) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(UnshareContent);
-      }
-      if (innerCase_ == InnerOneofCase.ConnectPeer) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(ConnectPeer);
       }
       if (innerCase_ == InnerOneofCase.ConsoleInput) {
         size += 2 + pb::CodedOutputStream.ComputeMessageSize(ConsoleInput);
@@ -428,12 +397,6 @@ namespace AbyssCLI.ABI {
             UnshareContent = new global::AbyssCLI.ABI.UIAction.Types.UnshareContent();
           }
           UnshareContent.MergeFrom(other.UnshareContent);
-          break;
-        case InnerOneofCase.ConnectPeer:
-          if (ConnectPeer == null) {
-            ConnectPeer = new global::AbyssCLI.ABI.UIAction.Types.ConnectPeer();
-          }
-          ConnectPeer.MergeFrom(other.ConnectPeer);
           break;
         case InnerOneofCase.ConsoleInput:
           if (ConsoleInput == null) {
@@ -507,15 +470,6 @@ namespace AbyssCLI.ABI {
             UnshareContent = subBuilder;
             break;
           }
-          case 82: {
-            global::AbyssCLI.ABI.UIAction.Types.ConnectPeer subBuilder = new global::AbyssCLI.ABI.UIAction.Types.ConnectPeer();
-            if (innerCase_ == InnerOneofCase.ConnectPeer) {
-              subBuilder.MergeFrom(ConnectPeer);
-            }
-            input.ReadMessage(subBuilder);
-            ConnectPeer = subBuilder;
-            break;
-          }
           case 7994: {
             global::AbyssCLI.ABI.UIAction.Types.ConsoleInput subBuilder = new global::AbyssCLI.ABI.UIAction.Types.ConsoleInput();
             if (innerCase_ == InnerOneofCase.ConsoleInput) {
@@ -587,15 +541,6 @@ namespace AbyssCLI.ABI {
             }
             input.ReadMessage(subBuilder);
             UnshareContent = subBuilder;
-            break;
-          }
-          case 82: {
-            global::AbyssCLI.ABI.UIAction.Types.ConnectPeer subBuilder = new global::AbyssCLI.ABI.UIAction.Types.ConnectPeer();
-            if (innerCase_ == InnerOneofCase.ConnectPeer) {
-              subBuilder.MergeFrom(ConnectPeer);
-            }
-            input.ReadMessage(subBuilder);
-            ConnectPeer = subBuilder;
             break;
           }
           case 7994: {
@@ -1777,204 +1722,6 @@ namespace AbyssCLI.ABI {
       }
 
       [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-      public sealed partial class ConnectPeer : pb::IMessage<ConnectPeer>
-      #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-          , pb::IBufferMessage
-      #endif
-      {
-        private static readonly pb::MessageParser<ConnectPeer> _parser = new pb::MessageParser<ConnectPeer>(() => new ConnectPeer());
-        private pb::UnknownFieldSet _unknownFields;
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public static pb::MessageParser<ConnectPeer> Parser { get { return _parser; } }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public static pbr::MessageDescriptor Descriptor {
-          get { return global::AbyssCLI.ABI.UIAction.Descriptor.NestedTypes[5]; }
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        pbr::MessageDescriptor pb::IMessage.Descriptor {
-          get { return Descriptor; }
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public ConnectPeer() {
-          OnConstruction();
-        }
-
-        partial void OnConstruction();
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public ConnectPeer(ConnectPeer other) : this() {
-          aurl_ = other.aurl_;
-          _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public ConnectPeer Clone() {
-          return new ConnectPeer(this);
-        }
-
-        /// <summary>Field number for the "aurl" field.</summary>
-        public const int AurlFieldNumber = 1;
-        private string aurl_ = "";
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public string Aurl {
-          get { return aurl_; }
-          set {
-            aurl_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-          }
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public override bool Equals(object other) {
-          return Equals(other as ConnectPeer);
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public bool Equals(ConnectPeer other) {
-          if (ReferenceEquals(other, null)) {
-            return false;
-          }
-          if (ReferenceEquals(other, this)) {
-            return true;
-          }
-          if (Aurl != other.Aurl) return false;
-          return Equals(_unknownFields, other._unknownFields);
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public override int GetHashCode() {
-          int hash = 1;
-          if (Aurl.Length != 0) hash ^= Aurl.GetHashCode();
-          if (_unknownFields != null) {
-            hash ^= _unknownFields.GetHashCode();
-          }
-          return hash;
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public override string ToString() {
-          return pb::JsonFormatter.ToDiagnosticString(this);
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public void WriteTo(pb::CodedOutputStream output) {
-        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-          output.WriteRawMessage(this);
-        #else
-          if (Aurl.Length != 0) {
-            output.WriteRawTag(10);
-            output.WriteString(Aurl);
-          }
-          if (_unknownFields != null) {
-            _unknownFields.WriteTo(output);
-          }
-        #endif
-        }
-
-        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-          if (Aurl.Length != 0) {
-            output.WriteRawTag(10);
-            output.WriteString(Aurl);
-          }
-          if (_unknownFields != null) {
-            _unknownFields.WriteTo(ref output);
-          }
-        }
-        #endif
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public int CalculateSize() {
-          int size = 0;
-          if (Aurl.Length != 0) {
-            size += 1 + pb::CodedOutputStream.ComputeStringSize(Aurl);
-          }
-          if (_unknownFields != null) {
-            size += _unknownFields.CalculateSize();
-          }
-          return size;
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public void MergeFrom(ConnectPeer other) {
-          if (other == null) {
-            return;
-          }
-          if (other.Aurl.Length != 0) {
-            Aurl = other.Aurl;
-          }
-          _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public void MergeFrom(pb::CodedInputStream input) {
-        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-          input.ReadRawMessage(this);
-        #else
-          uint tag;
-          while ((tag = input.ReadTag()) != 0) {
-          if ((tag & 7) == 4) {
-            // Abort on any end group tag.
-            return;
-          }
-          switch(tag) {
-              default:
-                _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
-                break;
-              case 10: {
-                Aurl = input.ReadString();
-                break;
-              }
-            }
-          }
-        #endif
-        }
-
-        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
-          uint tag;
-          while ((tag = input.ReadTag()) != 0) {
-          if ((tag & 7) == 4) {
-            // Abort on any end group tag.
-            return;
-          }
-          switch(tag) {
-              default:
-                _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
-                break;
-              case 10: {
-                Aurl = input.ReadString();
-                break;
-              }
-            }
-          }
-        }
-        #endif
-
-      }
-
-      [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
       public sealed partial class ConsoleInput : pb::IMessage<ConsoleInput>
       #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
           , pb::IBufferMessage
@@ -1989,7 +1736,7 @@ namespace AbyssCLI.ABI {
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public static pbr::MessageDescriptor Descriptor {
-          get { return global::AbyssCLI.ABI.UIAction.Descriptor.NestedTypes[6]; }
+          get { return global::AbyssCLI.ABI.UIAction.Descriptor.NestedTypes[5]; }
         }
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]

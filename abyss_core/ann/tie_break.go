@@ -3,6 +3,7 @@ package ann
 import (
 	"bytes"
 	"crypto/sha3"
+	"errors"
 
 	"github.com/btcsuite/btcutil/base58"
 )
@@ -15,16 +16,19 @@ func TieBreak(id_A string, id_B string) (string, error) {
 	var low_id string
 	var high_bytes []byte
 	var high_id string
-	if bytes.Compare(A_bytes, B_bytes) < 0 {
+	comp := bytes.Compare(A_bytes, B_bytes)
+	if comp < 0 {
 		low_bytes = A_bytes
 		low_id = id_A
 		high_bytes = B_bytes
 		high_id = id_B
-	} else {
+	} else if comp > 0 {
 		low_bytes = B_bytes
 		low_id = id_B
 		high_bytes = A_bytes
 		high_id = id_A
+	} else {
+		return "", errors.New("same peer ID")
 	}
 
 	hasher := sha3.New256()

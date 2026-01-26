@@ -21,6 +21,7 @@ namespace GlobalDependency
         private TextField sub_addressBar;
         private Label localAddrLabel;
         private Label extraLabel;
+        private Button infoResetButton;
         private TextField consoleInputBar;
         private Label frameTime;
         private Label debugStack;
@@ -60,6 +61,8 @@ namespace GlobalDependency
             localAddrLabel = UQueryExtensions.Q<Label>(root, "info");
 
             extraLabel = UQueryExtensions.Q<Label>(root, "info-more");
+            infoResetButton = UQueryExtensions.Q<Button>(root, "terminal-clear-button");
+            infoResetButton.clicked += ClearConsole;
 
             consoleInputBar = UQueryExtensions.Q<TextField>(root, "console-input-bar");
             consoleInputBar.RegisterCallback<KeyDownEvent>(x =>
@@ -163,6 +166,14 @@ namespace GlobalDependency
                 {
                     _console_lines.RemoveFirst();
                 }
+                _is_console_updated = true;
+            }
+        }
+        private void ClearConsole()
+        {
+            lock (_console_lines)
+            {
+                _console_lines.Clear();
                 _is_console_updated = true;
             }
         }

@@ -4,12 +4,35 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>disable</Nullable>
+    <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <Configurations>Debug;Release;unity;Legacy</Configurations>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <NoWarn>CA1304;CA1305;CA1310;CA1051;CA1707;CA1852;CA1805;IDE0290</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <NoWarn>CA1304;CA1305;CA1310;CA1051;CA1707;CA1852;CA1805;IDE0290</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='unity|AnyCPU'">
+    <NoWarn>CA1304;CA1305;CA1310;CA1051;CA1707;CA1852;CA1805;IDE0290</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Legacy|AnyCPU'">
+    <NoWarn>CA1304;CA1305;CA1310;CA1051;CA1707;CA1852;CA1805;IDE0290</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="AbyssLib.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CacheCow.Client" Version="2.13.0" />
     <PackageReference Include="Google.Protobuf" Version="3.28.0" />
     <PackageReference Include="Microsoft.ClearScript" Version="7.4.5" />
   </ItemGroup>

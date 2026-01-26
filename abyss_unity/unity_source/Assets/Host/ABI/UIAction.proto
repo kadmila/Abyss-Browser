@@ -27,10 +27,6 @@ message UIAction {
 	message UnshareContent {
 		bytes uuid = 1;
 	}
-
-	message ConnectPeer {
-		string aurl = 1;
-	}
 	
 	message ConsoleInput {
 		int32 element_id = 1;
@@ -43,8 +39,6 @@ message UIAction {
 		MoveWorld move_world = 3;
 		ShareContent share_content = 4;
 		UnshareContent unshare_content = 5;
-
-		ConnectPeer connect_peer = 10;
 
 		ConsoleInput console_input = 999;
 	}

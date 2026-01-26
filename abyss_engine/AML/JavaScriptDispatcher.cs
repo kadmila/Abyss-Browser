@@ -4,46 +4,43 @@ using Microsoft.ClearScript;
 using Microsoft.ClearScript.JavaScript;
 using Microsoft.ClearScript.V8;
 using System.Collections.Concurrent;
-using System.Text;
 
-#nullable enable
 namespace AbyssCLI.AML;
 
+#pragma warning disable IDE1006 //naming convension
 public class JavaScriptGcCallback(ElementLifespanMan elem_lifespan_man)
 {
     public void on_gc(int element_id)
     {
         Element elem = elem_lifespan_man.Find(element_id);
         elem.RefCount--;
-        //Client.Client.RenderWriter.ConsolePrint("+++ JsEngine returned an element handle: " + element_id);
     }
 }
-public class JavaScriptDispatcher
+#pragma warning restore IDE1006 //naming convension
+
+public class JavaScriptDispatcher : IDisposable
 {
     private readonly V8ScriptEngine _engine;
     private readonly BlockingCollection<(string, object)> _queue = []; // by default, 100 scripts can be queued at once
     private readonly Thread _thread;
 
     private readonly JavaScriptAPI.Timer _timer = new();
-    private readonly JavaScriptAPI.FetchApi _fetch;
 
-    public JavaScriptDispatcher(V8RuntimeConstraints constraints, Document document, Console console, JavaScriptGcCallback gc_callback)
+    public JavaScriptDispatcher(V8RuntimeConstraints constraints, Document document, JavaScriptGcCallback gc_callback)
     {
         _engine = new V8ScriptEngine(constraints, V8ScriptEngineFlags.DisableGlobalMembers);
-        _fetch = new(_engine);
 
         _engine.AddHostType("Vector3", typeof(Vector3));
         _engine.AddHostType("Quaternion", typeof(Quaternion));
+        _engine.AddHostType("Event", typeof(AMLEvent.AmlEvent));
+        _engine.AddHostType("KeyboardEvent", typeof(AMLEvent.KeyboardEvent));
 
         _engine.AddHostObject("document", new JavaScriptAPI.Document(this, document));
-        _engine.AddHostObject("console", console);
+        _engine.AddHostObject("console", new JavaScriptAPI.Console());
         _engine.AddHostObject("setTimeout", new Action<ScriptObject, int>(_timer.SetTimeout));
-        _engine.AddHostObject("__fetch_api", _fetch);
+        _engine.AddHostObject("__fetch_api", new JavaScriptAPI.FetchApi(_engine));
         _engine.AddHostObject("sleep", new Func<int, object>(t=>JavaScriptExtensions.ToPromise(Task.Delay(t))));
         _engine.AddHostObject("host", new JavaScriptAPI.Host());
-
-        _engine.AddHostType("Event", typeof(Event.Event));
-        _engine.AddHostType("KeyboardEvent", typeof(Event.KeyboardEvent));
 
         _engine.AddHostObject("elem_gc_callback", gc_callback);
 
@@ -66,20 +63,6 @@ const fetch = (a, b) => __fetch_api.FetchAsync(a, b)
         _queue.TryAdd((filename, entry));
     public void Start(CancellationToken token) =>
         _thread.Start(token);
-    public void Interrupt()
-    {
-        _timer.Interrupt();
-        _engine.Interrupt();
-    }
-    public void Join()
-    {
-        _timer.Join();
-        if (_thread.IsAlive)
-            _thread.Join();
-        _queue.Dispose();
-        _engine.Dispose();
-    }
-
     private async void Run(object token_)
     {
         var token = (CancellationToken)token_;
@@ -91,7 +74,7 @@ const fetch = (a, b) => __fetch_api.FetchAsync(a, b)
             }
             catch (ScriptEngineException ex)
             {
-                Client.Client.CerrWriteLine($"javascript error: {ex.ErrorDetails}");
+                Client.Client.Cerr.WriteLine($"javascript error: {ex.ErrorDetails}");
             }
             catch (OperationCanceledException) //token cancellation
             {
@@ -99,7 +82,7 @@ const fetch = (a, b) => __fetch_api.FetchAsync(a, b)
             }
             catch (Exception ex)
             {
-                Client.Client.CerrWriteLine($"fatal::: {ex}");
+                Client.Client.Cerr.WriteLine($"fatal::: {ex}");
             }
         }
     }
@@ -127,13 +110,13 @@ const fetch = (a, b) => __fetch_api.FetchAsync(a, b)
             //Client.Client.RenderWriter.ConsolePrint("JsDispatcher: running " + file_name);
             if (script_resource is not Cache.Text)
             {
-                Client.Client.CerrWriteLine(script_resource.MIMEType);
-                Client.Client.CerrWriteLine("invalid javascript resource");
+                Client.Client.Cerr.WriteLine(script_resource.MIMEType);
+                Client.Client.Cerr.WriteLine("invalid javascript resource");
                 return;
             }
             if (script_resource.MIMEType != "text/javascript")
             {
-                Client.Client.CerrWriteLine("javascript MIME mismatch: " + script_resource.MIMEType);
+                Client.Client.Cerr.WriteLine("javascript MIME mismatch: " + script_resource.MIMEType);
                 return;
             }
             string remote_script_text = await (script_resource as Cache.Text)!.ReadAsync(token);
@@ -170,5 +153,25 @@ const fetch = (a, b) => __fetch_api.FetchAsync(a, b)
         foreach (var v in elements)
             jsArray.push(v);
         return jsArray;
+    }
+
+    public void Dispose()
+    {
+        _timer.Interrupt();
+        _engine.Interrupt();
+
+        _timer.Join();
+        if (_thread.IsAlive)
+            _thread.Join();
+        _queue.Dispose();
+        _engine.Dispose();
+
+        GC.SuppressFinalize(this);
+    }
+
+    ~JavaScriptDispatcher()
+    {
+        Client.Client.Cerr.WriteLine("Fatal:::JavaScriptDispatcher destroyed by the garbage collecter. It should be manually disposed. This is a bug");
+        Dispose();
     }
 }
