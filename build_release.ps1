@@ -1,5 +1,3 @@
-# copy AbyssUIBuild to release folder
-Write-Output "Deleting existing build"
 if (Test-Path -Path ./release) {
     Remove-Item ./release -Recurse -Force
 }
@@ -22,7 +20,8 @@ Set-Location ..
 
 # building AbyssUI
 Write-Output "Preparing dependencies for AbyssUI"
-Copy-Item -Path ./abyss_engine/ABI/* -Destination ./AbyssUI/Assets/Host/ABI -Recurse
+Remove-Item -Path ./AbyssUI/Assets/Host/ABI -Recurse -Force
+Copy-Item -Path ./abyss_engine/ABI -Destination ./AbyssUI/Assets/Host/ABI -Recurse
 
 Write-Output "Building AbyssUI"
 Set-Location ./AbyssUI

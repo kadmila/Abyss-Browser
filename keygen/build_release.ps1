@@ -1,5 +1,3 @@
-
-Write-Output "Deleting existing build"
 if (Test-Path -Path ./release) {
     Remove-Item ./release -Recurse -Force
 }

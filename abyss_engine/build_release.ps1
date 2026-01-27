@@ -1,13 +1,11 @@
-
-Write-Output "Deleting existing build"
 if (Test-Path -Path ./release) {
     Remove-Item ./release -Recurse -Force
 }
 
 Write-Output "Auto-generating C# (abyss_engine <=> abyss_ui) ABI"
-cd ./ABI
+Set-Location ./ABI
 ./build.ps1
-cd ..
+Set-Location ..
 
 Write-Output "Updating build version for AbyssCLI.exe"
 python.exe ./Tool/ExternData.py

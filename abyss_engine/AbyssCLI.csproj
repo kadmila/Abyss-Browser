@@ -10,7 +10,7 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <NuGetAuditLevel>low</NuGetAuditLevel>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <PublishTrimmed>True</PublishTrimmed>
+    <PublishTrimmed>False</PublishTrimmed>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
