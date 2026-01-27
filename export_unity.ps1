@@ -53,5 +53,7 @@ Copy-Item -Path .\AbyssUI\UserSettings\* -Destination .\abyss_unity\unity_source
 # Copy Other files in AbyssUI
 Copy-Item -Path .\AbyssUI\AbyssUI.sln -Destination .\abyss_unity\unity_source\AbyssUI.sln -Force
 Copy-Item -Path .\AbyssUI\app.config -Destination .\abyss_unity\unity_source\app.config -Force
+Copy-Item -Path .\AbyssUI\Assembly-CSharp-Editor.csproj -Destination .\abyss_unity\unity_source\Assembly-CSharp-Editor.csproj -Force
 Copy-Item -Path .\AbyssUI\Assembly-CSharp.csproj -Destination .\abyss_unity\unity_source\Assembly-CSharp.csproj -Force
+Copy-Item -Path .\AbyssUI\build_release.ps1 -Destination .\abyss_unity\unity_source\build_release.ps1 -Force
 Copy-Item -Path .\AbyssUI\packages.config -Destination .\abyss_unity\unity_source\packages.config -Force

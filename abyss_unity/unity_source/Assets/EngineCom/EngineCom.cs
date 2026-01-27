@@ -13,19 +13,21 @@ namespace EngineCom
         public RenderActionReader Rx { get; private set; }
         public StreamReader StdErr { get; private set; }
 
-        const string EngineBinaryPath = ".\\AbyssCLI\\AbyssCLI.exe";
-
         public EngineCom(string root_key_path) //may throw exception.
         {
             byte[] root_key = System.IO.File.ReadAllBytes(root_key_path);
-            _host_proc = new System.Diagnostics.Process();
-            _host_proc.StartInfo.FileName = EngineBinaryPath;
-            _host_proc.StartInfo.UseShellExecute = false;
-            _host_proc.StartInfo.CreateNoWindow = true;
-            _host_proc.StartInfo.RedirectStandardInput = true;
-            _host_proc.StartInfo.RedirectStandardOutput = true;
-            _host_proc.StartInfo.RedirectStandardError = true;
-            _ = _host_proc.Start();
+
+            var startinfo = new System.Diagnostics.ProcessStartInfo()
+            {
+                FileName = @".\AbyssCLI\AbyssCLI.exe",
+                WorkingDirectory = @".\AbyssCLI",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            _host_proc = System.Diagnostics.Process.Start(startinfo);
 
             Tx = new(_host_proc.StandardInput.BaseStream)
             {
