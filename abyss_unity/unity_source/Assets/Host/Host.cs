@@ -1,6 +1,7 @@
 using AbyssCLI.ABI;
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 
@@ -42,7 +43,26 @@ namespace Host
             //find root key from current directory
             string[] pemFiles = Directory.GetFiles(".", "*.pem", SearchOption.TopDirectoryOnly);
             if (pemFiles.Length == 0)
-                throw new Exception("fatal:::no user key found");
+            {
+                var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "keygen.exe",
+                        Arguments = "User-" + Guid.NewGuid().ToString().Substring(0, 6) + ".pem",
+                        UseShellExecute = false
+                    }
+                };
+
+                if (!process.Start())
+                    throw new Exception("fatal:::failed to run keygen.exe");
+
+                process.WaitForExit();
+
+                pemFiles = Directory.GetFiles(".", "*.pem", SearchOption.TopDirectoryOnly);
+                if (pemFiles.Length == 0)
+                    throw new Exception("fatal:::failed to create key");
+            }
 
             //main setup
             _engine_com = new(pemFiles[0]);
