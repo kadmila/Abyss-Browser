@@ -30,3 +30,6 @@ AGENTS.md
 .vscode/
 
 *.pem
+
+*/release/
+release/

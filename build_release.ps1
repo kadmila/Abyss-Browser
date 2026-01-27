@@ -1,17 +1,41 @@
-cd abyss_core
-./build_dll.ps1
-cd ..
-cd abyss_engine
+# copy AbyssUIBuild to release folder
+Write-Output "Deleting existing build"
+if (Test-Path -Path ./release) {
+    Remove-Item ./release -Recurse -Force
+}
+
+# building libraries
+Write-Output "Building abyss_core (abyssnet.dll)"
+Set-Location abyss_core
 ./build_release.ps1
-./export_release.ps1
-cd ..
+Set-Location ..
 
-cd .\keygen
-go build -o .\keygen.exe .
-cd ..
+Write-Output "Building abyss_engine (AbyssCLI.exe)"
+Set-Location abyss_engine
+./build_release.ps1
+Set-Location ..
 
-Write-Output "Copying keygen.exe to \AbyssUI"
-Copy-Item -Path .\keygen\keygen.exe -Destination .\AbyssUI\
+Write-Output "Building keygen.exe"
+Set-Location ./keygen
+./build_release.ps1
+Set-Location ..
 
-Write-Output "Copying keygen.exe to \AbyssUIBuild"
-Copy-Item -Path .\keygen\keygen.exe -Destination .\AbyssUIBuild\
+# building AbyssUI
+Write-Output "Preparing dependencies for AbyssUI"
+Copy-Item -Path ./abyss_engine/ABI/* -Destination ./AbyssUI/Assets/Host/ABI -Recurse
+
+Write-Output "Building AbyssUI"
+Set-Location ./AbyssUI
+./build_release.ps1
+Set-Location ..
+
+# now, AbyssUIBuild is ready. We provide dependencies.
+
+Write-Output "Copying AbyssCLI to release folder"
+Copy-Item -Path ./abyss_engine/release/win-x64 -Destination ./release/win-x64/AbyssCLI -Recurse
+
+Write-Output "Copying abyssnet.dll to release folder"
+Copy-Item -Path ./abyss_core/release/win-amd64/abyssnet.dll -Destination ./release/win-x64/AbyssCLI/abyssnet.dll
+
+Write-Output "Copying keygen.exe to release folder"
+Copy-Item -Path ./keygen/release/win-amd64/keygen.exe -Destination ./release/win-x64/keygen.exe
