@@ -41,11 +41,11 @@ type AbyssNode struct {
 	*sec.AbyssRootSecret
 	*sec.TLSIdentity
 
-	udpConn               *net.UDPConn
-	testConn              *DelayConn // debug
-	transport             *quic.Transport
-	listener              *quic.Listener
-	local_addr_candidates []netip.AddrPort
+	udpConn   *net.UDPConn
+	testConn  *DelayConn // debug
+	transport *quic.Transport
+	listener  *quic.Listener
+	port      uint16
 
 	service_ctx        context.Context
 	service_cancelfunc context.CancelFunc
@@ -79,11 +79,10 @@ func NewAbyssNode(root_private_key sec.PrivateKey) (*AbyssNode, error) {
 		AbyssRootSecret: root_secret,
 		TLSIdentity:     tls_identity,
 
-		udpConn:               nil,
-		testConn:              nil,
-		transport:             nil,
-		listener:              nil,
-		local_addr_candidates: make([]netip.AddrPort, 0),
+		udpConn:   nil,
+		testConn:  nil,
+		transport: nil,
+		listener:  nil,
 
 		service_ctx:        service_ctx,
 		service_cancelfunc: service_cancelfunc,
@@ -131,47 +130,10 @@ func (n *AbyssNode) Listen() error {
 	if !ok {
 		return errors.New("failed to get listener bind address")
 	}
-	port := uint16(bind_addr.Port)
-
-	// query all network interfaces to fill local_addr_candidates
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return err
-	}
-	for _, iface := range ifaces {
-		// Skip disabled interfaces
-		if iface.Flags&net.FlagUp == 0 {
-			continue
-		}
-
-		addrs, _ := iface.Addrs()
-		for _, addr := range addrs {
-			var ip net.IP
-			// sugar - go standard library has varying spec over platforms.
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
-
-			if ip == nil || ip.To4() == nil {
-				continue
-			}
-
-			netip_ip, ok := netip.AddrFromSlice(ip.To4())
-			if !ok {
-				continue
-			}
-			n.local_addr_candidates = append(
-				n.local_addr_candidates,
-				netip.AddrPortFrom(netip_ip, port),
-			)
-		}
-	}
+	n.port = uint16(bind_addr.Port)
 
 	// update handshake certificate
-	if err := n.UpdateHandshakeInfo(n.local_addr_candidates); err != nil {
+	if err := n.UpdateHandshakeInfo(n.LocalAddrCandidates()); err != nil {
 		return err
 	}
 	return nil
@@ -238,7 +200,46 @@ func (n *AbyssNode) cleanUp(serve_err error) error {
 	return errors.Join(serve_err, l_err, t_err, u_err)
 }
 
-func (n *AbyssNode) LocalAddrCandidates() []netip.AddrPort { return n.local_addr_candidates }
+func (n *AbyssNode) LocalAddrCandidates() []netip.AddrPort {
+	result := make([]netip.AddrPort, 0)
+	// query all network interfaces
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return result
+	}
+	for _, iface := range ifaces {
+		// Skip disabled interfaces
+		if iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+
+		addrs, _ := iface.Addrs()
+		for _, addr := range addrs {
+			var ip net.IP
+			// sugar - go standard library has varying spec over platforms.
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			if ip == nil || ip.To4() == nil {
+				continue
+			}
+
+			netip_ip, ok := netip.AddrFromSlice(ip.To4())
+			if !ok {
+				continue
+			}
+			result = append(
+				result,
+				netip.AddrPortFrom(netip_ip, n.port),
+			)
+		}
+	}
+	return result
+}
 
 // AppendKnownPeer returns true if the peer is newly added
 func (n *AbyssNode) AppendKnownPeer(root_cert string, handshake_info_cert string) (string, bool, error) {
