@@ -67,7 +67,7 @@ public static partial class Client
             var time_criteria = DateTime.UtcNow.AddMinutes(-10);
             _=_public_address_candidates.RemoveAll(x => x.last_update < time_criteria);
 
-            var all_address_candidates = _public_address_candidates.Select(x => x.address).Concat(local_addr_candidates).ToArray();
+            var all_address_candidates = _public_address_candidates.Select(x => x.address).Concat(local_addr_candidates).Distinct().ToArray();
 
             var update_err = Host.UpdateHandshakeInfo(all_address_candidates);
             if (update_err != null)
