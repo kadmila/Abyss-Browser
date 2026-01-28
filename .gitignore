@@ -35,3 +35,6 @@ AGENTS.md
 release/
 
 /abyss_unity/unity_source/Assets/Host/ABI/
+
+opencode.json
+*/opencode.json

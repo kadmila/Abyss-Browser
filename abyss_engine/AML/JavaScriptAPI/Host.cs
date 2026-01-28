@@ -5,7 +5,7 @@ public class Host
 	public string aurl => "abyss://" + Client.Client.Host.ID;
 	public string id => Client.Client.Host.ID;
 	public string idCert => Client.Client.Host.RootCertificate;
-	public string hsKeyCert => Client.Client.Host.GetHandshakeKeyCertificate();
+	public string hsKeyCert => Client.Client.GetHandshakeKeyCertificate();
 	public void register(string id_cert, string hs_key_cert)
 	{
 		var result = Client.Client.Host.AppendKnownPeer(
@@ -16,7 +16,9 @@ public class Host
 			Client.Client.RenderWriter.ConsolePrint("register failed: " + result.Message);
 		}
 	}
-	public void dial(string peerId)
+	public void addAddressCandidate(string address) =>
+        Client.Client.AddAddressCandidate(address);
+    public void dial(string peerId)
 	{
 		var result = Client.Client.Host.Dial(peerId);
 		if (result != null)

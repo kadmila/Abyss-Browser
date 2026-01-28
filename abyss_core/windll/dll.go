@@ -277,7 +277,10 @@ func Host_UpdateHandshakeInfo(
 		addr_strings[i] = string(addr_bytes)
 	}
 
-	address_candidates := functional.Filter(addr_strings, netip.MustParseAddrPort)
+	address_candidates, rem, err := functional.Filter_until_err(addr_strings, netip.ParseAddrPort)
+	if err != nil {
+		return marshalError(errors.Join(err, errors.New("failed address: ("+rem[0]+")")))
+	}
 	return marshalError(host.UpdateHandshakeInfo(address_candidates))
 }
 

@@ -39,6 +39,7 @@ public static class AbyssLibB
     [DllImport(DllName)] private static extern unsafe int Host_ID(IntPtr h, byte* buf_ptr, int buf_len);
     [DllImport(DllName)] private static extern unsafe int Host_RootCertificate(IntPtr h, byte* buf_ptr, int buf_len);
     [DllImport(DllName)] private static extern unsafe int Host_HandshakeKeyCertificate(IntPtr h, byte* buf_ptr, int buf_len);
+    [DllImport(DllName)] private static extern unsafe IntPtr Host_UpdateHandshakeInfo(IntPtr h, int addr_count, byte** _addr_bufs, int* _addr_buf_lens);
     [DllImport(DllName)] private static extern unsafe IntPtr Host_AppendKnownPeer(IntPtr h, byte* root_cert_ptr, int root_cert_len, byte* handshake_info_cert_ptr, int handshake_info_cert_len);
     [DllImport(DllName)] private static extern unsafe IntPtr Host_EraseKnownPeer(IntPtr h, byte* id_ptr, int id_len);
     [DllImport(DllName)] private static extern unsafe IntPtr Host_Dial(IntPtr h, byte* id_ptr, int id_len);
@@ -271,17 +272,19 @@ public static class AbyssLibB
 
         public void HideWorld(World world) => Host_HideWorld(_handle, world.Handle);
 
-        public string GetLocalAddrCandidates()
+        public string[] GetLocalAddrCandidates()
         {
+            string raw_text;
             unsafe
             {
                 byte[] buf = new byte[4096];
                 fixed (byte* bufPtr = buf)
                 {
                     int len = Host_LocalAddrCandidates(_handle, bufPtr, buf.Length);
-                    return len > 0 ? Encoding.UTF8.GetString(buf, 0, len) : string.Empty;
+                    raw_text = Encoding.UTF8.GetString(buf, 0, len);
                 }
             }
+            return raw_text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         }
 
         public string GetHandshakeKeyCertificate()
@@ -293,6 +296,57 @@ public static class AbyssLibB
                 {
                     int len = Host_HandshakeKeyCertificate(_handle, bufPtr, buf.Length);
                     return len > 0 ? Encoding.UTF8.GetString(buf, 0, len) : string.Empty;
+                }
+            }
+        }
+
+        public AbyssLibError? UpdateHandshakeInfo(string[] address_candidates)
+        {
+            unsafe
+            {
+                var addr_count = address_candidates.Length;
+
+                var addr_bytes = new byte[addr_count][];
+                var addr_bytes_total = 0;
+                for (int i = 0; i < addr_count; i++)
+                {
+                    var bytes = Encoding.UTF8.GetBytes(address_candidates[i]);
+                    addr_bytes[i] = bytes;
+                    addr_bytes_total += bytes.Length;
+                }
+
+                // Concatenate address bytes
+                var addr_bytes_combined = new byte[addr_bytes_total];
+                var currentPos = 0;
+                foreach (var item in addr_bytes)
+                {
+                    Array.Copy(item, 0, addr_bytes_combined, currentPos, item.Length);
+                    currentPos += item.Length;
+                }
+
+                // Pin and create pointer arrays
+                fixed (byte* addr_ptr = addr_bytes_combined)
+                {
+                    var addr_dp = new byte*[addr_count];
+                    var addr_len_sp = new int[addr_count];
+
+                    var addr_pos = 0;
+                    for (int i = 0; i < addr_count; i++)
+                    {
+                        var length = addr_bytes[i].Length;
+                        addr_dp[i] = addr_ptr + addr_pos;
+                        addr_len_sp[i] = length;
+                        addr_pos += length;
+                    }
+
+                    fixed (byte** addr_dp_ptr = addr_dp)
+                    fixed (int* addr_len_sp_ptr = addr_len_sp)
+                    {
+                        var errHandle = Host_UpdateHandshakeInfo(_handle, addr_count, addr_dp_ptr, addr_len_sp_ptr);
+                        if (errHandle != IntPtr.Zero)
+                            return new AbyssLibError(errHandle);
+                        return null;
+                    }
                 }
             }
         }
