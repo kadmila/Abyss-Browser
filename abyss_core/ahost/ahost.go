@@ -140,6 +140,9 @@ func (h *AbyssHost) LocalAddrCandidates() []netip.AddrPort { return h.net.LocalA
 func (h *AbyssHost) ID() string                            { return h.net.ID() }
 func (h *AbyssHost) RootCertificate() string               { return h.net.RootCertificate() }
 func (h *AbyssHost) HandshakeKeyCertificate() string       { return h.net.HandshakeKeyCertificate() }
+func (h *AbyssHost) UpdateHandshakeInfo(address_candidates []netip.AddrPort) error {
+	return h.net.UpdateHandshakeInfo(address_candidates)
+}
 
 func (h *AbyssHost) AppendKnownPeer(root_cert string, handshake_info_cert string) error {
 	h.mtx.Lock()

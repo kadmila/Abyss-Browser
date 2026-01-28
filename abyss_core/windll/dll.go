@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"runtime/cgo"
 	"strings"
+	"unsafe"
 
 	"github.com/kadmila/Abyss-Browser/abyss_core/ahost"
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
@@ -256,6 +257,28 @@ func Host_RootCertificate(h C.uintptr_t, buf_ptr *C.char, buf_len C.int) C.int {
 func Host_HandshakeKeyCertificate(h C.uintptr_t, buf_ptr *C.char, buf_len C.int) C.int {
 	host := cgo.Handle(h).Value().(*ahost.AbyssHost)
 	return TryMarshalBytes(buf_ptr, buf_len, []byte(host.HandshakeKeyCertificate()))
+}
+
+//export Host_UpdateHandshakeInfo
+func Host_UpdateHandshakeInfo(
+	h C.uintptr_t,
+	addr_count C.int,
+	addr_bufs **C.char,
+	addr_buf_lens *C.int,
+) C.uintptr_t {
+	host := cgo.Handle(h).Value().(*ahost.AbyssHost)
+
+	addr_bufs_slice := (*[1 << 28]*C.char)(unsafe.Pointer(addr_bufs))[:addr_count]
+	addr_buf_lens_slice := (*[1 << 28]C.int)(unsafe.Pointer(addr_buf_lens))[:addr_count]
+
+	addr_strings := make([]string, addr_count)
+	for i := range int(addr_count) {
+		addr_bytes, _ := TryUnmarshalBytes(addr_bufs_slice[i], addr_buf_lens_slice[i])
+		addr_strings[i] = string(addr_bytes)
+	}
+
+	address_candidates := functional.Filter(addr_strings, netip.MustParseAddrPort)
+	return marshalError(host.UpdateHandshakeInfo(address_candidates))
 }
 
 //export Host_AppendKnownPeer
