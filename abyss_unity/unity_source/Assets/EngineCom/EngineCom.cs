@@ -40,6 +40,21 @@ namespace EngineCom
                 Google.Protobuf.ByteString.CopyFrom(root_key), 
                 Path.GetFileNameWithoutExtension(root_key_path)
             );
+
+            //setup abyst gateway
+            //find abyst gateway config file from current directory
+            var abyst_config_file_path = root_key_path[..^4] + "-abyst-gateway.config";
+            string content;
+            if (File.Exists(abyst_config_file_path))
+            {
+                content = File.ReadAllText(abyst_config_file_path);
+            }
+            else
+            {
+                File.WriteAllText(abyst_config_file_path, "{}");
+                content = "{}";
+            }
+            Tx.ConfigAbystGateway(content);
         }
         public void Stop()
         {

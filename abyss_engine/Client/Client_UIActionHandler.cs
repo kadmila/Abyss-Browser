@@ -1,4 +1,5 @@
 using AbyssCLI.ABI;
+using static AbyssCLI.ABI.UIAction.Types;
 
 namespace AbyssCLI.Client;
 
@@ -33,6 +34,9 @@ public static partial class Client
             UIAction message = await _client_operations.Reader.ReadAsync();
             switch (message.InnerCase)
             {
+                case UIAction.InnerOneofCase.ConfigAbystGateway:
+                    OnConfigAbystGateway(message.ConfigAbystGateway);
+                    break;
                 case UIAction.InnerOneofCase.Kill:
                     return;
                 case UIAction.InnerOneofCase.MoveWorld:
@@ -50,6 +54,15 @@ public static partial class Client
                 default:
                     throw new IOException("fatal: received invalid UI Action");
             }
+        }
+    }
+
+    private static void OnConfigAbystGateway(UIAction.Types.ConfigAbystGateway args)
+    {
+        var error = Client.Host.ConfigAbystGateway(args.Text);
+        if (error != null)
+        {
+            Client.Cerr.WriteLine(error.Message);
         }
     }
     private static void OnMoveWorld(UIAction.Types.MoveWorld args)

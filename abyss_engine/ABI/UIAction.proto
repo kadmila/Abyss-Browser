@@ -13,6 +13,10 @@ message UIAction {
 		int32 code = 1;
 	}
 
+	message ConfigAbystGateway {
+		string text = 1;
+	}
+
 	message MoveWorld {
 		string world_url = 1;
 	}
@@ -36,9 +40,10 @@ message UIAction {
 	oneof inner {
 		Init init = 1;
 		Kill kill = 2;
-		MoveWorld move_world = 3;
-		ShareContent share_content = 4;
-		UnshareContent unshare_content = 5;
+		ConfigAbystGateway config_abyst_gateway = 3;
+		MoveWorld move_world = 4;
+		ShareContent share_content = 5;
+		UnshareContent unshare_content = 6;
 
 		ConsoleInput console_input = 999;
 	}
