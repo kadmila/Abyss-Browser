@@ -1,8 +1,6 @@
-﻿using AbyssCLI.HL;
-using AbyssCLI.Tool;
+﻿using AbyssCLI.Tool;
 
-#nullable enable
-namespace AbyssCLI.AML;
+namespace AbyssCLI.AmlResource;
 
 public abstract class BetterResourceLink : IDisposable
 {

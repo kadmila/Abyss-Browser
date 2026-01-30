@@ -1,4 +1,5 @@
-﻿using AbyssCLI.Cache;
+﻿using AbyssCLI.AmlResource;
+using AbyssCLI.Cache;
 using AbyssCLI.HL;
 using Microsoft.ClearScript.V8;
 using System.Text;

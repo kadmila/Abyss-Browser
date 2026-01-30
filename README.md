@@ -5,17 +5,10 @@ See https://github.com/kadmila/Abyss-Browser/wiki for development guide, user gu
 
 # How to Run
 
-The Release package includes an examplar peer identity private key.
 Double click on AbyssUI.exe to run the Abyss browser.
+On the first run, it creates an ed25519 private key, which is the user identity in Abyss.
 
-To run multiple instances of the Abyss browser, copy the entire folder in different location, delete the default identity private key, and generate another private key using the command below.
-The command must be executed using powershell.
-
-```
-ssh-keygen -t ed25519 -f "my_key.pem" -N '""' > $null
-```
-
-Use another file name instead of "my_key.pem".
+To run multiple instances of the Abyss browser, copy the entire folder in different locations.
 
 # How to Build
 
@@ -46,6 +39,8 @@ The codes are only for reference.
 
 ## Initial Setup
 
+*** This is outdated. It will be updated later. ***
+
 Before starting the project setup, you must follow the initial setup procedure below.
 1) In visual studio C#, install the latest version of Protobuf, ClearScript, and CacheCow.Client addons.
 2) Create a Unity 3D project named "AbyssUI", in the project root directory. Also, you need "AbyssUIBuild" folder in the project root directory, but this will be also created as default when you build the unity project.
@@ -71,17 +66,3 @@ Then, go to *How to Run* section.
 To push changes in the AbyssUI unity project, you must manually run ./export_unity.ps1.
 This copies codes from AbyssUI project to ./abyss_unity folder.
 Edit ./export_unity.ps1 and ./import_unity.ps1 on disposal.
-
-## Quick ReBuild
-
-In powershell, run ./quick_rebuild.ps1 to rebuild the whole project except for the unity project, which has to be manually built within unity editor.
-To partially build abyss_core or abyss_engine, you may run ./build_dll_debug.ps1 (in ./abyss_core), or ./build_debug.ps1 (in ./abyss_engine).
-
-If you find any problem building, please let us know.
-Thank you.
-
-# Limitations
-
-As NAT traversal itself is not our main research interest, we only tested our implementation without NAT, with each peer allocated a static IP.
-It is highly likely that peers behind different NAT device will not be able to connect each other in current implemention.
-NAT traversal between QUIC hosts is trivial; QUIC allows multiple connections between two hosts.
