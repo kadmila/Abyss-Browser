@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 11b3883c0720fb8409b86b54877b58ea
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 49547
+  packageName: Runtime OBJ Importer
+  packageVersion: 2.02
+  assetPath: Assets/OBJImport/MTLLoader.cs
+  uploadId: 291966

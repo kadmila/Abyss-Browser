@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: e96535515ee47d04589da7981f6650a2
+DefaultImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 49547
+  packageName: Runtime OBJ Importer
+  packageVersion: 2.02
+  assetPath: Assets/OBJImport/Samples/ObjFromFile.unity
+  uploadId: 291966

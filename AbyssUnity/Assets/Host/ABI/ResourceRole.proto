@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+enum ResourceRole {
+	Mesh = 0;
+	Albedo = 1;
+	Normal = 2;
+	Roughness = 3;
+	Metalic = 4;
+	Specular = 5;
+	Opacity = 6;
+	Emission = 7;
+}
+
+enum ElementTag {
+	O = 0;
+	Obj = 1;
+	Pbrm = 2;
+	Bcol = 3;
+}
+
+enum ValueRole {
+	DimA = 0;
+	DimB = 1;
+	DimC = 2;
+}

@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 594f0c9c36902bc4aa1e6fd12ae28fd0
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 49547
+  packageName: Runtime OBJ Importer
+  packageVersion: 2.02
+  assetPath: Assets/OBJImport/TextureLoader/ImageUtils.cs
+  uploadId: 291966

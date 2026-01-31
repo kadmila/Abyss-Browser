@@ -1,0 +1,188 @@
+﻿syntax = "proto3";
+
+import "mime.proto";
+import "ResourceRole.proto";
+import "commontype.proto";
+
+option csharp_namespace = "AbyssCLI.ABI";
+
+//element: has transform, and resource
+//resource: from cache, or by composition
+
+//if action is adding new file, ends with 'F'
+//if action is value-only, ends with 'V'
+//if action requires another component, ends with 'C'
+//if -C is possible, then must not have -F.
+//if no variation is possible, no suffix.
+//all hierarchical element has element_id, which is globally unique in an abyss browser.
+//they don't necessarily be an element on the rendering engine, depending on its implementation.
+
+message ResourceComponent {
+	int32 resource_id = 1;
+	ResourceRole role = 2;
+}
+
+// render element and ui element works independently.
+message RenderAction {
+	//debug
+	message ConsolePrint {
+		string text = 1;
+	}
+	
+	//element
+	message CreateElement {
+		int32 parent_id = 1;
+		int32 element_id = 2;
+		ElementTag tag = 3;
+	}
+	message MoveElement {
+		int32 element_id = 1;
+		int32 new_parent_id = 2;
+	}
+	message DeleteElement {
+		int32 element_id = 1;
+	}
+	message ElemSetActive {
+		int32 element_id = 1;
+		bool active = 2;
+	}
+	message ElemSetTransform {
+		int32 element_id = 1;
+		Vec3 pos = 2;
+		Vec4 rot = 3;
+	}
+	message ElemAttachResource {
+		int32 element_id = 1;
+		int32 resource_id = 2;
+		ResourceRole role = 3;
+	}
+	message ElemDetachResource {
+		int32 element_id = 1;
+		int32 resource_id = 2;
+	}
+	message ElemSetValueF {
+		int32 element_id = 1;
+		ValueRole role = 2;
+		float value = 3;
+	}
+
+	message CreateItem {
+		int32 element_id = 1;
+		string sharer_hash = 2;
+		bytes uuid = 3;
+	}
+	message DeleteItem {
+		int32 element_id = 1;
+	}
+	message ItemSetTitle {
+		int32 element_id = 1;
+		string title = 2;
+	}
+	message ItemSetIcon {
+		int32 element_id = 1;
+		int32 resource_id = 2;
+	}
+	message ItemSetActive {
+		int32 element_id = 1;
+		bool active = 2;
+	}
+	message ItemAlert {
+		int32 element_id = 1;
+		string alert_msg = 2;
+	}
+
+	//resource
+	message OpenStaticResource {
+		int32 resource_id = 1;
+		MIME mime = 2;
+		string file_name = 3;
+	}
+	message CreateCompositeResource {
+		int32 resource_id = 1;
+		int32 base_resource_id = 2;
+		repeated ResourceComponent components = 3;
+	}
+	message CloseResource {
+		int32 resource_id = 1;
+	}
+
+	// member session join - leave
+	message MemberInfo {
+		string peer_hash = 1;
+	}
+	message MemberSetProfile {
+		int32 image_id = 1;
+	}
+	message MemberLeave {
+		string peer_hash = 1;
+	}
+
+	message LocalInfo {
+		string aurl = 1;
+		string local_hash = 2;
+	}
+	message InfoContentShared {
+		string content_uuid = 1;
+		string content_url = 2;
+		string sharer_hash = 3;
+		string world_uuid = 4;
+	}
+	message InfoContentDeleted {
+		string content_uuid = 1;
+		string sharer_hash = 3;
+		string world_uuid = 4;
+	}
+
+	// peer connection
+	message PeerConnected {
+		string peer_id = 1;
+	}
+	message PeerDisconnected {
+		string peer_id = 1;
+	}
+
+	// peer information
+	message PeerFound {
+		string peer_id = 1;
+	}
+	message PeerForgot {
+		string peer_id = 1;
+	}
+
+	oneof inner {
+		ConsolePrint console_print = 100;
+
+		CreateElement create_element = 200;
+		MoveElement move_element = 201;
+		DeleteElement delete_element = 202;
+		ElemSetActive elem_set_active = 203;
+		ElemSetTransform elem_set_transform = 204;
+		ElemAttachResource elem_attach_resource = 205;
+		ElemDetachResource elem_detach_resource = 206;
+		ElemSetValueF elem_set_value_f = 207;
+		
+		CreateItem create_item = 300;
+		DeleteItem delete_item = 301;
+		ItemSetTitle item_set_title = 302;
+		ItemSetIcon item_set_icon = 303;
+		ItemSetActive item_set_active = 304;
+		ItemAlert item_alert = 305;
+		
+		OpenStaticResource open_static_resource = 400;
+		CreateCompositeResource create_composite_resource = 401;
+		CloseResource close_resource = 402;
+
+		MemberInfo member_info = 500;
+		MemberLeave member_leave = 501;
+		MemberSetProfile member_set_profile = 502;
+
+		LocalInfo local_info = 600;
+		InfoContentShared info_content_shared = 601;
+		InfoContentDeleted info_content_deleted = 602;
+
+		PeerConnected peer_connected = 700;
+		PeerDisconnected peer_disconnected = 701;
+		PeerFound peer_found = 702;
+		PeerForgot peer_forgot = 703;
+	}
+}

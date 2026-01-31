@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 1b682979498a095418396a690d23c0b0
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 49547
+  packageName: Runtime OBJ Importer
+  packageVersion: 2.02
+  assetPath: Assets/OBJImport/TextureLoader/TGALoader.cs
+  uploadId: 291966

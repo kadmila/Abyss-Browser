@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 80033680aa26e4a4bbac42466dc555e4, type: 3}
+  m_Name: MaterialResources
+  m_EditorClassIdentifier: Assembly-CSharp::MaterialResources
+  none: {fileID: 2100000, guid: 06b0e27db62900d4480667605f5d5495, type: 2}
+  color: {fileID: 2100000, guid: e079eb941e925b0419232239c202ec4f, type: 2}
+  diffuse: {fileID: 2100000, guid: a4b6fe5ed6b59444fbd51ba2cfc122de, type: 2}
