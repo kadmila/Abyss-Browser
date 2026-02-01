@@ -71,7 +71,6 @@ namespace ClientUtils
 
             MaterialLoader.Dispose();
             MaterialLoader = null;
-            UIManager.Dispose();
             UIManager = null;
             InputManager.Dispose();
             InputManager = null;

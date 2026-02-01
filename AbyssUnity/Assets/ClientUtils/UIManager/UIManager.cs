@@ -1,149 +1,139 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace ClientUtils.UIManager
 {
-    public class UIManager : IDisposable
+    public enum FocusedTextField
     {
-        private UIResources uiResources;
-        private UIDocument uiDocument;
+        None,
+        MainAddressBar,
+        SubAddressBar,
+        Console,
+    }
+    public class UIManager
+    {
+        private readonly UIResources uiResources;
+        private readonly UIDocument uiDocument;
 
         //internal uiDocument reference shortcuts
-        private VisualElement root;
-        private TextField addressBar;
-        private TextField sub_addressBar;
-        private Label localAddrLabel;
-        private Label extraLabel;
-        private Button infoResetButton;
-        private TextField consoleInputBar;
-        private Label frameTime;
-        private Label debugStack;
+        private readonly VisualElement root;
 
-        private bool _is_active;
+        private readonly Button tabHomeButton;
+        private readonly Button tabSocialButton;
+        private readonly Button tabSettingsButton;
+        private readonly Button tabDevButton;
+
+        private readonly VisualElement home;
+        private readonly VisualElement social;
+        private readonly VisualElement settings;
+        private readonly VisualElement dev;
+
+        private readonly Image worldPic;
+        private readonly Label worldTitle;
+        private readonly Label worldURL;
+        private readonly Button worldBookmarkButton;
+
+        private readonly TextField mainAddressBar;
+        private readonly TextField subAddressBar;
+
+        private readonly VisualElement openItemsSection;
+        private readonly VisualElement inventory;
+
+        private readonly Label localId;
+        private readonly Label frameTime;
+        private readonly Label log;
+        private readonly TextField console;
+
+        //console 
+        private bool _is_dev_active;
         private LinkedList<string> _console_lines;
         private bool _is_console_updated;
 
-        //publics
-        public string AddressBarText => addressBar.text;
-        public string SubAddressBarText => addressBar.text;
-
-        public LocalItemSection LocalItemSection;
-        public MemberItemSection MemberItemSection;
-        public MemberProfileSection MemberProfileSection;
-
         //callback reservation
-        public Action<string> OnAddressBarSubmit;
-        public Action<string> OnSubAddressBarSubmit;
-        public Action<string> OnConsoleCommand;
+        public Action OnWorldBookmark = () => { };
+        public Action<Guid> OnItemClose = a => { };
+
+        //public lookup (due to stupid TextField thing, we need manual lookup)
+        public string MainAddressBarText => mainAddressBar.text;
+        public string SubAddressBarText => subAddressBar.text;
+        public string ConsoleText => console.text;
+        public FocusedTextField FocusedTextFieldName { get; private set; }
 
         public UIManager(UIResources UIResources, UIDocument UIDocument)
         {
             uiResources = UIResources;
             uiDocument = UIDocument;
 
-            //locate all elements
             root = uiDocument.rootVisualElement;
 
-            addressBar = UQueryExtensions.Q<TextField>(root, "address-bar");
-            addressBar.RegisterCallback<KeyDownEvent>(x =>
-            {
-                Debug.Log("address bar key down!");
-                if (x.keyCode == KeyCode.Return)
-                    OnAddressBarSubmit(addressBar.value);
-            });
+            tabHomeButton = root.Q<Button>("tab-home-button");
+            tabSocialButton = root.Q<Button>("tab-social-button");
+            tabSettingsButton = root.Q<Button>("tab-settings-button");
+            tabDevButton = root.Q<Button>("tab-dev-button");
 
-            sub_addressBar = UQueryExtensions.Q<TextField>(root, "sub-address-bar");
-            sub_addressBar.RegisterCallback<KeyDownEvent>(x =>
-            {
-                if (x.keyCode == KeyCode.Return)
-                    OnSubAddressBarSubmit(sub_addressBar.value);
-            });
+            home = root.Q<VisualElement>("home");
+            social = root.Q<VisualElement>("social");
+            settings = root.Q<VisualElement>("settings");
+            dev = root.Q< VisualElement>("dev");
 
-            localAddrLabel = UQueryExtensions.Q<Label>(root, "info");
+            worldPic = root.Q<Image>("world-pic");
+            worldTitle = root.Q<Label>("world-title");
+            worldURL = root.Q<Label>("world-url");
+            worldBookmarkButton = root.Q<Button>("world-bookmark-button");
 
-            extraLabel = UQueryExtensions.Q<Label>(root, "info-more");
-            infoResetButton = UQueryExtensions.Q<Button>(root, "terminal-clear-button");
-            infoResetButton.clicked += ClearConsole;
+            mainAddressBar = root.Q<TextField>("main-address-bar");
+            subAddressBar = root.Q<TextField>("sub-address-bar");
 
-            consoleInputBar = UQueryExtensions.Q<TextField>(root, "console-input-bar");
-            consoleInputBar.RegisterCallback<KeyDownEvent>(x =>
-            {
-                if (x.keyCode == KeyCode.Return)
-                    OnConsoleCommand(consoleInputBar.value);
-            });
+            openItemsSection = root.Q<VisualElement>("open-items-section");
+            inventory = root.Q< VisualElement>("inventory");
 
-            frameTime = UQueryExtensions.Q<Label>(root, "frame-time");
-            debugStack = UQueryExtensions.Q<Label>(root, "debug-stack");
+            localId = root.Q<Label>("local-id");
+            frameTime = root.Q<Label>("frame-time");
+            log = root.Q<Label>("log");
+            console = root.Q<TextField>("console");
 
-            LocalItemSection = new(UQueryExtensions.Q(root, "itembar"), uiResources.DefaultItemIcon);
+            //register callbacks
+            tabHomeButton.clicked += () => ChangeTabContent(home, tabHomeButton);
+            tabSocialButton.clicked += () => ChangeTabContent(social, tabSocialButton);
+            tabSettingsButton.clicked += () => ChangeTabContent(settings, tabSettingsButton);
+            tabDevButton.clicked += () => ChangeTabContent(dev, tabDevButton);
 
-            MemberItemSection = new(UQueryExtensions.Q(root, "memberitemsection"), uiResources.DefaultItemIcon);
+            //check for text field focus
+            mainAddressBar.RegisterCallback<FocusInEvent>(_ => FocusedTextFieldName = FocusedTextField.MainAddressBar);
+            mainAddressBar.RegisterCallback<FocusOutEvent>(_ => FocusedTextFieldName = FocusedTextField.None);
+            subAddressBar.RegisterCallback<FocusInEvent>(_ => FocusedTextFieldName = FocusedTextField.SubAddressBar);
+            subAddressBar.RegisterCallback<FocusOutEvent>(_ => FocusedTextFieldName = FocusedTextField.None);
+            console.RegisterCallback<FocusInEvent>(_ => FocusedTextFieldName = FocusedTextField.Console);
+            console.RegisterCallback<FocusOutEvent>(_ => FocusedTextFieldName = FocusedTextField.None);
 
-            MemberProfileSection = new(UQueryExtensions.Q(root, "memberprofilesection"), uiResources.DefaultMemberProfile);
-            MemberProfileSection.RegisterClickCallback(peer_hash =>
-            {
-                MemberItemSection.Show(peer_hash);
-            });
-
-            if (localAddrLabel == null || extraLabel == null)
-            {
-                Debug.LogError("UI components not found!");
-            }
-
-            //default event handler - this should not be called.
-            OnAddressBarSubmit = (arg) => { };
-            OnSubAddressBarSubmit = (arg) => { };
-            OnConsoleCommand = (arg) => { };
+            worldBookmarkButton.clicked += () => OnWorldBookmark();
 
             _console_lines = new();
             _is_console_updated = false;
-
-            var null_mem = FirstNullMemberName();
-            if (null_mem != string.Empty)
-                Debug.Log("haha " + null_mem + " is null");
-
-            Activate();
         }
-        public string FirstNullMemberName()
+        private void ChangeTabContent(VisualElement target, Button button)
         {
-            var fields = this.GetType().GetFields(
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+            home.style.display = DisplayStyle.None;
+            social.style.display = DisplayStyle.None;
+            settings.style.display = DisplayStyle.None;
+            dev.style.display = DisplayStyle.None;
 
-            foreach (var field in fields)
-                if (field.GetValue(this) == null)
-                    return field.Name;
+            tabHomeButton.RemoveFromClassList("tab-active");
+            tabSocialButton.RemoveFromClassList("tab-active");
+            tabSettingsButton.RemoveFromClassList("tab-active");
+            tabDevButton.RemoveFromClassList("tab-active");
 
-            return string.Empty;
+            target.style.display = DisplayStyle.Flex;
+            button.AddToClassList("tab-active");
+
+            _is_dev_active = false;
+            if (target.name == "dev")
+                _is_dev_active = true;
         }
-        public void UnityUpdate()
-        {
-            if (_is_active && _is_console_updated)
-            {
-                lock (_console_lines)
-                {
-                    extraLabel.text = string.Join("\n", _console_lines);
-                }
-                _is_console_updated = false;
-            }
-        }
-        public void Activate()
-        {
-            _is_active = true;
-            root.visible = true;
-            addressBar.focusable = true;
-        }
-        public void Deactivate()
-        {
-            _is_active = false;
-            MemberItemSection.Hide();
-            root.visible = false;
-            addressBar.focusable = false;
-        }
-        public void AppendConsole(string line)
+
+        public void AppendLog(string line)
         {
             ClientLogger.WriteLine(line);
 
@@ -157,7 +147,7 @@ namespace ClientUtils.UIManager
                 _is_console_updated = true;
             }
         }
-        private void ClearConsole()
+        public void ClearConsole()
         {
             lock (_console_lines)
             {
@@ -165,64 +155,35 @@ namespace ClientUtils.UIManager
                 _is_console_updated = true;
             }
         }
-        public void SetWorldIcon(Texture2D texture)
+        public void UnityUpdate()
         {
-            root.style.backgroundImage = texture;
-        }
-        public void ClearWorldIcon()
-        {
-            root.style.backgroundImage = null;
-        }
-        public void SetLocalInfo(string hash)
-        {
-            localAddrLabel.text = hash;
-        }
-        public void SetFrameTime(string info)
-        {
-            frameTime.text = info;
-        }
-
-        public void DebugEnter(string msg)
-        {
-            debugStack.text = debugStack.text + "->" + msg;
-        }
-        public void DebugLeave(string msg)
-        {
-            if (debugStack.text.EndsWith("->" + msg))
+            if (_is_dev_active && _is_console_updated)
             {
-                debugStack.text = debugStack.text[..(debugStack.text.Length - msg.Length - 2)];
-            }
-            else
-            {
-                debugStack.text = debugStack.text + "(X-)" + msg;
+                lock (_console_lines)
+                {
+                    log.text = string.Join("\n", _console_lines);
+                    _is_console_updated = false;
+                }
             }
         }
-
-        public void Dispose()
+        public void AddLocalItemIcon(int element_id, Guid uuid)
         {
-            uiResources = null;
-            uiDocument = null;
 
-            root = null;
-            addressBar = null;
-            sub_addressBar = null;
-            localAddrLabel = null;
-            extraLabel = null;
-            consoleInputBar = null;
-
-            LocalItemSection = null;
-            MemberItemSection = null;
-            MemberProfileSection = null;
-
-            OnAddressBarSubmit = null;
-            OnSubAddressBarSubmit = null;
-            OnConsoleCommand = null;
-
-            _console_lines = null;
-
-            GC.SuppressFinalize(this);
         }
-        ~UIManager() => Dispose();
+        public bool TryRemoveLocalItemIcon(int element_id)
+        {
+            return false;
+        }
+        public bool TryUpdateLocalItemIcon(int element_id, Texture2D icon)
+        {
+            return false;
+        }
+
+        public void Activate() => root.visible = true;
+        public void Deactivate() => root.visible = false;
+        public void SetWorldIcon(Texture2D texture) => worldPic.image = texture;
+        public void ClearWorldIcon() => worldPic.image = uiResources.DefaultWorldPic;
+        public void SetLocalInfo(string hash) => localId.text = "ID: " + hash;
+        public void SetFrameTime(string info) => frameTime.text = info;
     }
-
 }

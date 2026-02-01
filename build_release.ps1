@@ -18,17 +18,17 @@ Set-Location ./keygen
 ./build_release.ps1
 Set-Location ..
 
-# building AbyssUI
-Write-Output "Preparing dependencies for AbyssUI"
-Remove-Item -Path ./AbyssUI/Assets/Host/ABI -Recurse -Force
-Copy-Item -Path ./abyss_engine/ABI -Destination ./AbyssUI/Assets/Host/ABI -Recurse
+# building AbyssUnity
+Write-Output "Preparing dependencies for AbyssUnity"
+Remove-Item -Path ./AbyssUnity/Assets/Host/ABI -Recurse -Force
+Copy-Item -Path ./abyss_engine/ABI -Destination ./AbyssUnity/Assets/Host/ABI -Recurse
 
-Write-Output "Building AbyssUI"
-Set-Location ./AbyssUI
+Write-Output "Building AbyssUnity"
+Set-Location ./AbyssUnity
 ./build_release.ps1
 Set-Location ..
 
-# now, AbyssUIBuild is ready. We provide dependencies.
+# now, AbyssUnityBuild is ready. We provide dependencies.
 
 Write-Output "Copying AbyssCLI to release folder"
 Copy-Item -Path ./abyss_engine/release/win-x64 -Destination ./release/win-x64/AbyssCLI -Recurse

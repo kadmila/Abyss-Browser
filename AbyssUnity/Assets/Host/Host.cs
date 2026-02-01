@@ -85,7 +85,7 @@ namespace Host
                 }
                 catch (Exception ex)
                 {
-                    clientUtils.UIManager.AppendConsole("fatal:::RxLoop throwed an error: " + ex.ToString());
+                    ClientUtils.ClientLogger.WriteLine("fatal:::RxLoop throwed an error: " + ex.ToString());
                     return;
                 }
             }
@@ -97,11 +97,11 @@ namespace Host
                 try
                 {
                     var err_msg = _engine_com.StdErr.ReadLine() ?? throw new Exception("StdErr.ReadLine() returned null");
-                    clientUtils.UIManager.AppendConsole(err_msg);
+                    ClientUtils.ClientLogger.WriteLine(err_msg);
                 }
                 catch
                 {
-                    clientUtils.UIManager.AppendConsole("===== stderr closed =====");
+                    ClientUtils.ClientLogger.WriteLine("===== stderr closed =====");
                     return;
                 }
             }

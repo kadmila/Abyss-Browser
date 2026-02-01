@@ -1,2 +1,0 @@
-// AML JavaScript Standard Library
-

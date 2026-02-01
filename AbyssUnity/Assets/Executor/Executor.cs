@@ -27,7 +27,7 @@ public class Executor : MonoBehaviour
         }
         catch (Exception e)
         {
-            clientUtils.UIManager.AppendConsole(e.Message);
+            clientUtils.UIManager.AppendLog(e.Message);
         }
         lastUpdate = DateTime.Now;
     }
@@ -55,7 +55,7 @@ public class Executor : MonoBehaviour
             }
             catch (Exception ex)
             {
-                clientUtils.UIManager.AppendConsole("Fatal:::Executor failed to execute action::" + ex.ToString());
+                clientUtils.UIManager.AppendLog("Fatal:::Executor failed to execute action::" + ex.ToString());
             }
         }
     }

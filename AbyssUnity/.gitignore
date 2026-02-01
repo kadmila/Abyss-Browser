@@ -101,3 +101,5 @@ InitTestScene*.unity*
 #### My files
 /log_*.txt
 /AbyssCLI
+/build.config
+/*-abyst-gateway.config

@@ -12,11 +12,10 @@ namespace ClientUtils.InputManager
         private InputAction viewAction;
         private InputAction moveAction;
 
-        //callback registration
+        //callback registration - for stupid text fields.
         public Action<string> AddressBarSubmitCallback;
         public Action<string> SubAddressBarSubmitCallback;
         public Action<string> WorldConsoleSubmitCallback;
-        public Action<Guid> LocalItemIconCloseCallback;
 
         //read (only valid in Update())
         public Vector2 ViewDelta => viewAction.ReadValue<Vector2>();
@@ -32,9 +31,9 @@ namespace ClientUtils.InputManager
             moveAction = inputActions.Player.Move;
 
             inputActions.UI.Cancel.performed += OnUIExit;
-            inputActions.UI.Submit.performed += OnUISubmit;
-
             inputActions.Player.OpenMenu.performed += OnUIEnter;
+
+            inputActions.UI.Submit.performed += OnEnterPressedInUI;
 
             inputActions.UI.Enable();
         }
@@ -54,18 +53,29 @@ namespace ClientUtils.InputManager
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }
-
-        private void OnUISubmit(InputAction.CallbackContext ctx)
+        private void OnEnterPressedInUI(InputAction.CallbackContext ctx)
         {
-            AddressBarSubmitCallback(uiManager.AddressBarText);
+            switch (uiManager.FocusedTextFieldName)
+            {
+                case UIManager.FocusedTextField.None:
+                    break;
+                case UIManager.FocusedTextField.MainAddressBar:
+                    AddressBarSubmitCallback(uiManager.MainAddressBarText);
+                    break;
+                case UIManager.FocusedTextField.SubAddressBar:
+                    SubAddressBarSubmitCallback(uiManager.SubAddressBarText);
+                    break;
+                case UIManager.FocusedTextField.Console:
+                    WorldConsoleSubmitCallback(uiManager.ConsoleText);
+                    break;
+            }
         }
-
         public void Dispose()
         {
             inputActions.UI.Cancel.performed -= OnUIExit;
-            inputActions.UI.Submit.performed -= OnUISubmit;
-
             inputActions.Player.OpenMenu.performed -= OnUIEnter;
+
+            inputActions.UI.Submit.performed -= OnEnterPressedInUI;
 
             viewAction = null;
             moveAction = null;

@@ -30,7 +30,7 @@ namespace Host
                 );
             };
             clientUtils.InputManager.WorldConsoleSubmitCallback = (arg) => Tx.ConsoleInput(0, arg);
-            clientUtils.InputManager.LocalItemIconCloseCallback = (uuid) =>
+            clientUtils.UIManager.OnItemClose = (uuid) =>
                 Tx.UnshareContent(ByteString.CopyFrom(uuid.ToByteArray()));
 
             _static_resource_loader.SynchronizedActionEnqueueCallback =
@@ -41,7 +41,7 @@ namespace Host
         {
             switch (render_action.InnerCase)
             {
-            case RenderAction.InnerOneofCase.ConsolePrint: clientUtils.UIManager.AppendConsole(render_action.ConsolePrint.Text);return;
+            case RenderAction.InnerOneofCase.ConsolePrint: clientUtils.UIManager.AppendLog(render_action.ConsolePrint.Text);return;
             case RenderAction.InnerOneofCase.CreateElement: RenderingActionQueue.Enqueue(() => sceneManager.CreateElement(render_action.CreateElement));return;
             case RenderAction.InnerOneofCase.MoveElement: RenderingActionQueue.Enqueue(() => sceneManager.MoveElement(render_action.MoveElement));return;
             case RenderAction.InnerOneofCase.DeleteElement: RenderingActionQueue.Enqueue(() => sceneManager.DeleteElement(render_action.DeleteElement));return;
@@ -65,7 +65,7 @@ namespace Host
             case RenderAction.InnerOneofCase.LocalInfo: RenderingActionQueue.Enqueue(LocalInfo(render_action.LocalInfo));return;
             case RenderAction.InnerOneofCase.InfoContentShared: RenderingActionQueue.Enqueue(InfoContentShared(render_action.InfoContentShared));return;
             case RenderAction.InnerOneofCase.InfoContentDeleted: RenderingActionQueue.Enqueue(InfoContentDeleted(render_action.InfoContentDeleted));return;
-            default: clientUtils.UIManager.AppendConsole("Executor: invalid RenderAction: " + render_action.InnerCase);return;
+            default: clientUtils.UIManager.AppendLog("Executor: invalid RenderAction: " + render_action.InnerCase);return;
             }
         }
         private void ElemAttachResource(RenderAction.Types.ElemAttachResource args)
@@ -84,19 +84,19 @@ namespace Host
         {
             if (args.SharerHash == clientUtils.LocalHash)
             {
-                clientUtils.UIManager.LocalItemSection.AddItem(args.ElementId, new Guid(args.Uuid.Span));
+                clientUtils.UIManager.AddLocalItemIcon(args.ElementId, new Guid(args.Uuid.Span));
             }
             else
             {
-                clientUtils.UIManager.AppendConsole("member item UI not implemented 1");
+                clientUtils.UIManager.AppendLog("member item UI not implemented 1");
             }
         };
         private Action DeleteItem(RenderAction.Types.DeleteItem args) => () =>
         {
-            if (clientUtils.UIManager.LocalItemSection.TryRemoveItem(args.ElementId)) 
+            if (clientUtils.UIManager.TryRemoveLocalItemIcon(args.ElementId)) 
                 return;
 
-            clientUtils.UIManager.AppendConsole("member item UI not implemented 2");
+            clientUtils.UIManager.AppendLog("member item UI not implemented 2");
         };
         private Action ItemSetTitle(RenderAction.Types.ItemSetTitle args) => () => { };
         private Action ItemSetIcon(RenderAction.Types.ItemSetIcon args)
@@ -122,21 +122,21 @@ namespace Host
             {
                 if (is_clear)
                 {
-                    if (clientUtils.UIManager.LocalItemSection.TryUpdateIcon(args.ElementId, clientUtils.UIResources.DefaultItemIcon))
+                    if (clientUtils.UIManager.TryUpdateLocalItemIcon(args.ElementId, clientUtils.UIResources.DefaultItemIcon))
                         return;
 
-                    clientUtils.UIManager.AppendConsole("member item UI not implemented 3");
+                    clientUtils.UIManager.AppendLog("member item UI not implemented 3");
                 }
                 else
                 {
-                    if (clientUtils.UIManager.LocalItemSection.TryUpdateIcon(args.ElementId, resource switch
+                    if (clientUtils.UIManager.TryUpdateLocalItemIcon(args.ElementId, resource switch
                     {
                         Image image => image.Texture,
                         _ => clientUtils.UIResources.DefaultItemIcon
                     }))
                         return;
 
-                    clientUtils.UIManager.AppendConsole("member item UI not implemented 4");
+                    clientUtils.UIManager.AppendLog("member item UI not implemented 4");
                 }
             };
         }
