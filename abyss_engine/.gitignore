@@ -4,3 +4,4 @@
 *.log
 /release
 *.exe
+.vs
