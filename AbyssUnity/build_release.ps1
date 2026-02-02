@@ -1,7 +1,9 @@
 $UnityExe = (Get-Content ".\build.config" | ConvertFrom-Json).UnityExe
 $LogFile = "build_win64.log"
 
-& $UnityExe `
+Write-Output "Building AbyssUnity. This will take a while. See AbyssUnity/build_*.log"
+
+($UnityExe) `
   -batchmode `
   -quit `
   -nographics `
