@@ -1,10 +1,8 @@
 $env:CGO_ENABLED = "1"
 
 Write-Output "Preparing dependencies for AbyssUnity"
-Set-Location ./abyss_engine/ABI
-./build.ps1
-Set-Location ../..
-Copy-Item -Path ./abyss_engine/ABI -Destination ./AbyssUnity/Assets/Host/ABI -Recurse
+./build_debug.ps1
+Copy-Item ./abyss_engine/bin/Debug/net8.0/Google.Protobuf.dll ./AbyssUnity/Assets/Plugins/Google.Protobuf.dll
 
 Set-Location ./AbyssUnity
 Copy-Item ".\build.config.origin" ".\build.config"

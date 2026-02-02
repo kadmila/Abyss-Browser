@@ -27,6 +27,7 @@ public class Executor : MonoBehaviour
         }
         catch (Exception e)
         {
+            Debug.LogException(e);
             clientUtils.UIManager.AppendLog(e.Message);
         }
         lastUpdate = DateTime.Now;

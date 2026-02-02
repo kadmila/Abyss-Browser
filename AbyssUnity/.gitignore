@@ -104,3 +104,4 @@ InitTestScene*.unity*
 /build.config
 /*-abyst-gateway.config
 /Assets/Host/ABI
+/Assets/Plugins

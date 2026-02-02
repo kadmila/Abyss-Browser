@@ -1,0 +1,6 @@
+/ABI/*.cs
+/obj
+/bin
+*.log
+/release
+*.exe
