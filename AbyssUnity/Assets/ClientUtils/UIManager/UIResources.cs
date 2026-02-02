@@ -7,5 +7,8 @@ public class UIResources : ScriptableObject
     public Texture2D DefaultWorldPic;
     public Texture2D DefaultItemIcon;
     public Texture2D DefaultMemberProfile;
-    public VisualTreeAsset ItemIconAsset;
+    public VisualTreeAsset LocalItemUIAsset;
+
+    public Color TextFieldBorderColor;
+    public Color TextFieldBorderActiveColor;
 }

@@ -12,3 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e3fcc8767c0cd5a468730b7ed745402a, type: 3}
   m_Name: UIResources
   m_EditorClassIdentifier: Assembly-CSharp::UIResources
+  DefaultWorldPic: {fileID: 2800000, guid: 08ceb19d24bc6d241a330101049c5202, type: 3}
+  DefaultItemIcon: {fileID: 0}
+  DefaultMemberProfile: {fileID: 0}
+  LocalItemUIAsset: {fileID: 9197481963319205126, guid: 73ced31bb6662984f8dbf2f0f4ea4cf3, type: 3}
+  TextFieldBorderColor: {r: 0, g: 0, b: 0, a: 0}
+  TextFieldBorderActiveColor: {r: 0.39215687, g: 0.7294118, b: 0.8235294, a: 1}

@@ -38,7 +38,9 @@ namespace ClientUtils.UIManager
         private readonly TextField mainAddressBar;
         private readonly TextField subAddressBar;
 
-        private readonly VisualElement openItemsSection;
+        private readonly VisualElement localItemsSection;
+        private readonly Dictionary<int, LocalItemUI> localItems = new();
+
         private readonly VisualElement inventory;
 
         private readonly Label localId;
@@ -59,7 +61,7 @@ namespace ClientUtils.UIManager
         public string MainAddressBarText => mainAddressBar.text;
         public string SubAddressBarText => subAddressBar.text;
         public string ConsoleText => console.text;
-        public FocusedTextField FocusedTextFieldName { get; private set; }
+        public FocusedTextField CurrentFocusedTextField { get; private set; }
 
         public UIManager(UIResources UIResources, UIDocument UIDocument)
         {
@@ -86,7 +88,7 @@ namespace ClientUtils.UIManager
             mainAddressBar = root.Q<TextField>("main-address-bar");
             subAddressBar = root.Q<TextField>("sub-address-bar");
 
-            openItemsSection = root.Q<VisualElement>("open-items-section");
+            localItemsSection = root.Q<VisualElement>("local-items-section");
             inventory = root.Q< VisualElement>("inventory");
 
             localId = root.Q<Label>("local-id");
@@ -101,12 +103,12 @@ namespace ClientUtils.UIManager
             tabDevButton.clicked += () => ChangeTabContent(dev, tabDevButton);
 
             //check for text field focus
-            mainAddressBar.RegisterCallback<FocusInEvent>(_ => FocusedTextFieldName = FocusedTextField.MainAddressBar);
-            mainAddressBar.RegisterCallback<FocusOutEvent>(_ => FocusedTextFieldName = FocusedTextField.None);
-            subAddressBar.RegisterCallback<FocusInEvent>(_ => FocusedTextFieldName = FocusedTextField.SubAddressBar);
-            subAddressBar.RegisterCallback<FocusOutEvent>(_ => FocusedTextFieldName = FocusedTextField.None);
-            console.RegisterCallback<FocusInEvent>(_ => FocusedTextFieldName = FocusedTextField.Console);
-            console.RegisterCallback<FocusOutEvent>(_ => FocusedTextFieldName = FocusedTextField.None);
+            mainAddressBar.RegisterCallback<FocusInEvent>(_ => OnTextFieldFocusIn(mainAddressBar, FocusedTextField.MainAddressBar));
+            mainAddressBar.RegisterCallback<FocusOutEvent>(_ => OnTextFieldFocusOut(mainAddressBar));
+            subAddressBar.RegisterCallback<FocusInEvent>(_ => OnTextFieldFocusIn(subAddressBar, FocusedTextField.SubAddressBar));
+            subAddressBar.RegisterCallback<FocusOutEvent>(_ => OnTextFieldFocusOut(subAddressBar));
+            console.RegisterCallback<FocusInEvent>(_ => OnTextFieldFocusIn(console, FocusedTextField.Console));
+            console.RegisterCallback<FocusOutEvent>(_ => OnTextFieldFocusOut(console));
 
             worldBookmarkButton.clicked += () => OnWorldBookmark();
 
@@ -132,7 +134,24 @@ namespace ClientUtils.UIManager
             if (target.name == "dev")
                 _is_dev_active = true;
         }
-
+        private void OnTextFieldFocusIn(TextField textField, FocusedTextField name)
+        {
+            CurrentFocusedTextField = name;
+            var target = textField.Q<VisualElement>("unity-text-input");
+            target.style.borderTopColor = uiResources.TextFieldBorderActiveColor;
+            target.style.borderBottomColor = uiResources.TextFieldBorderActiveColor;
+            target.style.borderLeftColor = uiResources.TextFieldBorderActiveColor;
+            target.style.borderRightColor = uiResources.TextFieldBorderActiveColor;
+        }
+        private void OnTextFieldFocusOut(TextField textField)
+        {
+            CurrentFocusedTextField = FocusedTextField.None;
+            var target = textField.Q<VisualElement>("unity-text-input");
+            target.style.borderTopColor = uiResources.TextFieldBorderColor;
+            target.style.borderBottomColor = uiResources.TextFieldBorderColor;
+            target.style.borderLeftColor = uiResources.TextFieldBorderColor;
+            target.style.borderRightColor = uiResources.TextFieldBorderColor;
+        }
         public void AppendLog(string line)
         {
             ClientLogger.WriteLine(line);
@@ -166,17 +185,31 @@ namespace ClientUtils.UIManager
                 }
             }
         }
-        public void AddLocalItemIcon(int element_id, Guid uuid)
+        public void AddLocalItemUI(int element_id, Guid uuid)
         {
+            var item = new LocalItemUI(uiResources.LocalItemUIAsset, () => OnItemClose(uuid));
+            localItemsSection.Add(item.VisualElement);
+            
+            localItems.Add(element_id, item);
+        }
+        public bool TryRemoveLocalItemUI(int element_id)
+        {
+            if(!localItems.TryGetValue(element_id, out var item))
+                return false;
 
+            item.VisualElement.RemoveFromHierarchy();
+
+            localItems.Remove(element_id);
+            return true;
         }
-        public bool TryRemoveLocalItemIcon(int element_id)
+        public bool TryUpdateLocalItemUIIcon(int element_id, Texture2D image)
         {
-            return false;
-        }
-        public bool TryUpdateLocalItemIcon(int element_id, Texture2D icon)
-        {
-            return false;
+            if (!localItems.TryGetValue(element_id, out var item))
+            {
+                return false;
+            }
+            item.SetIcon(image);
+            return true;
         }
 
         public void Activate() => root.visible = true;

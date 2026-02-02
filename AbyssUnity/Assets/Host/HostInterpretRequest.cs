@@ -84,7 +84,7 @@ namespace Host
         {
             if (args.SharerHash == clientUtils.LocalHash)
             {
-                clientUtils.UIManager.AddLocalItemIcon(args.ElementId, new Guid(args.Uuid.Span));
+                clientUtils.UIManager.AddLocalItemUI(args.ElementId, new Guid(args.Uuid.Span));
             }
             else
             {
@@ -93,7 +93,7 @@ namespace Host
         };
         private Action DeleteItem(RenderAction.Types.DeleteItem args) => () =>
         {
-            if (clientUtils.UIManager.TryRemoveLocalItemIcon(args.ElementId)) 
+            if (clientUtils.UIManager.TryRemoveLocalItemUI(args.ElementId)) 
                 return;
 
             clientUtils.UIManager.AppendLog("member item UI not implemented 2");
@@ -122,14 +122,14 @@ namespace Host
             {
                 if (is_clear)
                 {
-                    if (clientUtils.UIManager.TryUpdateLocalItemIcon(args.ElementId, clientUtils.UIResources.DefaultItemIcon))
+                    if (clientUtils.UIManager.TryUpdateLocalItemUIIcon(args.ElementId, clientUtils.UIResources.DefaultItemIcon))
                         return;
 
                     clientUtils.UIManager.AppendLog("member item UI not implemented 3");
                 }
                 else
                 {
-                    if (clientUtils.UIManager.TryUpdateLocalItemIcon(args.ElementId, resource switch
+                    if (clientUtils.UIManager.TryUpdateLocalItemUIIcon(args.ElementId, resource switch
                     {
                         Image image => image.Texture,
                         _ => clientUtils.UIResources.DefaultItemIcon

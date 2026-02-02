@@ -55,7 +55,7 @@ namespace ClientUtils.InputManager
         }
         private void OnEnterPressedInUI(InputAction.CallbackContext ctx)
         {
-            switch (uiManager.FocusedTextFieldName)
+            switch (uiManager.CurrentFocusedTextField)
             {
                 case UIManager.FocusedTextField.None:
                     break;

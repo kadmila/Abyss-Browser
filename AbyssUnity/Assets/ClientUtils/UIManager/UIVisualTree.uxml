@@ -9,7 +9,7 @@
             <ui:Button text="Dev" name="tab-dev-button" class="tab"/>
         </ui:VisualElement>
         <ui:VisualElement class="content">
-            <ui:VisualElement name="home" style="display: flex;">
+            <ui:VisualElement name="home" style="display: none;">
                 <ui:VisualElement name="VisualElement" class="center-area">
                     <ui:VisualElement class="world-info-section">
                         <ui:Image source="project://database/Assets/ClientUtils/UIManager/img/free-icon-village-2388458.png?fileID=2800000&amp;guid=08ceb19d24bc6d241a330101049c5202&amp;type=3#free-icon-village-2388458" name="world-pic"/>
@@ -17,7 +17,7 @@
                             <ui:Label name="world-title" text="World Title"/>
                             <ui:Label name="world-url" text="World URL"/>
                             <ui:VisualElement class="world-actions-bar" style="flex-grow: 1;">
-                                <ui:Button name="world-bookmark-button" class="world-actions-button" style="background-image: url(&quot;project://database/Assets/ClientUtils/UIManager/img/free-icon-font-star-3916591.svg?fileID=7388822144124034973&amp;guid=098183c20c3ec5f4ca18b27dfd4dd7e4&amp;type=3#free-icon-font-star-3916591&quot;);"/>
+                                <ui:Button name="world-bookmark-button" class="world-actions-button"/>
                             </ui:VisualElement>
                         </ui:VisualElement>
                     </ui:VisualElement>
@@ -29,8 +29,8 @@
                         <ui:TextField placeholder-text="https://" name="sub-address-bar" enabled="true" is-delayed="true" hide-placeholder-on-focus="true"/>
                         <ui:Image source="project://database/Assets/ClientUtils/UIManager/img/free-icon-font-fish-5070389.svg?fileID=7388822144124034973&amp;guid=8a17c5429601a3c4a9a4f11344b12a1f&amp;type=3#free-icon-font-fish-5070389" tint-color="rgb(106, 106, 118)" style="position: absolute; left: 0; width: 40px; height: 100%; padding-left: 14px; border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 0; padding-bottom: 12px; padding-top: 12px;"/>
                     </ui:VisualElement>
-                    <ui:VisualElement name="open-items-section">
-                        <ui:Instance template="OpenItemIcon" name="OpenItemIcon"/>
+                    <ui:VisualElement name="local-items-section">
+                        <ui:Instance template="OpenItemIcon" name="OpenItemIcon" style="display: none;"/>
                     </ui:VisualElement>
                 </ui:VisualElement>
                 <ui:VisualElement name="inventory">
@@ -43,14 +43,14 @@
             </ui:VisualElement>
             <ui:VisualElement name="social"/>
             <ui:VisualElement name="settings"/>
-            <ui:VisualElement name="dev" style="display: none;">
+            <ui:VisualElement name="dev" style="display: flex;">
                 <ui:VisualElement class="dev-left">
                     <ui:Label text="ID: " name="local-id" class="dev-label"/>
                     <ui:Label text="frame time not measured" name="frame-time" class="dev-label"/>
                 </ui:VisualElement>
                 <ui:VisualElement class="dev-right">
                     <ui:ScrollView vertical-scroller-visibility="Hidden" class="log-scrol-view">
-                        <ui:Label name="log" text="This is some log text.fdf&#10;dfd&#10;df&#10;df&#10;df&#10;dfd&#10;fdf&#10;dfdfdsf&#10;s&#10;fdsd&#10;fd&#10;fs&#10;fds&#10;fs&#10;dfssssss&#10;Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of &quot;de Finibus Bonorum et Malorum&quot; (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, &quot;Lorem ipsum dolor sit amet..&quot;, comes from a line in section 1.10.32.&#10;Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of &quot;de Finibus Bonorum et Malorum&quot; (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, &quot;Lorem ipsum dolor sit amet..&quot;, comes from a line in section 1.10.32.&#10;"/>
+                        <ui:Label name="log"/>
                     </ui:ScrollView>
                     <ui:TextField name="console" label="&gt;&gt;"/>
                 </ui:VisualElement>

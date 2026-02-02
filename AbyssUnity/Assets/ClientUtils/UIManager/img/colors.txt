@@ -2,8 +2,13 @@
 #242428
 #6A6A76
 #388BA2
+#64BAD2
 #aec3b0
+#FBE0A3
 #eff6e0
+
+#7D1B1B
+#EC2727
 
 /// stupid
 
