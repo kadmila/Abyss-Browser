@@ -39,11 +39,14 @@ The codes are only for reference.
 
 ## Initial Setup
 
-1) Run ./project_init.ps1. This will take minutes. It should print three errors for missing directories.
+1) Run ./project_init.ps1. This will take minutes. It should print two errors for missing directories.
 2) Open Unity hub. Add > Add project from disk > select ./AbyssUnity folder.
 3) Open the unity project. This will take a while.
 4) When unity project opens without asking for safe mode, open "Main" from Scene.
 5) Enter play mode.
+
+Now, you may do release build to produce release binary (/release folder), or
+do debug build to update AbyssUnity project.
 
 ## Debug Build
 
@@ -51,4 +54,5 @@ The codes are only for reference.
 
 ## Release Build
 
+**Close Unity Editor before release build.**
 ./build_release.ps1

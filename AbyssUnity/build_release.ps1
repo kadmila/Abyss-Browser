@@ -4,8 +4,6 @@ $LogFile = "build_win64.log"
 Write-Output "Building AbyssUnity. This will take a while. See AbyssUnity/build_*.log"
 
 ($UnityExe) `
-  -batchmode `
-  -quit `
   -nographics `
   -projectPath "." `
   -executeMethod BuildScript.BuildWin64Mono `
