@@ -43,7 +43,8 @@ The codes are only for reference.
 2) Open Unity hub. Add > Add project from disk > select ./AbyssUnity folder.
 3) Open the unity project. This will take a while.
 4) When unity project opens without asking for safe mode, open "Main" from Scene.
-5) Enter play mode.
+5) In ./AbyssUnity/build.config, you have to fill in "UnityExe" value with the path to your Unity 6.3 Unity.exe file.
+This path must use "/" instead of "\", and must end with "Unity.exe".
 
 Now, you may do release build to produce release binary (/release folder), or
 do debug build to update AbyssUnity project.
