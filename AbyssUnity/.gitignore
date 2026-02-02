@@ -103,3 +103,4 @@ InitTestScene*.unity*
 /AbyssCLI
 /build.config
 /*-abyst-gateway.config
+/Assets/Host/ABI
