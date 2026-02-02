@@ -3,7 +3,6 @@ using System.Threading;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
-using static UnityEditor.SceneView;
 
 namespace ClientUtils
 { 

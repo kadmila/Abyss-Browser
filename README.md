@@ -39,7 +39,7 @@ The codes are only for reference.
 
 ## Initial Setup
 
-1) Run ./project_init.ps1. This will take minutes. It should print two errors for missing directories.
+1) Run ./project_init.ps1. This will take minutes. It should print three errors for missing directories.
 2) Open Unity hub. Add > Add project from disk > select ./AbyssUnity folder.
 3) Open the unity project. This will take a while.
 4) When unity project opens without asking for safe mode, open "Main" from Scene.
