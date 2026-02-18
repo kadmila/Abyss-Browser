@@ -124,26 +124,6 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 			if err := h.onMEM(events, MEM, peer_session, participating_worlds); err != nil {
 				return err
 			}
-		case ahmp.SJN_T:
-			SJN, err := tryParseAhmp[*and.RawSJN](&msg)
-			if err != nil {
-				return err
-			}
-			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4], functional.Accum_all(SJN.MemberInfos, "", func(entry and.ANDPeerSessionIdentity, str string) string { return entry.PeerID[:4] + " " + str }))
-			peer_session := and.ANDPeerSession{Peer: peer, SessionID: SJN.SenderSessionID}
-			if err := h.onSJN(events, SJN, peer_session, participating_worlds); err != nil {
-				return err
-			}
-		case ahmp.CRR_T:
-			CRR, err := tryParseAhmp[*and.RawCRR](&msg)
-			if err != nil {
-				return err
-			}
-			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4], functional.Accum_all(CRR.MemberInfos, "", func(entry and.ANDPeerSessionIdentity, str string) string { return entry.PeerID[:4] + " " + str }))
-			peer_session := and.ANDPeerSession{Peer: peer, SessionID: CRR.SenderSessionID}
-			if err := h.onCRR(events, CRR, peer_session, participating_worlds); err != nil {
-				return err
-			}
 		case ahmp.RST_T:
 			RST, err := tryParseAhmp[*and.RawRST](&msg)
 			if err != nil {

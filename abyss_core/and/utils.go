@@ -111,8 +111,6 @@ type peerWorldSessionState struct {
 	SessionID            uuid.UUID
 	TimeStamp            time.Time
 	is_session_requested bool // this is true if EANDSessionRequest was fired.
-	sjnp                 bool //is sjn suppressed
-	sjnc                 int  //sjn receive count
 }
 
 func (s *peerWorldSessionState) ANDPeerSession() ANDPeerSession {

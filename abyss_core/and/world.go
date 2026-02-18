@@ -51,10 +51,6 @@ func newWorld_Open(events ds.Queue, origin *AND, world_url string) *World {
 		World: result,
 		URL:   world_url,
 	})
-	events.Push(&EANDTimerRequest{
-		World:    result,
-		Duration: time.Millisecond * INITIAL_WORLD_TIMER,
-	})
 	return result
 }
 
@@ -338,8 +334,6 @@ func (w *World) tryOverwritePeerSession(events ds.Queue, entry *peerWorldSession
 		entry.SessionID = session_id
 		entry.TimeStamp = timestamp
 		entry.is_session_requested = false
-		entry.sjnp = false
-		entry.sjnc = 0
 		return true
 	} else {
 		return false
@@ -463,7 +457,6 @@ func (w *World) JOK(events ds.Queue, peer_session ANDPeerSession, timestamp time
 		first_member.SessionID = peer_session.SessionID
 		first_member.TimeStamp = timestamp
 		first_member.is_session_requested = true
-		first_member.sjnp = true
 
 		w.entries[first_member.PeerID] = first_member
 
@@ -471,17 +464,13 @@ func (w *World) JOK(events ds.Queue, peer_session ANDPeerSession, timestamp time
 			World: w,
 			URL:   world_url,
 		})
-		events.Push(&EANDTimerRequest{
-			World:    w,
-			Duration: time.Millisecond * INITIAL_WORLD_TIMER,
-		})
 		events.Push(&EANDSessionReady{
 			World:          w,
 			ANDPeerSession: first_member.ANDPeerSession(),
 		})
 
 		for _, mem_info := range member_infos {
-			w.jni_mems(events, mem_info, true)
+			w.jni_mems(events, mem_info)
 		}
 		return
 	}
@@ -530,10 +519,10 @@ func (w *World) JNI(events ds.Queue, peer_session ANDPeerSession, member_info AN
 		return
 	}
 
-	w.jni_mems(events, member_info, false)
+	w.jni_mems(events, member_info)
 }
 
-func (w *World) jni_mems(events ds.Queue, mem_info ANDFullPeerSessionInfo, sjnp bool) {
+func (w *World) jni_mems(events ds.Queue, mem_info ANDFullPeerSessionInfo) {
 	config.IF_DEBUG(func() {
 		if w.join_target != nil {
 			panic("jni_mems: world is joining")
@@ -547,7 +536,6 @@ func (w *World) jni_mems(events ds.Queue, mem_info ANDFullPeerSessionInfo, sjnp 
 			PeerID:    mem_info.PeerID,
 			SessionID: mem_info.SessionID,
 			TimeStamp: mem_info.TimeStamp,
-			sjnp:      sjnp,
 		}
 		events.Push(&EANDPeerRequest{
 			World:                      w,
@@ -563,7 +551,6 @@ func (w *World) jni_mems(events ds.Queue, mem_info ANDFullPeerSessionInfo, sjnp 
 	if w.tryOverwritePeerSession(events, mem_entry, mem_info.SessionID, mem_info.TimeStamp) {
 		if mem_entry.Peer == nil {
 			mem_entry.state = WS_DC_JNI
-			mem_entry.sjnp = sjnp
 			events.Push(&EANDPeerRequest{
 				World:                      w,
 				PeerID:                     mem_info.PeerID,
@@ -573,7 +560,6 @@ func (w *World) jni_mems(events ds.Queue, mem_info ANDFullPeerSessionInfo, sjnp 
 			})
 		} else {
 			mem_entry.state = WS_JNI
-			mem_entry.sjnp = sjnp
 			events.Push(&EANDSessionRequest{
 				World:          w,
 				ANDPeerSession: mem_entry.ANDPeerSession(),
@@ -753,88 +739,6 @@ func (w *World) ObjectDelete(peer_session_identities []ANDPeerSessionIdentity, o
 			break
 		}
 		w.sendSOD(entry, objectIDs)
-	}
-}
-
-func (w *World) TimerExpire(events ds.Queue) {
-	if w.is_closed {
-		return
-	}
-
-	w.broadcastSJN()
-
-	duration := 500 + int(w.weibull_dist.Rand()*float64(200*(w.member_count+1)))
-	events.Push(&EANDTimerRequest{
-		World:    w,
-		Duration: time.Millisecond * time.Duration(duration),
-	})
-}
-
-func (w *World) SJN(events ds.Queue, peer_session ANDPeerSession, member_infos []ANDPeerSessionIdentity) {
-	if w.is_closed {
-		return
-	}
-
-	entry, ok := w.mustBeMemberCheck(events, peer_session)
-	if !ok {
-		return
-	}
-
-	missing_members := functional.Filter_ok(member_infos, func(e ANDPeerSessionIdentity) (ANDPeerSessionIdentity, bool) {
-		if e.PeerID == w.o.local_id {
-			// exclude self
-			return e, false
-		}
-		entry, ok := w.entries[e.PeerID]
-		if !ok {
-			// peer not found
-			return e, true
-		}
-		if entry.SessionID != e.SessionID {
-			// no information for the current session
-			return e, true
-		}
-		// peer with corresponding session exists.
-		switch entry.state {
-		case WS_DC_JNI, WS_CC, WS_RMEM_NJNI:
-			// requires CRR
-			return e, true
-		case WS_MEM:
-			entry.sjnc++
-			config.IF_DEBUG(func() {
-				if entry.sjnc > 5 {
-					panic("too many SJN")
-				}
-			})
-			return e, false
-		default:
-			// not a member, but don't bother sending CRR
-			return e, false
-		}
-	})
-
-	if len(missing_members) != 0 {
-		w.sendCRR(entry, missing_members)
-	}
-}
-
-func (w *World) CRR(events ds.Queue, peer_session ANDPeerSession, member_infos []ANDPeerSessionIdentity) {
-	if w.is_closed {
-		return
-	}
-
-	sender, ok := w.mustBeMemberCheck(events, peer_session)
-	if !ok {
-		return
-	}
-
-	for _, mem_info := range member_infos {
-		entry, ok := w.entries[mem_info.PeerID]
-		if !ok || entry.SessionID != mem_info.SessionID || entry.state != WS_MEM {
-			continue
-		}
-		w.sendJNI(sender, entry)
-		w.sendJNI(entry, sender)
 	}
 }
 

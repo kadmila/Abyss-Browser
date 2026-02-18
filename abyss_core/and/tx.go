@@ -1,8 +1,6 @@
 package and
 
 import (
-	"time"
-
 	"github.com/google/uuid"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ahmp"
 	"github.com/kadmila/Abyss-Browser/abyss_core/config"
@@ -61,45 +59,6 @@ func (w *World) sendMEM(member *peerWorldSessionState) error {
 		SenderSessionID: w.lsid.String(),
 		RecverSessionID: member.SessionID.String(),
 		TimeStamp:       w.timestamp.UnixMilli(),
-	})
-}
-func (w *World) broadcastSJN() error {
-	sjn_entries := functional.Filter_MtS_ok(w.entries, func(e *peerWorldSessionState) (RawSessionInfoForSJN, bool) {
-		result := MakeRawSessionInfoForSJN(e)
-		if e.state != WS_MEM || time.Since(e.TimeStamp) < time.Second || e.sjnp || e.sjnc >= 3 {
-			return result, false
-		}
-		e.sjnp = true
-		return result, true
-	})
-
-	if len(sjn_entries) == 0 {
-		return nil
-	}
-
-	// send
-	for _, entry := range w.entries {
-		if entry.state != WS_MEM {
-			continue
-		}
-		entry.Peer.Send(ahmp.SJN_T, RawSJN{
-			SenderSessionID: w.lsid.String(),
-			RecverSessionID: entry.SessionID.String(),
-			MemberInfos:     sjn_entries,
-		})
-	}
-	return nil
-}
-func (w *World) sendCRR(member *peerWorldSessionState, missing_entries []ANDPeerSessionIdentity) error {
-	return member.Peer.Send(ahmp.CRR_T, RawCRR{
-		SenderSessionID: w.lsid.String(),
-		RecverSessionID: member.SessionID.String(),
-		MemberInfos: functional.Filter(missing_entries, func(i ANDPeerSessionIdentity) RawSessionInfoForSJN {
-			return RawSessionInfoForSJN{
-				PeerID:    i.PeerID,
-				SessionID: i.SessionID.String(),
-			}
-		}),
 	})
 }
 func (w *World) sendRST(target *peerWorldSessionState, code int, message string) error {

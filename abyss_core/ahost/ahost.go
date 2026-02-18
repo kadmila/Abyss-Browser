@@ -79,7 +79,6 @@ func (h *AbyssHost) Serve() error {
 
 	// and timer event worker
 	timer_done := make(chan error)
-	go h.timerWorkingLoop(timer_done)
 
 	accept_err := h.acceptingLoop()
 
@@ -90,26 +89,6 @@ func (h *AbyssHost) Serve() error {
 	close_err := h.net.Close()
 
 	return errors.Join(accept_err, serve_err, close_err)
-}
-
-func (h *AbyssHost) timerWorkingLoop(timer_done chan<- error) {
-	events := ds.MakeQueue()
-	for {
-		wsid, err := h.timer_queue.Wait(h.service_ctx)
-		if err != nil {
-			timer_done <- err
-			return
-		}
-
-		h.mtx.Lock()
-		world, ok := h.worlds[wsid]
-		if ok {
-			world.TimerExpire(events)
-			world.CheckSanity()
-			h.handleANDEvent(events)
-		}
-		h.mtx.Unlock()
-	}
 }
 
 // acceptingLoop accepts new connections.

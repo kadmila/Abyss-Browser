@@ -121,44 +121,6 @@ func (h *AbyssHost) onMEM(
 	return nil
 }
 
-func (h *AbyssHost) onSJN(
-	events ds.Queue,
-	SJN *and.SJN,
-	peer_session and.ANDPeerSession,
-	participating_worlds map[uuid.UUID]*and.World,
-) error {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
-	world, ok := participating_worlds[SJN.RecverSessionID]
-	if !ok {
-		return and.SendRST_UnexpectedArbitraryWorld(peer_session, SJN.RecverSessionID)
-	}
-	world.SJN(events, peer_session, SJN.MemberInfos)
-	world.CheckSanity()
-	h.handleANDEvent(events)
-	return nil
-}
-
-func (h *AbyssHost) onCRR(
-	events ds.Queue,
-	CRR *and.CRR,
-	peer_session and.ANDPeerSession,
-	participating_worlds map[uuid.UUID]*and.World,
-) error {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
-	world, ok := participating_worlds[CRR.RecverSessionID]
-	if !ok {
-		return and.SendRST_UnexpectedArbitraryWorld(peer_session, CRR.RecverSessionID)
-	}
-	world.CRR(events, peer_session, CRR.MemberInfos)
-	world.CheckSanity()
-	h.handleANDEvent(events)
-	return nil
-}
-
 func (h *AbyssHost) onRST(
 	events ds.Queue,
 	RST *and.RST,
