@@ -103,32 +103,17 @@ func (s ANDSessionState) String() string {
 // peerWorldSessionState represents the peer's state in world session lifecycle.
 // timestamp is used only for JNI.
 type peerWorldSessionState struct {
-	state     ANDSessionState
-	Peer      ani.IAbyssPeer
-	SessionID uuid.UUID
-	fwd       bool
-	cnt       int
-}
-
-func (s *peerWorldSessionState) ANDPeerSession() ANDPeerSession {
-	return ANDPeerSession{
-		Peer:      s.Peer,
-		SessionID: s.SessionID,
-	}
-}
-func (s *peerWorldSessionState) ANDIdentity() ANDIdentity {
-	return ANDIdentity{
-		PeerID:    s.Peer.ID(),
-		SessionID: s.SessionID,
-	}
+	ANDPeerSession
+	state ANDSessionState
+	fwd   bool
+	cnt   int
 }
 
 // ANDFullPeerSessionInfo provides all the information required to
 // connect a peer, identify its world session, negotiate ordering.
 // As a result, a peer who receives this can construct ANDFullPeerSession.
 type ANDFullPeerSessionInfo struct {
-	PeerID                     string
-	SessionID                  uuid.UUID
+	ANDIdentity
 	RootCertificateDer         []byte
 	HandshakeKeyCertificateDer []byte
 }

@@ -1,7 +1,6 @@
 package and
 
 import (
-	"net/netip"
 	"time"
 
 	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
@@ -11,19 +10,16 @@ import (
 
 type RawSessionInfoForDiscovery struct {
 	PeerID                     string
-	AddressCandidates          []string
 	SessionID                  string
 	TimeStamp                  int64
 	RootCertificateDer         []byte
 	HandshakeKeyCertificateDer []byte
 }
 
-func MakeRawSessionInfoForDiscovery(entry *peerWorldSessionState) RawSessionInfoForDiscovery {
+func MakeRawSessionInfoForDiscovery(entry ANDPeerSession) RawSessionInfoForDiscovery {
 	return RawSessionInfoForDiscovery{
 		PeerID:                     entry.Peer.ID(),
-		AddressCandidates:          functional.Filter(entry.Peer.AddressCandidates(), func(a netip.AddrPort) string { return a.String() }),
 		SessionID:                  entry.SessionID.String(),
-		TimeStamp:                  entry.TimeStamp.UnixMilli(),
 		RootCertificateDer:         entry.Peer.RootCertificateDer(),
 		HandshakeKeyCertificateDer: entry.Peer.HandshakeKeyCertificateDer(),
 	}
@@ -32,13 +28,6 @@ func MakeRawSessionInfoForDiscovery(entry *peerWorldSessionState) RawSessionInfo
 type RawSessionInfoForSJN struct {
 	PeerID    string
 	SessionID string
-}
-
-func MakeRawSessionInfoForSJN(entry *peerWorldSessionState) RawSessionInfoForSJN {
-	return RawSessionInfoForSJN{
-		PeerID:    entry.PeerID,
-		SessionID: entry.SessionID.String(),
-	}
 }
 
 // AHMP message formats
@@ -62,7 +51,6 @@ type RawJOK struct {
 	SenderSessionID string
 	RecverSessionID string
 	URL             string
-	TimeStamp       int64
 	Neighbors       []RawSessionInfoForDiscovery
 }
 
@@ -76,19 +64,13 @@ func (r *RawJOK) TryParse() (*JOK, error) {
 		return nil, err
 	}
 	neig, _, err := functional.Filter_until_err(r.Neighbors, func(i RawSessionInfoForDiscovery) (ANDFullPeerSessionInfo, error) {
-		addrs, _, err := functional.Filter_until_err(i.AddressCandidates, netip.ParseAddrPort)
-		if err != nil {
-			return ANDFullPeerSessionInfo{}, err
-		}
 		psid, err := uuid.Parse(i.SessionID)
 		if err != nil {
 			return ANDFullPeerSessionInfo{}, err
 		}
 		return ANDFullPeerSessionInfo{
 			PeerID:                     i.PeerID,
-			AddressCandidates:          addrs,
 			SessionID:                  psid,
-			TimeStamp:                  time.UnixMilli(i.TimeStamp),
 			RootCertificateDer:         i.RootCertificateDer,
 			HandshakeKeyCertificateDer: i.HandshakeKeyCertificateDer,
 		}, nil
@@ -100,7 +82,6 @@ func (r *RawJOK) TryParse() (*JOK, error) {
 		SenderSessionID: ssid,
 		RecverSessionID: rsid,
 		URL:             r.URL,
-		TimeStamp:       time.UnixMilli(r.TimeStamp),
 		Neighbors:       neig,
 	}, nil
 }
@@ -139,19 +120,13 @@ func (r *RawJNI) TryParse() (*JNI, error) {
 		return nil, err
 	}
 
-	addrs, _, err := functional.Filter_until_err(r.Joiner.AddressCandidates, netip.ParseAddrPort)
-	if err != nil {
-		return nil, err
-	}
 	psid, err := uuid.Parse(r.Joiner.SessionID)
 	if err != nil {
 		return nil, err
 	}
 	return &JNI{ssid, rsid, ANDFullPeerSessionInfo{
 		PeerID:                     r.Joiner.PeerID,
-		AddressCandidates:          addrs,
 		SessionID:                  psid,
-		TimeStamp:                  time.UnixMilli(r.Joiner.TimeStamp),
 		RootCertificateDer:         r.Joiner.RootCertificateDer,
 		HandshakeKeyCertificateDer: r.Joiner.HandshakeKeyCertificateDer,
 	}}, nil
@@ -191,9 +166,9 @@ func (r *RawSJN) TryParse() (*SJN, error) {
 		return nil, err
 	}
 	infos, _, err := functional.Filter_until_err(r.MemberInfos,
-		func(info_raw RawSessionInfoForSJN) (ANDPeerSessionIdentity, error) {
+		func(info_raw RawSessionInfoForSJN) (ANDIdentity, error) {
 			id, err := uuid.Parse(info_raw.SessionID)
-			return ANDPeerSessionIdentity{
+			return ANDIdentity{
 				PeerID:    info_raw.PeerID,
 				SessionID: id,
 			}, err
@@ -220,9 +195,9 @@ func (r *RawCRR) TryParse() (*CRR, error) {
 		return nil, err
 	}
 	infos, _, err := functional.Filter_until_err(r.MemberInfos,
-		func(info_raw RawSessionInfoForSJN) (ANDPeerSessionIdentity, error) {
+		func(info_raw RawSessionInfoForSJN) (ANDIdentity, error) {
 			id, err := uuid.Parse(info_raw.SessionID)
-			return ANDPeerSessionIdentity{
+			return ANDIdentity{
 				PeerID:    info_raw.PeerID,
 				SessionID: id,
 			}, err

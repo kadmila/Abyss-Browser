@@ -58,6 +58,7 @@ func newWorld_Open(ctx context.Context, events ds.Queue, origin *AND, env_url st
 		World: result,
 		URL:   env_url,
 	})
+	go result.worker()
 	return result
 }
 
@@ -79,6 +80,7 @@ func newWorld_Join(ctx context.Context, origin *AND, target ani.IAbyssPeer, path
 	if err != nil {
 		return nil, err
 	}
+	go result.worker()
 	return result, nil
 }
 
@@ -105,9 +107,7 @@ func (w *World) TimerExpire() {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
-	// At this point, the timer is consumed.
-
-	//TODO
+	w.broadcastSJN()
 }
 
 // IsExposable checks if the world joining procedure is finished and the world information is set.
@@ -117,13 +117,27 @@ func (w *World) IsExposable() bool {
 
 func (w *World) finalizeMember(events ds.Queue, subject ANDPeerSession, fwd bool) {
 	w.entries[subject.ANDIdentity()] = &peerWorldSessionState{
-		state:     WS_MEM,
-		Peer:      subject.Peer,
-		SessionID: subject.SessionID,
-		fwd:       fwd,
-		cnt:       0,
+		ANDPeerSession: subject,
+		state:          WS_MEM,
+		fwd:            fwd,
+		cnt:            0,
 	}
 
+}
+
+func (w *World) acceptRemoteMember(events ds.Queue, member_info ANDFullPeerSessionInfo, fwd bool) {
+	entry, ok := w.entries[member_info.ANDIdentity]
+	if !ok {
+		events.Push(&EANDPeerRequest{
+			World:                      w,
+			PeerID:                     member_info.PeerID,
+			RootCertificateDer:         member_info.RootCertificateDer,
+			HandshakeKeyCertificateDer: member_info.HandshakeKeyCertificateDer,
+		})
+	} else {
+		w.sendMEM(entry)
+		w.finalizeMember(events, entry.ANDPeerSession, false)
+	}
 }
 
 func (w *World) closeEntry(events ds.Queue, entry *peerWorldSessionState) {
@@ -157,91 +171,23 @@ func (w *World) JN(events ds.Queue, peer_session ANDPeerSession) {
 		w.closeEntry(events, entry)
 		return
 	}
-
-	new_entry := &peerWorldSessionState{
-		state: WS_JN,
-	}
-
-	entry.state = WS_JN
-	events.Push(&EANDSessionRequest{
-		World:          w,
-		ANDPeerSession: peer_session,
-	})
-	entry.is_session_requested = true
+	w.sendJOK_JNI(peer_session)
+	w.finalizeMember(events, peer_session, false)
 }
 
-func (w *World) JOK(events ds.Queue, peer_session ANDPeerSession, timestamp time.Time, world_url string, member_infos []ANDFullPeerSessionInfo) {
-	if w.is_closed {
-		return
-	}
-
-	// normal case
-	if w.join_target != nil && w.join_target.Peer == peer_session.Peer {
-		first_member := w.join_target
-
-		w.join_target = nil
-		w.join_path = ""
-		w.url = world_url
-
-		first_member.state = WS_MEM
-		w.member_count++
-		first_member.SessionID = peer_session.SessionID
-		first_member.TimeStamp = timestamp
-		first_member.is_session_requested = true
-		first_member.sjnp = true
-
-		w.entries[first_member.PeerID] = first_member
-
-		events.Push(&EANDWorldEnter{
-			World: w,
-			URL:   world_url,
-		})
-		events.Push(&EANDTimerRequest{
-			World:    w,
-			Duration: time.Millisecond * INITIAL_WORLD_TIMER,
-		})
-		events.Push(&EANDSessionReady{
-			World:          w,
-			ANDPeerSession: first_member.ANDPeerSession(),
-		})
-
-		for _, mem_info := range member_infos {
-			w.jni_mems(events, mem_info, true)
+func (w *World) JOK(events ds.Queue, peer_session ANDPeerSession, world_url string, member_infos []ANDFullPeerSessionInfo) {
+	if w.join_target != peer_session.Peer.ID() {
+		if entry, ok := w.entries[peer_session.ANDIdentity()]; ok {
+			w.sendRST(entry, JNC_INVALID_STATES, JNM_INVALID_STATES)
+			w.closeEntry(events, entry)
+			return
 		}
-		return
 	}
 
-	// faulty cases
-	if entry, ok := w.entries[peer_session.Peer.ID()]; ok {
-		w.sendRST_Direct(peer_session, JNC_INVALID_STATES, JNM_INVALID_STATES)
-		w.removeEntry(events, entry, JNC_INVALID_STATES, JNM_INVALID_STATES)
-		return
+	w.finalizeMember(events, peer_session, false)
+	for _, member_info := range member_infos {
+		w.acceptRemoteMember(events, member_info, false)
 	}
-	panic("JOK: World corrupted")
-}
-
-func (w *World) JDN(events ds.Queue, peer ani.IAbyssPeer, code int, message string) {
-	if w.is_closed {
-		return
-	}
-
-	// normal case
-	if w.join_target != nil && w.join_target.Peer == peer {
-		events.Push(&EANDWorldLeave{
-			World:   w,
-			Code:    code,
-			Message: message,
-		})
-		w.is_closed = true
-		return
-	}
-
-	// faulty cases
-	if entry, ok := w.entries[peer.ID()]; ok {
-		w.removeEntry(events, entry, JNC_INVALID_STATES, JNM_INVALID_STATES)
-		return
-	}
-	panic("JDN: World corrupted")
 }
 
 func (w *World) JNI(events ds.Queue, peer_session ANDPeerSession, member_info ANDFullPeerSessionInfo) {

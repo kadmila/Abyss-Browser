@@ -1,8 +1,6 @@
 package and
 
 import (
-	"net/netip"
-
 	"github.com/google/uuid"
 )
 
@@ -27,7 +25,6 @@ type EANDSessionClose struct {
 type EANDPeerRequest struct {
 	World                      *World
 	PeerID                     string
-	AddressCandidates          []netip.AddrPort
 	RootCertificateDer         []byte
 	HandshakeKeyCertificateDer []byte
 }
