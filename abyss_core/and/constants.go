@@ -1,5 +1,7 @@
 package and
 
+// TODO : revise this
+
 const (
 	JNC_REDUNDANT = 110
 

@@ -5,17 +5,17 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ahmp"
+	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
 	"github.com/kadmila/Abyss-Browser/abyss_core/config"
 	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
 )
 
 // TODO: define transmission error type.
 
-func (w *World) sendJN(target *peerWorldSessionState) error {
-	return target.Peer.Send(ahmp.JN_T, RawJN{
+func (w *World) sendJN(target ani.IAbyssPeer, path string) error {
+	return target.Send(ahmp.JN_T, RawJN{
 		SenderSessionID: w.lsid.String(),
-		Path:            w.join_path,
-		TimeStamp:       w.timestamp.UnixMilli(),
+		Path:            path,
 	})
 }
 func (w *World) sendJOK_JNI(joiner *peerWorldSessionState) error {
