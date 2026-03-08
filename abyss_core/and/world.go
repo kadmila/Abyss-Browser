@@ -25,7 +25,6 @@ type World struct {
 	WSID           uuid.UUID                              // local world session id
 	timestamp      time.Time                              // local world session creation timestamp
 	join_target    string                                 // (when constructed with Join) join target peer ID
-	join_path      string                                 // (when constructed with Join) world request path
 	env_url        string                                 // (when constructed with Open, or Join accepted) environmental content URL.
 	entries        map[ANDIdentity]*peerWorldSessionState // key: id, value: peer states
 	callback_timer *ANDTimer
@@ -47,7 +46,6 @@ func newWorld_Open(ctx context.Context, events ds.Queue, origin *AND, env_url st
 		WSID:           uuid.New(),
 		timestamp:      time.Now(),
 		join_target:    "",
-		join_path:      "",
 		env_url:        env_url,
 		entries:        make(map[ANDIdentity]*peerWorldSessionState),
 		callback_timer: NewANDTimer(),
@@ -69,7 +67,6 @@ func newWorld_Join(ctx context.Context, origin *AND, target ani.IAbyssPeer, path
 		WSID:           uuid.New(),
 		timestamp:      time.Now(),
 		join_target:    target.ID(),
-		join_path:      path,
 		env_url:        "",
 		entries:        make(map[ANDIdentity]*peerWorldSessionState),
 		callback_timer: NewANDTimer(),
@@ -85,6 +82,8 @@ func newWorld_Join(ctx context.Context, origin *AND, target ani.IAbyssPeer, path
 }
 
 func (w *World) Close() {
+	w.broadcastRST(JNC_CLOSED, JNM_CLOSED)
+
 	w.ctx_cancel()
 	w.callback_timer.Stop()
 	<-w.done
@@ -135,7 +134,7 @@ func (w *World) acceptRemoteMember(events ds.Queue, member_info ANDFullPeerSessi
 			HandshakeKeyCertificateDer: member_info.HandshakeKeyCertificateDer,
 		})
 	} else {
-		w.sendMEM(entry)
+		w.sendMEM(entry.ANDPeerSession)
 		w.finalizeMember(events, entry.ANDPeerSession, false)
 	}
 }
@@ -156,7 +155,7 @@ func (w *World) mustBeMemberCheck(events ds.Queue, peer_session ANDPeerSession) 
 
 	if entry.state != WS_MEM {
 		// exists, but not a member. This is a sign of peer failure.
-		w.sendRST(entry, JNC_INVALID_STATES, JNM_INVALID_STATES)
+		w.sendRST(entry.ANDPeerSession, JNC_INVALID_STATES, JNM_INVALID_STATES)
 		w.closeEntry(events, entry)
 		return nil, false
 	}
@@ -167,7 +166,7 @@ func (w *World) mustBeMemberCheck(events ds.Queue, peer_session ANDPeerSession) 
 func (w *World) JN(events ds.Queue, peer_session ANDPeerSession) {
 	entry, ok := w.entries[peer_session.ANDIdentity()]
 	if ok {
-		w.sendRST(entry, JNC_INVALID_STATES, JNM_INVALID_STATES)
+		w.sendRST(entry.ANDPeerSession, JNC_INVALID_STATES, JNM_INVALID_STATES)
 		w.closeEntry(events, entry)
 		return
 	}
@@ -178,7 +177,7 @@ func (w *World) JN(events ds.Queue, peer_session ANDPeerSession) {
 func (w *World) JOK(events ds.Queue, peer_session ANDPeerSession, world_url string, member_infos []ANDFullPeerSessionInfo) {
 	if w.join_target != peer_session.Peer.ID() {
 		if entry, ok := w.entries[peer_session.ANDIdentity()]; ok {
-			w.sendRST(entry, JNC_INVALID_STATES, JNM_INVALID_STATES)
+			w.sendRST(entry.ANDPeerSession, JNC_INVALID_STATES, JNM_INVALID_STATES)
 			w.closeEntry(events, entry)
 			return
 		}
@@ -188,264 +187,55 @@ func (w *World) JOK(events ds.Queue, peer_session ANDPeerSession, world_url stri
 	for _, member_info := range member_infos {
 		w.acceptRemoteMember(events, member_info, false)
 	}
+	w.join_target = ""
 }
 
 func (w *World) JNI(events ds.Queue, peer_session ANDPeerSession, member_info ANDFullPeerSessionInfo) {
-	if w.is_closed {
-		return
-	}
-
 	// only the members can send JNI.
 	_, ok := w.mustBeMemberCheck(events, peer_session)
 	if !ok {
 		return
 	}
 
-	w.jni_mems(events, member_info, false)
+	w.acceptRemoteMember(events, member_info, true)
 }
 
-func (w *World) jni_mems(events ds.Queue, mem_info ANDFullPeerSessionInfo, sjnp bool) {
-	config.IF_DEBUG(func() {
-		if w.join_target != nil {
-			panic("jni_mems: world is joining")
-		}
-	})
-
-	mem_entry, ok := w.entries[mem_info.PeerID]
-	if !ok {
-		w.entries[mem_info.PeerID] = &peerWorldSessionState{
-			state:     WS_DC_JNI,
-			PeerID:    mem_info.PeerID,
-			SessionID: mem_info.SessionID,
-			TimeStamp: mem_info.TimeStamp,
-			sjnp:      sjnp,
-		}
-		events.Push(&EANDPeerRequest{
-			World:                      w,
-			PeerID:                     mem_info.PeerID,
-			AddressCandidates:          mem_info.AddressCandidates,
-			RootCertificateDer:         mem_info.RootCertificateDer,
-			HandshakeKeyCertificateDer: mem_info.HandshakeKeyCertificateDer,
-		})
-		return
-	}
-
-	// entry exists.
-	if w.tryOverwritePeerSession(events, mem_entry, mem_info.SessionID, mem_info.TimeStamp) {
-		if mem_entry.Peer == nil {
-			mem_entry.state = WS_DC_JNI
-			mem_entry.sjnp = sjnp
-			events.Push(&EANDPeerRequest{
-				World:                      w,
-				PeerID:                     mem_info.PeerID,
-				AddressCandidates:          mem_info.AddressCandidates,
-				RootCertificateDer:         mem_info.RootCertificateDer,
-				HandshakeKeyCertificateDer: mem_info.HandshakeKeyCertificateDer,
-			})
-		} else {
-			mem_entry.state = WS_JNI
-			mem_entry.sjnp = sjnp
-			events.Push(&EANDSessionRequest{
-				World:          w,
-				ANDPeerSession: mem_entry.ANDPeerSession(),
-			})
-			mem_entry.is_session_requested = true
-		}
-	}
-}
-
-func (w *World) MEM(events ds.Queue, peer_session ANDPeerSession, timestamp time.Time) {
-	if w.is_closed {
-		return
-	}
-
-	// MEM is onemost simple but tricky message. Any peer can send MEM, and
-	// MEM can overrun old session; and it is forced, as it is from the peer.
-
+func (w *World) MEM(events ds.Queue, peer_session ANDPeerSession, fwd bool) {
 	// only malicious case - join target sending MEM.
-	if w.join_target != nil && w.join_target.Peer == peer_session.Peer {
+	if w.join_target == peer_session.Peer.ID() {
 		// join process corrupted
+		w.sendRST_Direct(peer_session, JNC_INVALID_STATES, JNM_INVALID_STATES)
 		events.Push(&EANDWorldLeave{
 			World:   w,
 			Code:    JNC_INVALID_STATES,
 			Message: JNM_INVALID_STATES,
 		})
-		w.is_closed = true
+		w.join_target = ""
 		return
 	}
 
-	entry := w.entries[peer_session.Peer.ID()]
-	if entry.SessionID != peer_session.SessionID {
-		// MEM for unexpected session, or
-		// no previous session information exists.
-		if w.tryOverwritePeerSession(events, entry, peer_session.SessionID, timestamp) {
-			// re-configure state, no further action can be taken.
-			entry.state = WS_RMEM_NJNI
-			return
-		} else {
-			// reset this MEM.
-			w.sendRST_Direct(peer_session, JNC_OVERRUN, JNM_OVERRUN)
-			return
+	entry, ok := w.entries[peer_session.ANDIdentity()]
+	if ok {
+		if entry.state == WS_NOTISENT {
+			w.finalizeMember(events, peer_session, fwd)
 		}
-	}
-	// Confirmed: This MEM is from an expected peer.
-
-	switch entry.state {
-	case WS_DC_JNI, WS_CC:
-		panic("impossible")
-	case WS_JN:
-		// Joined and also sent MEM.
-		// This is a failure, because
-		// 1) joining session does not have a member.
-		// 2) MEM can only be fired for JNI.
-		// 3) JNI can only be sent from a member.
-		// Therefore, a joining peer must not send MEM.
-		w.sendRST_Direct(peer_session, JNC_INVALID_STATES, JNM_INVALID_STATES)
-		w.removeEntry(events, entry, JNC_INVALID_STATES, JNM_INVALID_STATES)
-		return
-	case WS_RMEM_NJNI, WS_RMEM, WS_MEM:
-		// very weird case - session check passed, duplicate MEM.
-		// There is absolutely no need for this.
-		w.removeEntry(events, entry, JNC_INVALID_STATES, JNM_INVALID_STATES)
-		return
-	case WS_JNI:
-		entry.state = WS_RMEM
-	case WS_TMEM:
-		entry.state = WS_MEM
-		w.member_count++
-		events.Push(&EANDSessionReady{
-			World:          w,
+	} else {
+		w.entries[peer_session.ANDIdentity()] = &peerWorldSessionState{
 			ANDPeerSession: peer_session,
-		})
+			state:          WS_NOTIRCVD,
+			fwd:            fwd,
+			cnt:            0,
+		}
 	}
 }
 
-func (w *World) AcceptSession(events ds.Queue, peer_session_identity ANDIdentity) {
-	if w.is_closed {
-		return
+func (w *World) FetchReturn(events ds.Queue, peer_session ANDPeerSession) {
+	if _, ok := w.entries[peer_session.ANDIdentity()]; !ok {
+		w.sendMEM(peer_session)
 	}
-
-	entry, ok := w.entries[peer_session_identity.PeerID]
-	if !ok {
-		// entry deleted
-		return
-	}
-	peer_session := entry.ANDPeerSession()
-
-	if entry.SessionID != peer_session_identity.SessionID {
-		// session expired
-		return
-	}
-	// Confirmed: corresponding peer session exists.
-
-	switch entry.state {
-	case WS_JN:
-		w.sendJOK_JNI(entry)
-		entry.state = WS_MEM
-		w.member_count++
-		events.Push(&EANDSessionReady{
-			World:          w,
-			ANDPeerSession: peer_session,
-		})
-	case WS_JNI:
-		w.sendMEM(entry)
-		entry.state = WS_TMEM
-	case WS_RMEM:
-		w.sendMEM(entry)
-		entry.state = WS_MEM
-		w.member_count++
-		events.Push(&EANDSessionReady{
-			World:          w,
-			ANDPeerSession: peer_session,
-		})
-	default:
-		panic("invalied peer state for AcceptSession")
-	}
-}
-
-func (w *World) DeclineSession(events ds.Queue, peer_session_identity ANDIdentity, code int, message string) {
-	if w.is_closed {
-		return
-	}
-
-	entry, ok := w.entries[peer_session_identity.PeerID]
-	if !ok {
-		// entry deleted
-		return
-	}
-
-	if entry.SessionID != peer_session_identity.SessionID {
-		// session expired
-		return
-	}
-	// Confirmed: corresponding peer session exists.
-
-	config.IF_DEBUG(func() {
-		if entry.state != WS_JN && entry.state != WS_JNI && entry.state != WS_RMEM {
-			panic("invalied peer state for DeclineSession")
-		}
-	})
-
-	w.removeEntry(events, entry, JNC_REJECTED, JNM_REJECTED)
-}
-
-func (w *World) ObjectAppend(peer_session_identities []ANDIdentity, objects []ObjectInfo) {
-	if w.is_closed {
-		return
-	}
-
-	for _, peer_session_identity := range peer_session_identities {
-		entry, ok := w.entries[peer_session_identity.PeerID]
-		if !ok {
-			// entry deleted
-			break
-		}
-		if entry.SessionID != peer_session_identity.SessionID {
-			// session expired
-			break
-		}
-		w.sendSOA(entry, objects)
-	}
-}
-
-func (w *World) ObjectDelete(peer_session_identities []ANDIdentity, objectIDs []uuid.UUID) {
-	if w.is_closed {
-		return
-	}
-
-	for _, peer_session_identity := range peer_session_identities {
-		entry, ok := w.entries[peer_session_identity.PeerID]
-		if !ok {
-			// entry deleted
-			break
-		}
-		if entry.SessionID != peer_session_identity.SessionID {
-			// session expired
-			break
-		}
-		w.sendSOD(entry, objectIDs)
-	}
-}
-
-func (w *World) TimerExpire(events ds.Queue) {
-	if w.is_closed {
-		return
-	}
-
-	w.broadcastSJN()
-
-	duration := 500 + int(w.weibull_dist.Rand()*float64(200*(w.member_count+1)))
-	events.Push(&EANDTimerRequest{
-		World:    w,
-		Duration: time.Millisecond * time.Duration(duration),
-	})
 }
 
 func (w *World) SJN(events ds.Queue, peer_session ANDPeerSession, member_infos []ANDIdentity) {
-	if w.is_closed {
-		return
-	}
-
 	entry, ok := w.mustBeMemberCheck(events, peer_session)
 	if !ok {
 		return
@@ -456,7 +246,7 @@ func (w *World) SJN(events ds.Queue, peer_session ANDPeerSession, member_infos [
 			// exclude self
 			return e, false
 		}
-		entry, ok := w.entries[e.PeerID]
+		entry, ok := w.entries[e]
 		if !ok {
 			// peer not found
 			return e, true
@@ -490,57 +280,19 @@ func (w *World) SJN(events ds.Queue, peer_session ANDPeerSession, member_infos [
 }
 
 func (w *World) CRR(events ds.Queue, peer_session ANDPeerSession, member_infos []ANDIdentity) {
-	if w.is_closed {
-		return
-	}
-
 	sender, ok := w.mustBeMemberCheck(events, peer_session)
 	if !ok {
 		return
 	}
 
 	for _, mem_info := range member_infos {
-		entry, ok := w.entries[mem_info.PeerID]
+		entry, ok := w.entries[mem_info]
 		if !ok || entry.SessionID != mem_info.SessionID || entry.state != WS_MEM {
 			continue
 		}
-		w.sendJNI(sender, entry)
-		w.sendJNI(entry, sender)
+		w.sendJNI(sender, entry.ANDPeerSession)
+		w.sendJNI(entry, sender.ANDPeerSession)
 	}
-}
-
-func (w *World) SOA(events ds.Queue, peer_session ANDPeerSession, objects []ObjectInfo) {
-	if w.is_closed {
-		return
-	}
-
-	_, ok := w.mustBeMemberCheck(events, peer_session)
-	if !ok {
-		return
-	}
-
-	events.Push(&EANDObjectAppend{
-		World:          w,
-		ANDPeerSession: peer_session,
-		Objects:        objects,
-	})
-}
-
-func (w *World) SOD(events ds.Queue, peer_session ANDPeerSession, objectIDs []uuid.UUID) {
-	if w.is_closed {
-		return
-	}
-
-	_, ok := w.mustBeMemberCheck(events, peer_session)
-	if !ok {
-		return
-	}
-
-	events.Push(&EANDObjectDelete{
-		World:          w,
-		ANDPeerSession: peer_session,
-		ObjectIDs:      objectIDs,
-	})
 }
 
 func (w *World) RST(events ds.Queue, peer_session ANDPeerSession) {
@@ -556,33 +308,50 @@ func (w *World) RST(events ds.Queue, peer_session ANDPeerSession) {
 	w.removeEntrySilent(events, entry)
 }
 
-// We don't verify everything like we did for the other messages; we trust the caller.
-// PeerDisconnected should raise EANDPeerDiscoard event for the peer.
-func (w *World) PeerDisconnected(events ds.Queue, peer_id string) {
-	if w.is_closed {
-		return
+func (w *World) ObjectAppend(peer_session_identities []ANDIdentity, objects []ObjectInfo) {
+	for _, peer_session_identity := range peer_session_identities {
+		entry, ok := w.entries[peer_session_identity]
+		if !ok {
+			// entry deleted
+			break
+		}
+		w.sendSOA(entry, objects)
 	}
-
-	if w.join_target != nil && w.join_target.PeerID == peer_id {
-		events.Push(&EANDWorldLeave{
-			World:   w,
-			Code:    JNC_DISCONNECTED,
-			Message: JNM_DISCONNECTED,
-		})
-		w.is_closed = true
-		return
-	}
-
-	w.removeEntrySilent(events, w.entries[peer_id])
 }
 
-// Close does not take events argument, as the world is closed immediately.
-// no events are meaningful afterwards.
-func (w *World) Close() {
-	if w.is_closed {
+func (w *World) ObjectDelete(peer_session_identities []ANDIdentity, objectIDs []uuid.UUID) {
+	for _, peer_session_identity := range peer_session_identities {
+		entry, ok := w.entries[peer_session_identity]
+		if !ok {
+			// entry deleted
+			break
+		}
+		w.sendSOD(entry, objectIDs)
+	}
+}
+
+func (w *World) SOA(events ds.Queue, peer_session ANDPeerSession, objects []ObjectInfo) {
+	_, ok := w.mustBeMemberCheck(events, peer_session)
+	if !ok {
 		return
 	}
 
-	w.broadcastRST(JNC_CLOSED, JNM_CLOSED)
-	w.is_closed = true
+	events.Push(&EANDObjectAppend{
+		World:          w,
+		ANDPeerSession: peer_session,
+		Objects:        objects,
+	})
+}
+
+func (w *World) SOD(events ds.Queue, peer_session ANDPeerSession, objectIDs []uuid.UUID) {
+	_, ok := w.mustBeMemberCheck(events, peer_session)
+	if !ok {
+		return
+	}
+
+	events.Push(&EANDObjectDelete{
+		World:          w,
+		ANDPeerSession: peer_session,
+		ObjectIDs:      objectIDs,
+	})
 }

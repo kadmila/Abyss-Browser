@@ -23,7 +23,7 @@ func (w *World) sendJOK_JNI(joiner ANDPeerSession) error {
 			continue
 		}
 		member_entries = append(member_entries, e.ANDPeerSession)
-		w.sendJNI(e, joiner)
+		w.sendJNI(e.ANDPeerSession, joiner)
 	}
 	return joiner.Peer.Send(ahmp.JOK_T, RawJOK{
 		SenderSessionID: w.WSID.String(),
@@ -32,28 +32,14 @@ func (w *World) sendJOK_JNI(joiner ANDPeerSession) error {
 		Neighbors:       functional.Filter(member_entries, MakeRawSessionInfoForDiscovery),
 	})
 }
-func (w *World) sendJDN(joiner *peerWorldSessionState, code int, message string) error {
-	return joiner.Peer.Send(ahmp.JDN_T, RawJDN{
-		RecverSessionID: joiner.SessionID.String(),
-		Code:            code,
-		Message:         message,
-	})
-}
-func (w *World) sendJDN_Direct(peer_session ANDPeerSession, code int, message string) error {
-	return peer_session.Peer.Send(ahmp.JDN_T, RawJDN{
-		RecverSessionID: peer_session.SessionID.String(),
-		Code:            code,
-		Message:         message,
-	})
-}
-func (w *World) sendJNI(member *peerWorldSessionState, joiner ANDPeerSession) error {
+func (w *World) sendJNI(member ANDPeerSession, joiner ANDPeerSession) error {
 	return member.Peer.Send(ahmp.JNI_T, RawJNI{
 		SenderSessionID: w.WSID.String(),
 		RecverSessionID: member.SessionID.String(),
 		Joiner:          MakeRawSessionInfoForDiscovery(joiner),
 	})
 }
-func (w *World) sendMEM(member *peerWorldSessionState) error {
+func (w *World) sendMEM(member ANDPeerSession) error {
 	return member.Peer.Send(ahmp.MEM_T, RawMEM{
 		SenderSessionID: w.WSID.String(),
 		RecverSessionID: member.SessionID.String(),
@@ -89,7 +75,7 @@ func (w *World) broadcastSJN() error {
 	}
 	return nil
 }
-func (w *World) sendCRR(member *peerWorldSessionState, missing_entries []ANDIdentity) error {
+func (w *World) sendCRR(member ANDPeerSession, missing_entries []ANDIdentity) error {
 	return member.Peer.Send(ahmp.CRR_T, RawCRR{
 		SenderSessionID: w.WSID.String(),
 		RecverSessionID: member.SessionID.String(),
@@ -101,7 +87,7 @@ func (w *World) sendCRR(member *peerWorldSessionState, missing_entries []ANDIden
 		}),
 	})
 }
-func (w *World) sendRST(target *peerWorldSessionState, code int, message string) error {
+func (w *World) sendRST(target ANDPeerSession, code int, message string) error {
 	config.IF_DEBUG(func() {
 		if target.SessionID == uuid.Nil {
 			panic("sending RST with empty RecverSessionID is prohibited")
@@ -161,7 +147,7 @@ func SendRST_UnexpectedArbitraryWorld(peer_session ANDPeerSession, unknown_wsid 
 }
 
 // sendSOA sends SOA (Shared Object Append) message to a specific peer.
-func (w *World) sendSOA(target *peerWorldSessionState, objects []ObjectInfo) error {
+func (w *World) sendSOA(target ANDPeerSession, objects []ObjectInfo) error {
 	rawObjects := functional.Filter(objects, func(obj ObjectInfo) RawObjectInfo {
 		return RawObjectInfo{
 			ID:        obj.ID.String(),
@@ -178,7 +164,7 @@ func (w *World) sendSOA(target *peerWorldSessionState, objects []ObjectInfo) err
 }
 
 // sendSOD sends SOD (Shared Object Delete) message to a specific peer.
-func (w *World) sendSOD(target *peerWorldSessionState, objectIDs []uuid.UUID) error {
+func (w *World) sendSOD(target ANDPeerSession, objectIDs []uuid.UUID) error {
 	rawObjectIDs := functional.Filter(objectIDs, func(oid uuid.UUID) string {
 		return oid.String()
 	})
