@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
-	"github.com/kadmila/Abyss-Browser/abyss_core/config"
 	"github.com/kadmila/Abyss-Browser/abyss_core/tools/ds"
 	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
 )
@@ -246,36 +245,24 @@ func (w *World) SJN(events ds.Queue, peer_session ANDPeerSession, member_infos [
 			// exclude self
 			return e, false
 		}
-		entry, ok := w.entries[e]
+		r_sjd, ok := w.entries[e]
 		if !ok {
 			// peer not found
 			return e, true
 		}
-		if entry.SessionID != e.SessionID {
-			// no information for the current session
-			return e, true
-		}
+
 		// peer with corresponding session exists.
-		switch entry.state {
-		case WS_DC_JNI, WS_CC, WS_RMEM_NJNI:
-			// requires CRR
-			return e, true
-		case WS_MEM:
-			entry.sjnc++
-			config.IF_DEBUG(func() {
-				if entry.sjnc > 5 {
-					panic("too many SJN")
-				}
-			})
-			return e, false
-		default:
-			// not a member, but don't bother sending CRR
-			return e, false
+		if r_sjd.fwd && r_sjd.state == WS_MEM {
+			r_sjd.cnt++
+			if r_sjd.cnt >= 3 {
+				r_sjd.fwd = false
+			}
 		}
+		return e, false
 	})
 
 	if len(missing_members) != 0 {
-		w.sendCRR(entry, missing_members)
+		w.sendCRR(entry.ANDPeerSession, missing_members)
 	}
 }
 
@@ -287,19 +274,15 @@ func (w *World) CRR(events ds.Queue, peer_session ANDPeerSession, member_infos [
 
 	for _, mem_info := range member_infos {
 		entry, ok := w.entries[mem_info]
-		if !ok || entry.SessionID != mem_info.SessionID || entry.state != WS_MEM {
+		if !ok || entry.state != WS_MEM {
 			continue
 		}
-		w.sendJNI(sender, entry.ANDPeerSession)
-		w.sendJNI(entry, sender.ANDPeerSession)
+		w.sendJNI(sender.ANDPeerSession, entry.ANDPeerSession)
+		w.sendJNI(entry.ANDPeerSession, sender.ANDPeerSession)
 	}
 }
 
 func (w *World) RST(events ds.Queue, peer_session ANDPeerSession) {
-	if w.is_closed {
-		return
-	}
-
 	entry, ok := w.entries[peer_session.Peer.ID()]
 	if !ok || entry.SessionID != peer_session.SessionID {
 		return
