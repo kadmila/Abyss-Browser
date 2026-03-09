@@ -11,25 +11,26 @@ import (
 type IANDEvent any
 
 type EANDWorldEnter struct {
-	World *World
-	URL   string
+	WSID uuid.UUID
+	URL  string
 }
 type EANDSessionReady struct {
-	World *World
-	ANDPeerSession
+	WSID uuid.UUID
+	ANDIdentity
 }
 type EANDSessionClose struct {
-	World *World
-	ANDPeerSession
+	WSID uuid.UUID
+	ANDIdentity
 }
-type EANDPeerRequest struct {
-	World                      *World
-	PeerID                     string
-	RootCertificateDer         []byte
-	HandshakeKeyCertificateDer []byte
+type EANDFetchPeerSession struct {
+	WSID uuid.UUID
+	ANDFullPeerSessionInfo
+	fwd bool
 }
+
+// EANDWorldLeave is not raised from AND, but from ahost.
 type EANDWorldLeave struct {
-	World   *World
+	WSID    uuid.UUID
 	Code    int
 	Message string
 }
@@ -37,19 +38,19 @@ type EANDWorldLeave struct {
 /// shared object
 
 type EANDObjectAppend struct {
-	World *World
-	ANDPeerSession
+	WSID uuid.UUID
+	ANDIdentity
 	Objects []ObjectInfo
 }
 type EANDObjectDelete struct {
-	World *World
-	ANDPeerSession
+	WSID uuid.UUID
+	ANDIdentity
 	ObjectIDs []uuid.UUID
 }
 
 /// debug
 
 type EANDError struct {
-	World *World
+	WSID  uuid.UUID
 	Error error
 }

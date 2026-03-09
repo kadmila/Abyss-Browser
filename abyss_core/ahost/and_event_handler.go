@@ -27,7 +27,7 @@ func (h *AbyssHost) handleANDEvent(events ds.Queue) {
 		}
 
 		switch e := event.(type) {
-		case *and.EANDPeerRequest:
+		case *and.EANDFetchPeerSession:
 			// Try to find peer in registry
 			peer, found := h.peers[e.PeerID]
 			if found {
@@ -61,37 +61,6 @@ func (h *AbyssHost) handleANDEvent(events ds.Queue) {
 
 				request_note[e.World.SessionID()] = e.World
 			}
-
-		case *and.EANDPeerDiscard:
-			// Remove peer from peer_participating_worlds
-			participating_worlds, ok := h.peer_participating_worlds[e.Peer.ID()]
-			if !ok {
-				panic("and algorithm fired peer removal from a non-participating world")
-			}
-			delete(participating_worlds, e.World.SessionID())
-
-		case *and.EANDTimerRequest:
-			//fmt.Println(e.Duration.Milliseconds())
-			h.timer_queue.Add(e.World.SessionID(), e.Duration)
-
-		case *and.EANDWorldEnter:
-			h.event_ch <- e
-			h.worlds[e.World.SessionID()] = e.World
-			// apending world to AbyssHost must be alredy handled by the WorldOpen/WorldJoin caller.
-
-		case *and.EANDWorldLeave:
-			world_lsid := e.World.SessionID()
-			remaining_peers := e.World.Peers()
-			for _, peer := range remaining_peers {
-				delete(h.peer_participating_worlds[peer.ID()], world_lsid)
-			}
-			delete(h.worlds, world_lsid)
-			join_path, ok := h.world_path_mapping[world_lsid]
-			if ok {
-				delete(h.world_path_mapping, world_lsid)
-				delete(h.exposed_worlds, join_path)
-			}
-			h.event_ch <- e
 
 		default:
 			h.event_ch <- e

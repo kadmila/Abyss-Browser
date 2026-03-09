@@ -43,7 +43,6 @@ func (w *World) sendMEM(member ANDPeerSession) error {
 	return member.Peer.Send(ahmp.MEM_T, RawMEM{
 		SenderSessionID: w.WSID.String(),
 		RecverSessionID: member.SessionID.String(),
-		TimeStamp:       w.timestamp.UnixMilli(),
 	})
 }
 func (w *World) broadcastSJN() error {
@@ -115,10 +114,6 @@ func (w *World) sendRST_Direct(peer_session ANDPeerSession, code int, message st
 }
 func (w *World) broadcastRST(code int, message string) error {
 	for _, entry := range w.entries {
-		if entry.Peer == nil || entry.SessionID == uuid.Nil {
-			// must not send an untargetted reset.
-			continue
-		}
 		entry.Peer.Send(ahmp.RST_T, RawRST{
 			SenderSessionID: w.WSID.String(),
 			RecverSessionID: entry.SessionID.String(),

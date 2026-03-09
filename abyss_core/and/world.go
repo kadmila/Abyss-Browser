@@ -3,7 +3,6 @@ package and
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -22,7 +21,6 @@ type World struct {
 	o              *AND                                   //origin
 	mtx            sync.Mutex                             // lock for the world state.
 	WSID           uuid.UUID                              // local world session id
-	timestamp      time.Time                              // local world session creation timestamp
 	join_target    string                                 // (when constructed with Join) join target peer ID
 	env_url        string                                 // (when constructed with Open, or Join accepted) environmental content URL.
 	entries        map[ANDIdentity]*peerWorldSessionState // key: id, value: peer states
@@ -43,7 +41,6 @@ func newWorld_Open(ctx context.Context, events ds.Queue, origin *AND, env_url st
 	result := &World{
 		o:              origin,
 		WSID:           uuid.New(),
-		timestamp:      time.Now(),
 		join_target:    "",
 		env_url:        env_url,
 		entries:        make(map[ANDIdentity]*peerWorldSessionState),
@@ -52,8 +49,8 @@ func newWorld_Open(ctx context.Context, events ds.Queue, origin *AND, env_url st
 		ctx_cancel:     cancel,
 	}
 	events.Push(&EANDWorldEnter{
-		World: result,
-		URL:   env_url,
+		WSID: result.WSID,
+		URL:  env_url,
 	})
 	go result.worker()
 	return result
@@ -64,7 +61,6 @@ func newWorld_Join(ctx context.Context, origin *AND, target ani.IAbyssPeer, path
 	result := &World{
 		o:              origin,
 		WSID:           uuid.New(),
-		timestamp:      time.Now(),
 		join_target:    target.ID(),
 		env_url:        "",
 		entries:        make(map[ANDIdentity]*peerWorldSessionState),
@@ -82,6 +78,9 @@ func newWorld_Join(ctx context.Context, origin *AND, target ani.IAbyssPeer, path
 
 func (w *World) Close() {
 	w.broadcastRST(JNC_CLOSED, JNM_CLOSED)
+	w.join_target = ""
+	w.env_url = ""
+	w.entries = make(map[ANDIdentity]*peerWorldSessionState)
 
 	w.ctx_cancel()
 	w.callback_timer.Stop()
@@ -120,19 +119,26 @@ func (w *World) finalizeMember(events ds.Queue, subject ANDPeerSession, fwd bool
 		fwd:            fwd,
 		cnt:            0,
 	}
-
+	events.Push(&EANDSessionReady{
+		WSID:        w.WSID,
+		ANDIdentity: subject.ANDIdentity(),
+	})
+	w.callback_timer.Increment()
 }
 
 func (w *World) acceptRemoteMember(events ds.Queue, member_info ANDFullPeerSessionInfo, fwd bool) {
+	if member_info.PeerID == w.o.local_id {
+		return
+	}
+
 	entry, ok := w.entries[member_info.ANDIdentity]
 	if !ok {
-		events.Push(&EANDPeerRequest{
-			World:                      w,
-			PeerID:                     member_info.PeerID,
-			RootCertificateDer:         member_info.RootCertificateDer,
-			HandshakeKeyCertificateDer: member_info.HandshakeKeyCertificateDer,
+		events.Push(&EANDFetchPeerSession{
+			WSID:                   w.WSID,
+			ANDFullPeerSessionInfo: member_info,
+			fwd:                    fwd,
 		})
-	} else {
+	} else if entry.state == WS_NOTIRCVD {
 		w.sendMEM(entry.ANDPeerSession)
 		w.finalizeMember(events, entry.ANDPeerSession, false)
 	}
@@ -140,13 +146,17 @@ func (w *World) acceptRemoteMember(events ds.Queue, member_info ANDFullPeerSessi
 
 func (w *World) closeEntry(events ds.Queue, entry *peerWorldSessionState) {
 	if entry.state == WS_MEM {
-		//TODO: reschedule timer
+		w.callback_timer.Decrement()
 	}
+	events.Push(&EANDSessionClose{
+		WSID:        w.WSID,
+		ANDIdentity: entry.ANDIdentity(),
+	})
 	delete(w.entries, entry.ANDIdentity())
 }
 
-// mustBeMemberCheck can only be used as a barrier for handling a message that must be sent from a member.
-func (w *World) mustBeMemberCheck(events ds.Queue, peer_session ANDPeerSession) (*peerWorldSessionState, bool) {
+// mustBeMemberGetEntry can only be used as a barrier for handling a message that must be sent from a member.
+func (w *World) mustBeMemberGetEntry(events ds.Queue, peer_session ANDPeerSession) (*peerWorldSessionState, bool) {
 	entry, ok := w.entries[peer_session.ANDIdentity()]
 	if !ok {
 		return nil, false
@@ -173,7 +183,7 @@ func (w *World) JN(events ds.Queue, peer_session ANDPeerSession) {
 	w.finalizeMember(events, peer_session, false)
 }
 
-func (w *World) JOK(events ds.Queue, peer_session ANDPeerSession, world_url string, member_infos []ANDFullPeerSessionInfo) {
+func (w *World) JOK(events ds.Queue, peer_session ANDPeerSession, env_url string, member_infos []ANDFullPeerSessionInfo) {
 	if w.join_target != peer_session.Peer.ID() {
 		if entry, ok := w.entries[peer_session.ANDIdentity()]; ok {
 			w.sendRST(entry.ANDPeerSession, JNC_INVALID_STATES, JNM_INVALID_STATES)
@@ -187,55 +197,48 @@ func (w *World) JOK(events ds.Queue, peer_session ANDPeerSession, world_url stri
 		w.acceptRemoteMember(events, member_info, false)
 	}
 	w.join_target = ""
+	w.env_url = env_url
 }
 
-func (w *World) JNI(events ds.Queue, peer_session ANDPeerSession, member_info ANDFullPeerSessionInfo) {
+func (w *World) JNI(events ds.Queue, peer_session ANDPeerSession, member_info ANDFullPeerSessionInfo, fwd bool) {
 	// only the members can send JNI.
-	_, ok := w.mustBeMemberCheck(events, peer_session)
+	_, ok := w.mustBeMemberGetEntry(events, peer_session)
 	if !ok {
 		return
 	}
 
-	w.acceptRemoteMember(events, member_info, true)
+	w.acceptRemoteMember(events, member_info, fwd)
 }
 
 func (w *World) MEM(events ds.Queue, peer_session ANDPeerSession, fwd bool) {
-	// only malicious case - join target sending MEM.
-	if w.join_target == peer_session.Peer.ID() {
-		// join process corrupted
-		w.sendRST_Direct(peer_session, JNC_INVALID_STATES, JNM_INVALID_STATES)
-		events.Push(&EANDWorldLeave{
-			World:   w,
-			Code:    JNC_INVALID_STATES,
-			Message: JNM_INVALID_STATES,
-		})
-		w.join_target = ""
-		return
-	}
-
 	entry, ok := w.entries[peer_session.ANDIdentity()]
-	if ok {
-		if entry.state == WS_NOTISENT {
-			w.finalizeMember(events, peer_session, fwd)
-		}
-	} else {
+	if !ok {
 		w.entries[peer_session.ANDIdentity()] = &peerWorldSessionState{
 			ANDPeerSession: peer_session,
 			state:          WS_NOTIRCVD,
 			fwd:            fwd,
 			cnt:            0,
 		}
+	} else if entry.state == WS_NOTISENT {
+		w.finalizeMember(events, peer_session, fwd)
 	}
 }
 
-func (w *World) FetchReturn(events ds.Queue, peer_session ANDPeerSession) {
-	if _, ok := w.entries[peer_session.ANDIdentity()]; !ok {
+func (w *World) FetchReturn(events ds.Queue, peer_session ANDPeerSession, fwd bool) {
+	_, ok := w.entries[peer_session.ANDIdentity()]
+	if !ok {
 		w.sendMEM(peer_session)
+		w.entries[peer_session.ANDIdentity()] = &peerWorldSessionState{
+			ANDPeerSession: peer_session,
+			state:          WS_NOTISENT,
+			fwd:            fwd,
+			cnt:            0,
+		}
 	}
 }
 
 func (w *World) SJN(events ds.Queue, peer_session ANDPeerSession, member_infos []ANDIdentity) {
-	entry, ok := w.mustBeMemberCheck(events, peer_session)
+	entry, ok := w.mustBeMemberGetEntry(events, peer_session)
 	if !ok {
 		return
 	}
@@ -245,17 +248,17 @@ func (w *World) SJN(events ds.Queue, peer_session ANDPeerSession, member_infos [
 			// exclude self
 			return e, false
 		}
-		r_sjd, ok := w.entries[e]
+		r_sji, ok := w.entries[e]
 		if !ok {
 			// peer not found
 			return e, true
 		}
 
 		// peer with corresponding session exists.
-		if r_sjd.fwd && r_sjd.state == WS_MEM {
-			r_sjd.cnt++
-			if r_sjd.cnt >= 3 {
-				r_sjd.fwd = false
+		if r_sji.fwd && r_sji.state == WS_MEM {
+			r_sji.cnt++
+			if r_sji.cnt >= 3 {
+				r_sji.fwd = false
 			}
 		}
 		return e, false
@@ -267,7 +270,7 @@ func (w *World) SJN(events ds.Queue, peer_session ANDPeerSession, member_infos [
 }
 
 func (w *World) CRR(events ds.Queue, peer_session ANDPeerSession, member_infos []ANDIdentity) {
-	sender, ok := w.mustBeMemberCheck(events, peer_session)
+	sender, ok := w.mustBeMemberGetEntry(events, peer_session)
 	if !ok {
 		return
 	}
@@ -283,12 +286,12 @@ func (w *World) CRR(events ds.Queue, peer_session ANDPeerSession, member_infos [
 }
 
 func (w *World) RST(events ds.Queue, peer_session ANDPeerSession) {
-	entry, ok := w.entries[peer_session.Peer.ID()]
-	if !ok || entry.SessionID != peer_session.SessionID {
+	entry, ok := w.entries[peer_session.ANDIdentity()]
+	if !ok {
 		return
 	}
 
-	w.removeEntrySilent(events, entry)
+	w.closeEntry(events, entry)
 }
 
 func (w *World) ObjectAppend(peer_session_identities []ANDIdentity, objects []ObjectInfo) {
@@ -298,7 +301,7 @@ func (w *World) ObjectAppend(peer_session_identities []ANDIdentity, objects []Ob
 			// entry deleted
 			break
 		}
-		w.sendSOA(entry, objects)
+		w.sendSOA(entry.ANDPeerSession, objects)
 	}
 }
 
@@ -309,32 +312,32 @@ func (w *World) ObjectDelete(peer_session_identities []ANDIdentity, objectIDs []
 			// entry deleted
 			break
 		}
-		w.sendSOD(entry, objectIDs)
+		w.sendSOD(entry.ANDPeerSession, objectIDs)
 	}
 }
 
 func (w *World) SOA(events ds.Queue, peer_session ANDPeerSession, objects []ObjectInfo) {
-	_, ok := w.mustBeMemberCheck(events, peer_session)
+	_, ok := w.mustBeMemberGetEntry(events, peer_session)
 	if !ok {
 		return
 	}
 
 	events.Push(&EANDObjectAppend{
-		World:          w,
-		ANDPeerSession: peer_session,
-		Objects:        objects,
+		WSID:        w.WSID,
+		ANDIdentity: peer_session.ANDIdentity(),
+		Objects:     objects,
 	})
 }
 
 func (w *World) SOD(events ds.Queue, peer_session ANDPeerSession, objectIDs []uuid.UUID) {
-	_, ok := w.mustBeMemberCheck(events, peer_session)
+	_, ok := w.mustBeMemberGetEntry(events, peer_session)
 	if !ok {
 		return
 	}
 
 	events.Push(&EANDObjectDelete{
-		World:          w,
-		ANDPeerSession: peer_session,
-		ObjectIDs:      objectIDs,
+		WSID:        w.WSID,
+		ANDIdentity: peer_session.ANDIdentity(),
+		ObjectIDs:   objectIDs,
 	})
 }

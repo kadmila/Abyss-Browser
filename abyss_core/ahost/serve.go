@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/fxamacker/cbor/v2"
-	"github.com/google/uuid"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ahmp"
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
@@ -24,38 +23,43 @@ func tryParseAhmp[RawT parsibleAhmp[T], T any](msg *ahmp.AHMPMessage) (*T, error
 }
 
 func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
-
 	// peer AND event queue
 	events := ds.MakeQueue()
 
-	// participating_worlds is a reference of h.peer_participating_worlds[peer.ID()]
-	// it must be accessed within h.mtx lock
-	participating_worlds := make(map[uuid.UUID]*and.World)
-
 	// register related information to the host, and handle pending peer requests
-	h.mtx.Lock()
 	h.peers[peer.ID()] = peer
 	h.event_ch <- &EPeerConnected{PeerID: peer.ID()}
-	h.peer_participating_worlds[peer.ID()] = participating_worlds
 
 	// handle pending peer requests
-	request_entry, ok := h.requested_peers[peer.ID()]
+	pending_fetches, ok := h.getPendingFetches(peer.ID())
 	if ok {
-		for _, world := range request_entry {
-			participating_worlds[world.SessionID()] = world
+		for _, fetch := range pending_fetches {
+			fetch.world.FetchReturn(
+				events,
+				and.ANDPeerSession{
+					Peer:      peer,
+					SessionID: fetch.PeerSessionID,
+				},
+				fetch.fwd,
+			)
+		}
+	}
+
+	fetch_entry, ok := h.and_fetch_pending[peer.ID()]
+	if ok {
+		for _, fetch_info := range fetch_entry {
+
+			world, ok := h.getWorld(fetch_info.world.WSID)
+
 			world.PeerConnected(events, peer)
 			world.CheckSanity()
 			h.handleANDEvent(events)
 		}
 		delete(h.requested_peers, peer.ID())
 	}
-	h.mtx.Unlock()
 
 	// prepare for disconnection
 	defer func() {
-		h.mtx.Lock()
-		defer h.mtx.Unlock()
-
 		for _, world := range participating_worlds {
 			world.PeerDisconnected(events, peer.ID())
 			world.CheckSanity()
