@@ -12,11 +12,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/kadmila/Abyss-Browser/abyss_core/abyst"
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
-	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ann"
 	"github.com/kadmila/Abyss-Browser/abyss_core/sec"
-	"github.com/kadmila/Abyss-Browser/abyss_core/tools/ds"
-	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
 )
 
 type ANDFetchPendingInfo struct {
@@ -27,17 +24,15 @@ type ANDFetchPendingInfo struct {
 
 type AbyssHost struct {
 	net *ann.AbyssNode
-	and *and.AND
 
 	service_ctx        context.Context
 	service_cancelfunc context.CancelFunc
 
 	mtx                sync.Mutex // Below this are not thread safe.
-	peers              map[string]ani.IAbyssPeer
 	worlds             map[uuid.UUID]*and.World
-	world_path_mapping map[uuid.UUID]string             // inverse of exposed_worlds
-	exposed_worlds     map[string]*and.World            // JN path -> world
-	and_fetch_pending  map[string][]ANDFetchPendingInfo // PeerID -> entries
+	world_path_mapping map[uuid.UUID]string  // inverse of exposed_worlds
+	exposed_worlds     map[string]*and.World // JN path -> world
+	peer_fetcher       *PeerFetcher
 
 	event_ch chan any
 }
@@ -48,21 +43,21 @@ func NewAbyssHost(root_key sec.PrivateKey) (*AbyssHost, error) {
 		return nil, err
 	}
 	service_ctx, service_cancelfunc := context.WithCancel(context.Background())
-	return &AbyssHost{
+	result := &AbyssHost{
 		net: node,
-		and: and.NewAND(node.ID()),
 
 		service_ctx:        service_ctx,
 		service_cancelfunc: service_cancelfunc,
 
-		peers:              make(map[string]ani.IAbyssPeer),
 		worlds:             make(map[uuid.UUID]*and.World),
 		world_path_mapping: make(map[uuid.UUID]string),
 		exposed_worlds:     make(map[string]*and.World),
-		and_fetch_pending:  make(map[string][]ANDFetchPendingInfo),
 
 		event_ch: make(chan any, 1024),
-	}, nil
+	}
+	result.peer_fetcher = NewPeerFetcher(service_ctx, result.ANDDial)
+
+	return result, nil
 }
 
 func (h *AbyssHost) Bind() error {
@@ -145,31 +140,49 @@ func (h *AbyssHost) NewAbystClient() *abyst.AbystClient     { return h.net.NewAb
 func (h *AbyssHost) NewCollocatedHttp3Client() *http.Client {
 	return h.net.NewCollocatedHttp3Client()
 }
+func (h *AbyssHost) ANDDial(info and.ANDFullPeerSessionInfo) {
+	h.AppendKnownPeer(string(info.RootCertificateDer), string(info.HandshakeKeyCertificateDer))
+	h.net.Dial(info.PeerID)
+}
 
 //// AND APIs
 
-func (h *AbyssHost) OpenWorld(world_url string) *and.World {
+func (h *AbyssHost) OpenWorld(world_url string) (*and.World, error) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	events := ds.MakeQueue()
-	world := h.and.OpenWorld(h.service_ctx, events, world_url)
-	h.handleANDEvent(events)
+	world, err := and.NewWorld_Open(
+		h.service_ctx,
+		h.peer_fetcher.FetchQueue,
+		h.event_ch,
+		h.net.ID(),
+		world_url,
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	h.worlds[world.WSID] = world
-	return world
+	return world, nil
 }
 
 func (h *AbyssHost) JoinWorld(peer_id string, path string) (*and.World, error) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	peer, ok := h.peers[peer_id]
+	peer, ok := h.peer_fetcher.QueryPeer(peer_id)
 	if !ok {
 		return nil, errors.New("peer not found")
 	}
 
-	world, err := h.and.JoinWorld(h.service_ctx, peer, path)
+	world, err := and.NewWorld_Join(
+		h.service_ctx,
+		h.peer_fetcher.FetchQueue,
+		h.event_ch,
+		h.net.ID(),
+		peer,
+		path,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -184,25 +197,8 @@ func (h *AbyssHost) CloseWorld(world *and.World) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	// Remove entry from and_fetch_pending
-	h.and_fetch_pending = functional.Filter_M_ok(
-		h.and_fetch_pending,
-		func(pendings []ANDFetchPendingInfo) ([]ANDFetchPendingInfo, bool) {
-			remainder := functional.Filter_ok(
-				pendings,
-				func(e ANDFetchPendingInfo) (ANDFetchPendingInfo, bool) {
-					if e.world != world {
-						return e, true
-					}
-					return e, false
-				},
-			)
-			if len(remainder) > 0 {
-				return remainder, true
-			}
-			return remainder, false
-		},
-	)
+	// Remove pending fetches for the world; This is not perfect
+	h.peer_fetcher.RemoveWorld(world)
 
 	// Remove world from host's worlds and exposed worlds
 	delete(h.worlds, world.WSID)
@@ -267,20 +263,4 @@ func (h *AbyssHost) HideWorld(world *and.World) {
 	}
 	delete(h.world_path_mapping, world.WSID)
 	delete(h.exposed_worlds, path)
-}
-
-func (h *AbyssHost) getWorld(wsid uuid.UUID) (*and.World, bool) {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
-	world, ok := h.worlds[wsid]
-	return world, ok
-}
-
-func (h *AbyssHost) getPendingFetches(peerID string) ([]ANDFetchPendingInfo, bool) {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
-	fetches, ok := h.and_fetch_pending[peerID]
-	return fetches, ok
 }

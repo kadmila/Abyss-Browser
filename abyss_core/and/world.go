@@ -2,6 +2,7 @@ package and
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"github.com/google/uuid"
@@ -11,62 +12,95 @@ import (
 	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
 )
 
+//// Deadlock risk
+// Due to the current design limitation in ahost.peer_fetcher.go,
+// All paths in and.World MUST NOT contain any blocking call (including writing to channel)
+// A world should FORCEFULLY close if it cannot continue without waiting a blocking call.
+// We consider this as a failure due to the limited hardware resource.
+//
+// This requires non-blocking Write (TODO)
+////
+
 // TODO: reporter (side effect logger for malicious peer behavior)
 
-// World is a state machine for a world and its member/related peers.
-// Removing join target from a world breakes it, so be careful.
-// A world must be externally locked, using the embedded sync.Mutex.
-// This gives better control over call and event synchronization for the host.
+type IFetcher interface {
+	Fetch(
+		world *World,
+		target ANDFullPeerSessionInfo,
+		fwd bool,
+	)
+}
+
 type World struct {
-	o              *AND                                   //origin
-	mtx            sync.Mutex                             // lock for the world state.
+	mtx sync.Mutex // lock for the world state.
+
+	fetcher  IFetcher
+	event_ch chan any // target origin event channel
+
+	localID        string
 	WSID           uuid.UUID                              // local world session id
 	join_target    string                                 // (when constructed with Join) join target peer ID
 	env_url        string                                 // (when constructed with Open, or Join accepted) environmental content URL.
 	entries        map[ANDIdentity]*peerWorldSessionState // key: id, value: peer states
 	callback_timer *ANDTimer
-	ctx            context.Context
-	ctx_cancel     context.CancelFunc
-	done           chan bool // closed when the world is closed.
+
+	ctx        context.Context
+	ctx_cancel context.CancelFunc
+	done       chan bool // closed when the world is closed.
 }
 
-func (w *World) Members() []*peerWorldSessionState {
-	return functional.Filter_MtS_ok(w.entries, func(e *peerWorldSessionState) (*peerWorldSessionState, bool) {
-		return e, e.state == WS_MEM
-	})
+func (w *World) tryPushEvent(event any) bool {
+	select {
+	case w.event_ch <- event:
+		return true
+	default:
+		return false
+	}
 }
 
-func newWorld_Open(ctx context.Context, events ds.Queue, origin *AND, env_url string) *World {
+func NewWorld_Open(ctx context.Context, fetcher IFetcher, event_ch chan any, localID string, env_url string) (*World, error) {
 	inner_ctx, cancel := context.WithCancel(ctx)
 	result := &World{
-		o:              origin,
+		fetcher:  fetcher,
+		event_ch: event_ch,
+
+		localID:        localID,
 		WSID:           uuid.New(),
 		join_target:    "",
 		env_url:        env_url,
 		entries:        make(map[ANDIdentity]*peerWorldSessionState),
 		callback_timer: NewANDTimer(),
-		ctx:            inner_ctx,
-		ctx_cancel:     cancel,
+
+		ctx:        inner_ctx,
+		ctx_cancel: cancel,
+		done:       make(chan bool, 1),
 	}
-	events.Push(&EANDWorldEnter{
+	if !result.tryPushEvent(&EANDWorldEnter{
 		WSID: result.WSID,
 		URL:  env_url,
-	})
+	}) {
+		return nil, errors.New("event channel congested. External consumer overloaded")
+	}
 	go result.worker()
-	return result
+	return result, nil
 }
 
-func newWorld_Join(ctx context.Context, origin *AND, target ani.IAbyssPeer, path string) (*World, error) {
+func NewWorld_Join(ctx context.Context, fetcher IFetcher, event_ch chan any, localID string, target ani.IAbyssPeer, path string) (*World, error) {
 	inner_ctx, cancel := context.WithCancel(ctx)
 	result := &World{
-		o:              origin,
+		fetcher:  fetcher,
+		event_ch: event_ch,
+
+		localID:        localID,
 		WSID:           uuid.New(),
 		join_target:    target.ID(),
 		env_url:        "",
 		entries:        make(map[ANDIdentity]*peerWorldSessionState),
 		callback_timer: NewANDTimer(),
-		ctx:            inner_ctx,
-		ctx_cancel:     cancel,
+
+		ctx:        inner_ctx,
+		ctx_cancel: cancel,
+		done:       make(chan bool, 1),
 	}
 	err := result.sendJN(target, path)
 	if err != nil {
@@ -77,6 +111,9 @@ func newWorld_Join(ctx context.Context, origin *AND, target ani.IAbyssPeer, path
 }
 
 func (w *World) Close() {
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+
 	w.broadcastRST(JNC_CLOSED, JNM_CLOSED)
 	w.join_target = ""
 	w.env_url = ""
@@ -127,7 +164,7 @@ func (w *World) finalizeMember(events ds.Queue, subject ANDPeerSession, fwd bool
 }
 
 func (w *World) acceptRemoteMember(events ds.Queue, member_info ANDFullPeerSessionInfo, fwd bool) {
-	if member_info.PeerID == w.o.local_id {
+	if member_info.PeerID == w.localID {
 		return
 	}
 
@@ -173,6 +210,9 @@ func (w *World) mustBeMemberGetEntry(events ds.Queue, peer_session ANDPeerSessio
 }
 
 func (w *World) JN(events ds.Queue, peer_session ANDPeerSession) {
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+
 	entry, ok := w.entries[peer_session.ANDIdentity()]
 	if ok {
 		w.sendRST(entry.ANDPeerSession, JNC_INVALID_STATES, JNM_INVALID_STATES)
@@ -184,6 +224,9 @@ func (w *World) JN(events ds.Queue, peer_session ANDPeerSession) {
 }
 
 func (w *World) JOK(events ds.Queue, peer_session ANDPeerSession, env_url string, member_infos []ANDFullPeerSessionInfo) {
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+
 	if w.join_target != peer_session.Peer.ID() {
 		if entry, ok := w.entries[peer_session.ANDIdentity()]; ok {
 			w.sendRST(entry.ANDPeerSession, JNC_INVALID_STATES, JNM_INVALID_STATES)
@@ -201,6 +244,9 @@ func (w *World) JOK(events ds.Queue, peer_session ANDPeerSession, env_url string
 }
 
 func (w *World) JNI(events ds.Queue, peer_session ANDPeerSession, member_info ANDFullPeerSessionInfo, fwd bool) {
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+
 	// only the members can send JNI.
 	_, ok := w.mustBeMemberGetEntry(events, peer_session)
 	if !ok {
@@ -211,6 +257,9 @@ func (w *World) JNI(events ds.Queue, peer_session ANDPeerSession, member_info AN
 }
 
 func (w *World) MEM(events ds.Queue, peer_session ANDPeerSession, fwd bool) {
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+
 	entry, ok := w.entries[peer_session.ANDIdentity()]
 	if !ok {
 		w.entries[peer_session.ANDIdentity()] = &peerWorldSessionState{
@@ -225,6 +274,9 @@ func (w *World) MEM(events ds.Queue, peer_session ANDPeerSession, fwd bool) {
 }
 
 func (w *World) FetchReturn(events ds.Queue, peer_session ANDPeerSession, fwd bool) {
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+
 	_, ok := w.entries[peer_session.ANDIdentity()]
 	if !ok {
 		w.sendMEM(peer_session)
@@ -238,13 +290,16 @@ func (w *World) FetchReturn(events ds.Queue, peer_session ANDPeerSession, fwd bo
 }
 
 func (w *World) SJN(events ds.Queue, peer_session ANDPeerSession, member_infos []ANDIdentity) {
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+
 	entry, ok := w.mustBeMemberGetEntry(events, peer_session)
 	if !ok {
 		return
 	}
 
 	missing_members := functional.Filter_ok(member_infos, func(e ANDIdentity) (ANDIdentity, bool) {
-		if e.PeerID == w.o.local_id {
+		if e.PeerID == w.localID {
 			// exclude self
 			return e, false
 		}
@@ -270,6 +325,9 @@ func (w *World) SJN(events ds.Queue, peer_session ANDPeerSession, member_infos [
 }
 
 func (w *World) CRR(events ds.Queue, peer_session ANDPeerSession, member_infos []ANDIdentity) {
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+
 	sender, ok := w.mustBeMemberGetEntry(events, peer_session)
 	if !ok {
 		return
@@ -286,6 +344,9 @@ func (w *World) CRR(events ds.Queue, peer_session ANDPeerSession, member_infos [
 }
 
 func (w *World) RST(events ds.Queue, peer_session ANDPeerSession) {
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+
 	entry, ok := w.entries[peer_session.ANDIdentity()]
 	if !ok {
 		return
@@ -294,7 +355,21 @@ func (w *World) RST(events ds.Queue, peer_session ANDPeerSession) {
 	w.closeEntry(events, entry)
 }
 
+func (w *World) Disconnect(events ds.Queue, Peer ani.IAbyssPeer) {
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+
+	for _, entry := range w.entries {
+		if entry.Peer == Peer {
+			w.closeEntry(events, entry)
+		}
+	}
+}
+
 func (w *World) ObjectAppend(peer_session_identities []ANDIdentity, objects []ObjectInfo) {
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+
 	for _, peer_session_identity := range peer_session_identities {
 		entry, ok := w.entries[peer_session_identity]
 		if !ok {
@@ -306,6 +381,9 @@ func (w *World) ObjectAppend(peer_session_identities []ANDIdentity, objects []Ob
 }
 
 func (w *World) ObjectDelete(peer_session_identities []ANDIdentity, objectIDs []uuid.UUID) {
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+
 	for _, peer_session_identity := range peer_session_identities {
 		entry, ok := w.entries[peer_session_identity]
 		if !ok {
@@ -317,6 +395,9 @@ func (w *World) ObjectDelete(peer_session_identities []ANDIdentity, objectIDs []
 }
 
 func (w *World) SOA(events ds.Queue, peer_session ANDPeerSession, objects []ObjectInfo) {
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+
 	_, ok := w.mustBeMemberGetEntry(events, peer_session)
 	if !ok {
 		return
@@ -330,6 +411,9 @@ func (w *World) SOA(events ds.Queue, peer_session ANDPeerSession, objects []Obje
 }
 
 func (w *World) SOD(events ds.Queue, peer_session ANDPeerSession, objectIDs []uuid.UUID) {
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+
 	_, ok := w.mustBeMemberGetEntry(events, peer_session)
 	if !ok {
 		return

@@ -27,47 +27,15 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 	events := ds.MakeQueue()
 
 	// register related information to the host, and handle pending peer requests
-	h.peers[peer.ID()] = peer
 	h.event_ch <- &EPeerConnected{PeerID: peer.ID()}
 
-	// handle pending peer requests
-	pending_fetches, ok := h.getPendingFetches(peer.ID())
-	if ok {
-		for _, fetch := range pending_fetches {
-			fetch.world.FetchReturn(
-				events,
-				and.ANDPeerSession{
-					Peer:      peer,
-					SessionID: fetch.PeerSessionID,
-				},
-				fetch.fwd,
-			)
-		}
-	}
-
-	fetch_entry, ok := h.and_fetch_pending[peer.ID()]
-	if ok {
-		for _, fetch_info := range fetch_entry {
-
-			world, ok := h.getWorld(fetch_info.world.WSID)
-
-			world.PeerConnected(events, peer)
-			world.CheckSanity()
-			h.handleANDEvent(events)
-		}
-		delete(h.requested_peers, peer.ID())
-	}
+	// notify peer fetcher
+	h.peer_fetcher.AddPeer(peer)
 
 	// prepare for disconnection
 	defer func() {
-		for _, world := range participating_worlds {
-			world.PeerDisconnected(events, peer.ID())
-			world.CheckSanity()
-			h.handleANDEvent(events)
-		}
-		delete(h.peer_participating_worlds, peer.ID())
-		delete(h.peers, peer.ID())
-
+		// reverse order of peer insertion
+		h.peer_fetcher.RemovePeer(peer.ID())
 		h.event_ch <- &EPeerDisconnected{PeerID: peer.ID()}
 		peer.Close()
 	}()

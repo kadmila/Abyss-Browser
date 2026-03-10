@@ -5,34 +5,34 @@
 // On host-side event consumer prvides peer (by dialing or just giving connected peer).
 // When a peer closes, the host calls PeerClose() to each world that references the peer.
 // By this way, the host has full control over peer references.
-package and
+// package and
 
-import (
-	"context"
+// import (
+// 	"context"
 
-	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
-	"github.com/kadmila/Abyss-Browser/abyss_core/tools/ds"
-	"github.com/kadmila/Abyss-Browser/abyss_core/watchdog"
-)
+// 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
+// 	"github.com/kadmila/Abyss-Browser/abyss_core/tools/ds"
+// 	"github.com/kadmila/Abyss-Browser/abyss_core/watchdog"
+// )
 
-type AND struct {
-	local_id string
-}
+// type AND struct {
+// 	local_id string
+// }
 
-func NewAND(local_id string) *AND {
-	return &AND{
-		local_id: local_id,
-	}
-}
+// func NewAND(local_id string) *AND {
+// 	return &AND{
+// 		local_id: local_id,
+// 	}
+// }
 
-func (a *AND) OpenWorld(ctx context.Context, events ds.Queue, world_url string) *World {
-	watchdog.Info("appCall::OpenWorld " + world_url)
+// func (a *AND) OpenWorld(ctx context.Context, events ds.Queue, world_url string) *World {
+// 	watchdog.Info("appCall::OpenWorld " + world_url)
 
-	return newWorld_Open(ctx, events, a, world_url)
-}
+// 	return newWorld_Open(ctx, events, a, world_url)
+// }
 
-func (a *AND) JoinWorld(ctx context.Context, target ani.IAbyssPeer, path string) (*World, error) {
-	watchdog.Info("appCall::JoinWorld " + target.ID() + " " + path)
+// func (a *AND) JoinWorld(ctx context.Context, target ani.IAbyssPeer, path string) (*World, error) {
+// 	watchdog.Info("appCall::JoinWorld " + target.ID() + " " + path)
 
-	return newWorld_Join(ctx, a, target, path) //should immediate return
-}
+// 	return newWorld_Join(ctx, a, target, path) //should immediate return
+// }
