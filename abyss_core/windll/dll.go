@@ -158,7 +158,10 @@ func Host_OpenWorld(
 		return marshalError(errors.New("nil arguments"))
 	}
 
-	world := host.OpenWorld(string(world_url))
+	world, err := host.OpenWorld(string(world_url))
+	if err != nil {
+		return marshalError(err)
+	}
 
 	// Create world handle
 	watchdog.CountHandleExport()

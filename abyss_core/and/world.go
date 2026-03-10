@@ -347,8 +347,8 @@ func (w *World) CRR(peer_session ANDPeerSession, member_infos []ANDIdentity) {
 		if !ok || entry.state != WS_MEM {
 			continue
 		}
-		w.sendJNI(sender.ANDPeerSession, entry.ANDPeerSession)
-		w.sendJNI(entry.ANDPeerSession, sender.ANDPeerSession)
+		w.sendJNI(entry.ANDPeerSession, sender.ANDPeerSession, false)
+		w.sendJNI(sender.ANDPeerSession, entry.ANDPeerSession, true)
 	}
 }
 
