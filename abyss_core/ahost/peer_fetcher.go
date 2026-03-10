@@ -5,7 +5,6 @@ import (
 
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
-	"github.com/kadmila/Abyss-Browser/abyss_core/tools/ds"
 	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
 )
 
@@ -135,7 +134,6 @@ func (f *PeerFetcher) work() {
 func (f *PeerFetcher) onFetch(fetch fetchEntry) {
 	if peer, ok := f.peers[fetch.PeerID]; ok {
 		fetch.world.FetchReturn(
-			ds.MakeQueue(),
 			and.ANDPeerSession{
 				Peer:      peer,
 				SessionID: fetch.SessionID,
@@ -158,7 +156,6 @@ func (f *PeerFetcher) onPeer(peer ani.IAbyssPeer) {
 	if ok {
 		for _, fetch := range pending_fetches {
 			fetch.world.FetchReturn(
-				ds.MakeQueue(),
 				and.ANDPeerSession{
 					Peer:      peer,
 					SessionID: fetch.SessionID,

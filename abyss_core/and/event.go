@@ -22,13 +22,6 @@ type EANDSessionClose struct {
 	WSID uuid.UUID
 	ANDIdentity
 }
-type EANDFetchPeerSession struct {
-	WSID uuid.UUID
-	ANDFullPeerSessionInfo
-	fwd bool
-}
-
-// EANDWorldLeave is not raised from AND, but from ahost.
 type EANDWorldLeave struct {
 	WSID    uuid.UUID
 	Code    int

@@ -7,7 +7,6 @@ import (
 	"github.com/kadmila/Abyss-Browser/abyss_core/ahmp"
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
-	"github.com/kadmila/Abyss-Browser/abyss_core/tools/ds"
 )
 
 type parsibleAhmp[T any] interface {
@@ -23,9 +22,6 @@ func tryParseAhmp[RawT parsibleAhmp[T], T any](msg *ahmp.AHMPMessage) (*T, error
 }
 
 func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
-	// peer AND event queue
-	events := ds.MakeQueue()
-
 	// register related information to the host, and handle pending peer requests
 	h.event_ch <- &EPeerConnected{PeerID: peer.ID()}
 
@@ -54,7 +50,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 				return err
 			}
 			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4])
-			if err := h.onJN(events, JN, and.ANDPeerSession{Peer: peer, SessionID: JN.SenderSessionID}, participating_worlds); err != nil {
+			if err := h.onJN(JN, peer); err != nil {
 				return err
 			}
 		case ahmp.JOK_T:
@@ -63,17 +59,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 				return err
 			}
 			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4])
-			peer_session := and.ANDPeerSession{Peer: peer, SessionID: JOK.SenderSessionID}
-			if err := h.onJOK(events, JOK, peer_session, participating_worlds); err != nil {
-				return err
-			}
-		case ahmp.JDN_T:
-			JDN, err := tryParseAhmp[*and.RawJDN](&msg)
-			if err != nil {
-				return err
-			}
-			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4])
-			if err := h.onJDN(events, JDN, peer, participating_worlds); err != nil {
+			if err := h.onJOK(JOK, peer); err != nil {
 				return err
 			}
 		case ahmp.JNI_T:
@@ -82,8 +68,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 				return err
 			}
 			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4])
-			peer_session := and.ANDPeerSession{Peer: peer, SessionID: JNI.SenderSessionID}
-			if err := h.onJNI(events, JNI, peer_session, participating_worlds, JNI.Neighbor); err != nil {
+			if err := h.onJNI(JNI, peer); err != nil {
 				return err
 			}
 		case ahmp.MEM_T:
@@ -92,8 +77,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 				return err
 			}
 			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4])
-			peer_session := and.ANDPeerSession{Peer: peer, SessionID: MEM.SenderSessionID}
-			if err := h.onMEM(events, MEM, peer_session, participating_worlds); err != nil {
+			if err := h.onMEM(MEM, peer); err != nil {
 				return err
 			}
 		case ahmp.SJN_T:
@@ -102,8 +86,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 				return err
 			}
 			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4], functional.Accum_all(SJN.MemberInfos, "", func(entry and.ANDPeerSessionIdentity, str string) string { return entry.PeerID[:4] + " " + str }))
-			peer_session := and.ANDPeerSession{Peer: peer, SessionID: SJN.SenderSessionID}
-			if err := h.onSJN(events, SJN, peer_session, participating_worlds); err != nil {
+			if err := h.onSJN(SJN, peer); err != nil {
 				return err
 			}
 		case ahmp.CRR_T:
@@ -112,8 +95,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 				return err
 			}
 			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4], functional.Accum_all(CRR.MemberInfos, "", func(entry and.ANDPeerSessionIdentity, str string) string { return entry.PeerID[:4] + " " + str }))
-			peer_session := and.ANDPeerSession{Peer: peer, SessionID: CRR.SenderSessionID}
-			if err := h.onCRR(events, CRR, peer_session, participating_worlds); err != nil {
+			if err := h.onCRR(CRR, peer); err != nil {
 				return err
 			}
 		case ahmp.RST_T:
@@ -122,8 +104,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 				return err
 			}
 			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4])
-			peer_session := and.ANDPeerSession{Peer: peer, SessionID: RST.SenderSessionID}
-			if err := h.onRST(events, RST, peer_session, participating_worlds); err != nil {
+			if err := h.onRST(RST, peer); err != nil {
 				return err
 			}
 		case ahmp.SOA_T:
@@ -131,8 +112,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 			if err != nil {
 				return err
 			}
-			peer_session := and.ANDPeerSession{Peer: peer, SessionID: SOA.SenderSessionID}
-			if err := h.onSOA(events, SOA, peer_session, participating_worlds); err != nil {
+			if err := h.onSOA(SOA, peer); err != nil {
 				return err
 			}
 		case ahmp.SOD_T:
@@ -140,16 +120,15 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 			if err != nil {
 				return err
 			}
-			peer_session := and.ANDPeerSession{Peer: peer, SessionID: SOD.SenderSessionID}
-			if err := h.onSOD(events, SOD, peer_session, participating_worlds); err != nil {
+			if err := h.onSOD(SOD, peer); err != nil {
 				return err
 			}
 		case ahmp.AU_PING_TX_T:
-			if err := h.onAUPingTX(events, peer); err != nil {
+			if err := h.onAUPingTX(peer); err != nil {
 				return err
 			}
 		case ahmp.AU_PING_RX_T:
-			if err := h.onAUPingRX(events, peer); err != nil {
+			if err := h.onAUPingRX(peer); err != nil {
 				return err
 			}
 		default:

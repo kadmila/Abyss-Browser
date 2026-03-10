@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
-	"github.com/kadmila/Abyss-Browser/abyss_core/tools/ds"
 	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
 )
 
@@ -115,9 +114,21 @@ func (w *World) Close() {
 	defer w.mtx.Unlock()
 
 	w.broadcastRST(JNC_CLOSED, JNM_CLOSED)
+	w.cleanup()
+}
+
+// cleanup forcefully clears world, unabling it to produce further events.
+func (w *World) cleanup() {
 	w.join_target = ""
 	w.env_url = ""
 	w.entries = make(map[ANDIdentity]*peerWorldSessionState)
+
+	// We don't check error.
+	w.tryPushEvent(&EANDWorldLeave{
+		WSID:    w.WSID,
+		Code:    JNC_CLOSED,
+		Message: JNM_CLOSED,
+	})
 
 	w.ctx_cancel()
 	w.callback_timer.Stop()
@@ -144,48 +155,47 @@ func (w *World) TimerExpire() {
 	w.broadcastSJN()
 }
 
-// IsExposable checks if the world joining procedure is finished and the world information is set.
-func (w *World) IsExposable() bool {
+// IsActive checks if the world is active and ready for use.
+func (w *World) IsActive() bool {
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+
 	return w.env_url != ""
 }
 
-func (w *World) finalizeMember(events ds.Queue, subject ANDPeerSession, fwd bool) {
+func (w *World) finalizeMember(subject ANDPeerSession, fwd bool) {
 	w.entries[subject.ANDIdentity()] = &peerWorldSessionState{
 		ANDPeerSession: subject,
 		state:          WS_MEM,
 		fwd:            fwd,
 		cnt:            0,
 	}
-	events.Push(&EANDSessionReady{
+	w.tryPushEvent(&EANDSessionReady{
 		WSID:        w.WSID,
 		ANDIdentity: subject.ANDIdentity(),
 	})
 	w.callback_timer.Increment()
 }
 
-func (w *World) acceptRemoteMember(events ds.Queue, member_info ANDFullPeerSessionInfo, fwd bool) {
+func (w *World) acceptRemoteMember(member_info ANDFullPeerSessionInfo, fwd bool) {
 	if member_info.PeerID == w.localID {
 		return
 	}
 
 	entry, ok := w.entries[member_info.ANDIdentity]
 	if !ok {
-		events.Push(&EANDFetchPeerSession{
-			WSID:                   w.WSID,
-			ANDFullPeerSessionInfo: member_info,
-			fwd:                    fwd,
-		})
+		w.fetcher.Fetch(w, member_info, fwd)
 	} else if entry.state == WS_NOTIRCVD {
 		w.sendMEM(entry.ANDPeerSession)
-		w.finalizeMember(events, entry.ANDPeerSession, false)
+		w.finalizeMember(entry.ANDPeerSession, false)
 	}
 }
 
-func (w *World) closeEntry(events ds.Queue, entry *peerWorldSessionState) {
+func (w *World) closeEntry(entry *peerWorldSessionState) {
 	if entry.state == WS_MEM {
 		w.callback_timer.Decrement()
 	}
-	events.Push(&EANDSessionClose{
+	w.tryPushEvent(&EANDSessionClose{
 		WSID:        w.WSID,
 		ANDIdentity: entry.ANDIdentity(),
 	})
@@ -193,7 +203,7 @@ func (w *World) closeEntry(events ds.Queue, entry *peerWorldSessionState) {
 }
 
 // mustBeMemberGetEntry can only be used as a barrier for handling a message that must be sent from a member.
-func (w *World) mustBeMemberGetEntry(events ds.Queue, peer_session ANDPeerSession) (*peerWorldSessionState, bool) {
+func (w *World) mustBeMemberGetEntry(peer_session ANDPeerSession) (*peerWorldSessionState, bool) {
 	entry, ok := w.entries[peer_session.ANDIdentity()]
 	if !ok {
 		return nil, false
@@ -202,61 +212,61 @@ func (w *World) mustBeMemberGetEntry(events ds.Queue, peer_session ANDPeerSessio
 	if entry.state != WS_MEM {
 		// exists, but not a member. This is a sign of peer failure.
 		w.sendRST(entry.ANDPeerSession, JNC_INVALID_STATES, JNM_INVALID_STATES)
-		w.closeEntry(events, entry)
+		w.closeEntry(entry)
 		return nil, false
 	}
 
 	return entry, true
 }
 
-func (w *World) JN(events ds.Queue, peer_session ANDPeerSession) {
+func (w *World) JN(peer_session ANDPeerSession) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
 	entry, ok := w.entries[peer_session.ANDIdentity()]
 	if ok {
 		w.sendRST(entry.ANDPeerSession, JNC_INVALID_STATES, JNM_INVALID_STATES)
-		w.closeEntry(events, entry)
+		w.closeEntry(entry)
 		return
 	}
 	w.sendJOK_JNI(peer_session)
-	w.finalizeMember(events, peer_session, false)
+	w.finalizeMember(peer_session, false)
 }
 
-func (w *World) JOK(events ds.Queue, peer_session ANDPeerSession, env_url string, member_infos []ANDFullPeerSessionInfo) {
+func (w *World) JOK(peer_session ANDPeerSession, env_url string, member_infos []ANDFullPeerSessionInfo) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
 	if w.join_target != peer_session.Peer.ID() {
 		if entry, ok := w.entries[peer_session.ANDIdentity()]; ok {
 			w.sendRST(entry.ANDPeerSession, JNC_INVALID_STATES, JNM_INVALID_STATES)
-			w.closeEntry(events, entry)
+			w.closeEntry(entry)
 			return
 		}
 	}
 
-	w.finalizeMember(events, peer_session, false)
+	w.finalizeMember(peer_session, false)
 	for _, member_info := range member_infos {
-		w.acceptRemoteMember(events, member_info, false)
+		w.acceptRemoteMember(member_info, false)
 	}
 	w.join_target = ""
 	w.env_url = env_url
 }
 
-func (w *World) JNI(events ds.Queue, peer_session ANDPeerSession, member_info ANDFullPeerSessionInfo, fwd bool) {
+func (w *World) JNI(peer_session ANDPeerSession, member_info ANDFullPeerSessionInfo, fwd bool) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
 	// only the members can send JNI.
-	_, ok := w.mustBeMemberGetEntry(events, peer_session)
+	_, ok := w.mustBeMemberGetEntry(peer_session)
 	if !ok {
 		return
 	}
 
-	w.acceptRemoteMember(events, member_info, fwd)
+	w.acceptRemoteMember(member_info, fwd)
 }
 
-func (w *World) MEM(events ds.Queue, peer_session ANDPeerSession, fwd bool) {
+func (w *World) MEM(peer_session ANDPeerSession) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
@@ -265,15 +275,14 @@ func (w *World) MEM(events ds.Queue, peer_session ANDPeerSession, fwd bool) {
 		w.entries[peer_session.ANDIdentity()] = &peerWorldSessionState{
 			ANDPeerSession: peer_session,
 			state:          WS_NOTIRCVD,
-			fwd:            fwd,
 			cnt:            0,
 		}
 	} else if entry.state == WS_NOTISENT {
-		w.finalizeMember(events, peer_session, fwd)
+		w.finalizeMember(peer_session, entry.fwd)
 	}
 }
 
-func (w *World) FetchReturn(events ds.Queue, peer_session ANDPeerSession, fwd bool) {
+func (w *World) FetchReturn(peer_session ANDPeerSession, fwd bool) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
@@ -289,11 +298,11 @@ func (w *World) FetchReturn(events ds.Queue, peer_session ANDPeerSession, fwd bo
 	}
 }
 
-func (w *World) SJN(events ds.Queue, peer_session ANDPeerSession, member_infos []ANDIdentity) {
+func (w *World) SJN(peer_session ANDPeerSession, member_infos []ANDIdentity) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
-	entry, ok := w.mustBeMemberGetEntry(events, peer_session)
+	entry, ok := w.mustBeMemberGetEntry(peer_session)
 	if !ok {
 		return
 	}
@@ -324,11 +333,11 @@ func (w *World) SJN(events ds.Queue, peer_session ANDPeerSession, member_infos [
 	}
 }
 
-func (w *World) CRR(events ds.Queue, peer_session ANDPeerSession, member_infos []ANDIdentity) {
+func (w *World) CRR(peer_session ANDPeerSession, member_infos []ANDIdentity) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
-	sender, ok := w.mustBeMemberGetEntry(events, peer_session)
+	sender, ok := w.mustBeMemberGetEntry(peer_session)
 	if !ok {
 		return
 	}
@@ -343,7 +352,7 @@ func (w *World) CRR(events ds.Queue, peer_session ANDPeerSession, member_infos [
 	}
 }
 
-func (w *World) RST(events ds.Queue, peer_session ANDPeerSession) {
+func (w *World) RST(peer_session ANDPeerSession) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
@@ -352,16 +361,16 @@ func (w *World) RST(events ds.Queue, peer_session ANDPeerSession) {
 		return
 	}
 
-	w.closeEntry(events, entry)
+	w.closeEntry(entry)
 }
 
-func (w *World) Disconnect(events ds.Queue, Peer ani.IAbyssPeer) {
+func (w *World) Disconnect(Peer ani.IAbyssPeer) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
 	for _, entry := range w.entries {
 		if entry.Peer == Peer {
-			w.closeEntry(events, entry)
+			w.closeEntry(entry)
 		}
 	}
 }
@@ -394,32 +403,32 @@ func (w *World) ObjectDelete(peer_session_identities []ANDIdentity, objectIDs []
 	}
 }
 
-func (w *World) SOA(events ds.Queue, peer_session ANDPeerSession, objects []ObjectInfo) {
+func (w *World) SOA(peer_session ANDPeerSession, objects []ObjectInfo) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
-	_, ok := w.mustBeMemberGetEntry(events, peer_session)
+	_, ok := w.mustBeMemberGetEntry(peer_session)
 	if !ok {
 		return
 	}
 
-	events.Push(&EANDObjectAppend{
+	w.tryPushEvent(&EANDObjectAppend{
 		WSID:        w.WSID,
 		ANDIdentity: peer_session.ANDIdentity(),
 		Objects:     objects,
 	})
 }
 
-func (w *World) SOD(events ds.Queue, peer_session ANDPeerSession, objectIDs []uuid.UUID) {
+func (w *World) SOD(peer_session ANDPeerSession, objectIDs []uuid.UUID) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
-	_, ok := w.mustBeMemberGetEntry(events, peer_session)
+	_, ok := w.mustBeMemberGetEntry(peer_session)
 	if !ok {
 		return
 	}
 
-	events.Push(&EANDObjectDelete{
+	w.tryPushEvent(&EANDObjectDelete{
 		WSID:        w.WSID,
 		ANDIdentity: peer_session.ANDIdentity(),
 		ObjectIDs:   objectIDs,

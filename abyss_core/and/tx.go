@@ -32,11 +32,12 @@ func (w *World) sendJOK_JNI(joiner ANDPeerSession) error {
 		Neighbors:       functional.Filter(member_entries, MakeRawSessionInfoForDiscovery),
 	})
 }
-func (w *World) sendJNI(member ANDPeerSession, joiner ANDPeerSession) error {
+func (w *World) sendJNI(member ANDPeerSession, joiner ANDPeerSession, fwd bool) error {
 	return member.Peer.Send(ahmp.JNI_T, RawJNI{
 		SenderSessionID: w.WSID.String(),
 		RecverSessionID: member.SessionID.String(),
 		Joiner:          MakeRawSessionInfoForDiscovery(joiner),
+		Fwd:             fwd,
 	})
 }
 func (w *World) sendMEM(member ANDPeerSession) error {
@@ -124,20 +125,12 @@ func (w *World) broadcastRST(code int, message string) error {
 	return nil
 }
 
-func SendJDN_NoWorld(peer_session ANDPeerSession, code int, message string) error {
-	return peer_session.Peer.Send(ahmp.JDN_T, RawJDN{
+func SendRST(peer_session ANDPeerSession, sender_wsid uuid.UUID, code int, message string) error {
+	return peer_session.Peer.Send(ahmp.RST_T, RawRST{
+		SenderSessionID: sender_wsid.String(),
 		RecverSessionID: peer_session.SessionID.String(),
 		Code:            code,
 		Message:         message,
-	})
-}
-
-func SendRST_UnexpectedArbitraryWorld(peer_session ANDPeerSession, unknown_wsid uuid.UUID) error {
-	return peer_session.Peer.Send(ahmp.RST_T, RawRST{
-		SenderSessionID: unknown_wsid.String(),
-		RecverSessionID: peer_session.SessionID.String(),
-		Code:            JNC_UNEXPECTED_WSID,
-		Message:         JNM_UNEXPECTED_WSID,
 	})
 }
 

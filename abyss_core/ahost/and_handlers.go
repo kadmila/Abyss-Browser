@@ -4,212 +4,124 @@ import (
 	"github.com/google/uuid"
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
-	"github.com/kadmila/Abyss-Browser/abyss_core/tools/ds"
 )
 
 func (h *AbyssHost) onJN(
-	events ds.Queue,
 	JN *and.JN,
-	peer_session and.ANDPeerSession,
-	participating_worlds map[uuid.UUID]*and.World,
+	peer ani.IAbyssPeer,
 ) error {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
-	// JN forces appending participating_worlds.
-	world, ok := h.exposed_worlds[JN.Path]
+	peer_session := and.ANDPeerSession{Peer: peer, SessionID: JN.SenderSessionID}
+	world, ok := h.getWorldByPath(JN.Path)
 	if !ok {
-		return and.SendJDN_NoWorld(peer_session, and.JNC_NOT_FOUND, and.JNM_NOT_FOUND)
+		and.SendRST(peer_session, uuid.Nil, and.JNC_NOT_FOUND, and.JNM_NOT_FOUND)
+		return nil
 	}
-
-	if _, ok := participating_worlds[world.SessionID()]; !ok {
-		participating_worlds[world.SessionID()] = world
-		world.PeerConnected(events, peer_session.Peer)
-		world.CheckSanity()
-		h.handleANDEvent(events)
-	}
-
-	world.JN(events, peer_session, JN.TimeStamp)
-	world.CheckSanity()
-	h.handleANDEvent(events)
+	world.JN(peer_session)
 	return nil
+}
+
+func (h *AbyssHost) ahmpWorldPrep(peer ani.IAbyssPeer, receiver_wsid uuid.UUID) (*and.World, and.ANDPeerSession, bool) {
+	peer_session := and.ANDPeerSession{Peer: peer, SessionID: receiver_wsid}
+	world, ok := h.getWorld(receiver_wsid)
+	if !ok {
+		and.SendRST(peer_session, receiver_wsid, and.JNC_NOT_FOUND, and.JNM_NOT_FOUND)
+		return nil, and.ANDPeerSession{}, false
+	}
+	return world, peer_session, true
 }
 
 func (h *AbyssHost) onJOK(
-	events ds.Queue,
 	JOK *and.JOK,
-	peer_session and.ANDPeerSession,
-	participating_worlds map[uuid.UUID]*and.World,
-) error {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
-	world, ok := participating_worlds[JOK.RecverSessionID]
-	if !ok {
-		return and.SendRST_UnexpectedArbitraryWorld(peer_session, JOK.RecverSessionID)
-	}
-	world.JOK(events, peer_session, JOK.TimeStamp, JOK.URL, JOK.Neighbors)
-	world.CheckSanity()
-	h.handleANDEvent(events)
-	return nil
-}
-
-func (h *AbyssHost) onJDN(
-	events ds.Queue,
-	JDN *and.JDN,
 	peer ani.IAbyssPeer,
-	participating_worlds map[uuid.UUID]*and.World,
 ) error {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
-	world, ok := participating_worlds[JDN.RecverSessionID]
+	world, peer_session, ok := h.ahmpWorldPrep(peer, JOK.RecverSessionID)
 	if !ok {
 		return nil
 	}
-	world.JDN(events, peer, JDN.Code, JDN.Message)
-	world.CheckSanity()
-	h.handleANDEvent(events)
+	world.JOK(peer_session, JOK.URL, JOK.Neighbors)
 	return nil
 }
 
 func (h *AbyssHost) onJNI(
-	events ds.Queue,
 	JNI *and.JNI,
-	peer_session and.ANDPeerSession,
-	participating_worlds map[uuid.UUID]*and.World,
-	joiner_info and.ANDFullPeerSessionInfo,
+	peer ani.IAbyssPeer,
 ) error {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
-	world, ok := participating_worlds[JNI.RecverSessionID]
+	world, peer_session, ok := h.ahmpWorldPrep(peer, JNI.RecverSessionID)
 	if !ok {
-		return and.SendRST_UnexpectedArbitraryWorld(peer_session, JNI.RecverSessionID)
+		return nil
 	}
-	world.JNI(events, peer_session, joiner_info)
-	world.CheckSanity()
-	h.handleANDEvent(events)
+	world.JNI(peer_session, JNI.Neighbor, JNI.Fwd)
 	return nil
 }
 
 func (h *AbyssHost) onMEM(
-	events ds.Queue,
 	MEM *and.MEM,
-	peer_session and.ANDPeerSession,
-	participating_worlds map[uuid.UUID]*and.World,
+	peer ani.IAbyssPeer,
 ) error {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
-	// MEM forces appending participating_worlds.
-	world, ok := h.worlds[MEM.RecverSessionID]
+	world, peer_session, ok := h.ahmpWorldPrep(peer, MEM.RecverSessionID)
 	if !ok {
-		return and.SendRST_UnexpectedArbitraryWorld(peer_session, MEM.RecverSessionID)
+		return nil
 	}
-
-	if _, ok := participating_worlds[MEM.RecverSessionID]; !ok {
-		participating_worlds[world.SessionID()] = world
-		world.PeerConnected(events, peer_session.Peer)
-		world.CheckSanity()
-		h.handleANDEvent(events)
-	}
-
-	world.MEM(events, peer_session, MEM.TimeStamp)
-	world.CheckSanity()
-	h.handleANDEvent(events)
+	world.MEM(peer_session)
 	return nil
 }
 
 func (h *AbyssHost) onSJN(
-	events ds.Queue,
 	SJN *and.SJN,
-	peer_session and.ANDPeerSession,
-	participating_worlds map[uuid.UUID]*and.World,
+	peer ani.IAbyssPeer,
 ) error {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
-	world, ok := participating_worlds[SJN.RecverSessionID]
+	world, peer_session, ok := h.ahmpWorldPrep(peer, SJN.RecverSessionID)
 	if !ok {
-		return and.SendRST_UnexpectedArbitraryWorld(peer_session, SJN.RecverSessionID)
+		return nil
 	}
-	world.SJN(events, peer_session, SJN.MemberInfos)
-	world.CheckSanity()
-	h.handleANDEvent(events)
+	world.SJN(peer_session, SJN.MemberInfos)
 	return nil
 }
 
 func (h *AbyssHost) onCRR(
-	events ds.Queue,
 	CRR *and.CRR,
-	peer_session and.ANDPeerSession,
-	participating_worlds map[uuid.UUID]*and.World,
+	peer ani.IAbyssPeer,
 ) error {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
-	world, ok := participating_worlds[CRR.RecverSessionID]
+	world, peer_session, ok := h.ahmpWorldPrep(peer, CRR.RecverSessionID)
 	if !ok {
-		return and.SendRST_UnexpectedArbitraryWorld(peer_session, CRR.RecverSessionID)
+		return nil
 	}
-	world.CRR(events, peer_session, CRR.MemberInfos)
-	world.CheckSanity()
-	h.handleANDEvent(events)
+	world.CRR(peer_session, CRR.MemberInfos)
 	return nil
 }
 
 func (h *AbyssHost) onRST(
-	events ds.Queue,
 	RST *and.RST,
-	peer_session and.ANDPeerSession,
-	participating_worlds map[uuid.UUID]*and.World,
+	peer ani.IAbyssPeer,
 ) error {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
-	world, ok := participating_worlds[RST.RecverSessionID]
+	world, peer_session, ok := h.ahmpWorldPrep(peer, RST.RecverSessionID)
 	if !ok {
-		return nil // must be no reflection
+		return nil
 	}
-	world.RST(events, peer_session)
-	world.CheckSanity()
-	h.handleANDEvent(events)
+	world.RST(peer_session)
 	return nil
 }
 
 func (h *AbyssHost) onSOA(
-	events ds.Queue,
 	SOA *and.SOA,
-	peer_session and.ANDPeerSession,
-	participating_worlds map[uuid.UUID]*and.World,
+	peer ani.IAbyssPeer,
 ) error {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
-	world, ok := participating_worlds[SOA.RecverSessionID]
+	world, peer_session, ok := h.ahmpWorldPrep(peer, SOA.RecverSessionID)
 	if !ok {
-		return and.SendRST_UnexpectedArbitraryWorld(peer_session, SOA.RecverSessionID)
+		return nil
 	}
-	world.SOA(events, peer_session, SOA.Objects)
-	h.handleANDEvent(events)
+	world.SOA(peer_session, SOA.Objects)
 	return nil
 }
 
 func (h *AbyssHost) onSOD(
-	events ds.Queue,
 	SOD *and.SOD,
-	peer_session and.ANDPeerSession,
-	participating_worlds map[uuid.UUID]*and.World,
+	peer ani.IAbyssPeer,
 ) error {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
-	world, ok := participating_worlds[SOD.RecverSessionID]
+	world, peer_session, ok := h.ahmpWorldPrep(peer, SOD.RecverSessionID)
 	if !ok {
-		return and.SendRST_UnexpectedArbitraryWorld(peer_session, SOD.RecverSessionID)
+		return nil
 	}
-	world.SOD(events, peer_session, SOD.ObjectIDs)
-	h.handleANDEvent(events)
+	world.SOD(peer_session, SOD.ObjectIDs)
 	return nil
 }

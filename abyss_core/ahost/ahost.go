@@ -213,6 +213,22 @@ func (h *AbyssHost) CloseWorld(world *and.World) {
 	delete(h.worlds, world.WSID)
 }
 
+func (h *AbyssHost) getWorldByPath(path string) (*and.World, bool) {
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
+	world, ok := h.exposed_worlds[path]
+	return world, ok
+}
+
+func (h *AbyssHost) getWorld(wsid uuid.UUID) (*and.World, bool) {
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
+	world, ok := h.worlds[wsid]
+	return world, ok
+}
+
 /// host features
 
 // GetEvent blocks until an event is raised.
@@ -237,8 +253,8 @@ func (h *AbyssHost) ExposeWorldForJoin(world *and.World, path string) error {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	if !world.IsExposable() {
-		return errors.New("This world is under joining procedure, thus not exposable.")
+	if !world.IsActive() {
+		return errors.New("Inactive world cannot be exposed for join")
 	}
 
 	if _, ok := h.exposed_worlds[path]; ok {
