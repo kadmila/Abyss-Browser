@@ -189,8 +189,6 @@ func (f *PeerFetcher) onWorldClose(world *and.World) {
 	)
 }
 
-func (f *PeerFetcher) GiveupFetch()
-
 func (f *PeerFetcher) AddPeer(peer ani.IAbyssPeer) {
 	f.peer_ch <- peer
 }

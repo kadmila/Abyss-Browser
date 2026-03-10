@@ -30,6 +30,9 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 
 	// prepare for disconnection
 	defer func() {
+		// again, this is a quick and dirty approach;
+		h.propagatePeerClose(peer.ID())
+
 		// reverse order of peer insertion
 		h.peer_fetcher.RemovePeer(peer.ID())
 		h.event_ch <- &EPeerDisconnected{PeerID: peer.ID()}

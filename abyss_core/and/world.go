@@ -364,12 +364,12 @@ func (w *World) RST(peer_session ANDPeerSession) {
 	w.closeEntry(entry)
 }
 
-func (w *World) Disconnect(Peer ani.IAbyssPeer) {
+func (w *World) Disconnect(PeerID string) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
 	for _, entry := range w.entries {
-		if entry.Peer == Peer {
+		if entry.Peer.ID() == PeerID {
 			w.closeEntry(entry)
 		}
 	}

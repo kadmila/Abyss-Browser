@@ -229,6 +229,17 @@ func (h *AbyssHost) getWorld(wsid uuid.UUID) (*and.World, bool) {
 	return world, ok
 }
 
+// propagatePeerClose is a quick and dirty approach for dead peer handling in AND.
+// This should be replaced with PeerFetcher.RemovePeer().
+func (h *AbyssHost) propagatePeerClose(peerID string) {
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
+	for _, world := range h.worlds {
+		world.Disconnect(peerID)
+	}
+}
+
 /// host features
 
 // GetEvent blocks until an event is raised.
