@@ -1,6 +1,9 @@
 package and
 
 import (
+	"encoding/hex"
+	"fmt"
+
 	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
 
 	"github.com/google/uuid"
@@ -56,6 +59,9 @@ func (r *RawJN) TryParse() (*JN, error) {
 	}
 	return &JN{ssid, r.Path}, nil
 }
+func (r RawJN) String() string {
+	return fmt.Sprintf("JN{SenderSessionID: %s, Path: %s}", hex.EncodeToString(r.SenderSessionID[:4]), r.Path)
+}
 
 type RawJOK struct {
 	SenderSessionID []byte
@@ -97,6 +103,9 @@ func (r *RawJOK) TryParse() (*JOK, error) {
 		Neighbors:       neig,
 	}, nil
 }
+func (r RawJOK) String() string {
+	return fmt.Sprintf("JOK{SenderSessionID: %s, RecverSessionID: %s, URL: %s, Neighbors: %d}", hex.EncodeToString(r.SenderSessionID[:4]), hex.EncodeToString(r.RecverSessionID[:4]), r.URL, len(r.Neighbors))
+}
 
 type RawJNI struct {
 	SenderSessionID []byte
@@ -133,6 +142,9 @@ func (r *RawJNI) TryParse() (*JNI, error) {
 		Fwd: r.Fwd,
 	}, nil
 }
+func (r RawJNI) String() string {
+	return fmt.Sprintf("JNI{SenderSessionID: %s, RecverSessionID: %s, Joiner: %s:%s, Fwd: %t}", hex.EncodeToString(r.SenderSessionID[:4]), hex.EncodeToString(r.RecverSessionID[:4]), r.Joiner.PeerID[:8], hex.EncodeToString(r.Joiner.SessionID[:4]), r.Fwd)
+}
 
 type RawMEM struct {
 	SenderSessionID []byte
@@ -149,6 +161,9 @@ func (r *RawMEM) TryParse() (*MEM, error) {
 		return nil, err
 	}
 	return &MEM{ssid, rsid}, nil
+}
+func (r RawMEM) String() string {
+	return fmt.Sprintf("MEM{SenderSessionID: %s, RecverSessionID: %s}", hex.EncodeToString(r.SenderSessionID[:4]), hex.EncodeToString(r.RecverSessionID[:4]))
 }
 
 type RawSJN struct {
@@ -179,6 +194,9 @@ func (r *RawSJN) TryParse() (*SJN, error) {
 	}
 	return &SJN{ssid, rsid, infos}, nil
 }
+func (r RawSJN) String() string {
+	return fmt.Sprintf("SJN{SenderSessionID: %s, RecverSessionID: %s, Members: %d}", hex.EncodeToString(r.SenderSessionID[:4]), hex.EncodeToString(r.RecverSessionID[:4]), len(r.MemberInfos))
+}
 
 type RawCRR struct {
 	SenderSessionID []byte
@@ -208,6 +226,9 @@ func (r *RawCRR) TryParse() (*CRR, error) {
 	}
 	return &CRR{ssid, rsid, infos}, nil
 }
+func (r RawCRR) String() string {
+	return fmt.Sprintf("CRR{SenderSessionID: %s, RecverSessionID: %s, Members: %d}", hex.EncodeToString(r.SenderSessionID[:4]), hex.EncodeToString(r.RecverSessionID[:4]), len(r.MemberInfos))
+}
 
 type RawRST struct {
 	SenderSessionID []byte
@@ -226,6 +247,9 @@ func (r *RawRST) TryParse() (*RST, error) {
 		return nil, err
 	}
 	return &RST{ssid, rsid, r.Code, r.Message}, nil
+}
+func (r RawRST) String() string {
+	return fmt.Sprintf("RST{SenderSessionID: %s, RecverSessionID: %s, Code: %d, Message: %s}", hex.EncodeToString(r.SenderSessionID[:4]), hex.EncodeToString(r.RecverSessionID[:4]), r.Code, r.Message)
 }
 
 type RawObjectInfo struct {
@@ -264,6 +288,9 @@ func (r *RawSOA) TryParse() (*SOA, error) {
 	}
 	return &SOA{ssid, rsid, objects}, nil
 }
+func (r RawSOA) String() string {
+	return fmt.Sprintf("SOA{SenderSessionID: %s, RecverSessionID: %s, Objects: %d}", hex.EncodeToString(r.SenderSessionID[:4]), hex.EncodeToString(r.RecverSessionID[:4]), len(r.Objects))
+}
 
 type RawSOD struct {
 	SenderSessionID []byte
@@ -291,4 +318,7 @@ func (r *RawSOD) TryParse() (*SOD, error) {
 		return nil, err
 	}
 	return &SOD{ssid, rsid, oids}, nil
+}
+func (r RawSOD) String() string {
+	return fmt.Sprintf("SOD{SenderSessionID: %s, RecverSessionID: %s, ObjectIDs: %d}", hex.EncodeToString(r.SenderSessionID[:4]), hex.EncodeToString(r.RecverSessionID[:4]), len(r.ObjectIDs))
 }

@@ -54,7 +54,7 @@ func (t *ANDTimer) Decrement() {
 	}
 	now := time.Now()
 
-	shortened_duration := t.due.Sub(now) * time.Duration(t.N) / time.Duration(t.N-1)
+	shortened_duration := t.due.Sub(now) * time.Duration(t.N) / time.Duration(t.N+1)
 	if shortened_duration > TimerMinInterval {
 		t.Reset(shortened_duration)
 	}

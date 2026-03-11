@@ -119,14 +119,17 @@ func (h *AbyssHost) UpdateHandshakeInfo(address_candidates []netip.AddrPort) err
 }
 
 func (h *AbyssHost) AppendKnownPeer(root_cert string, handshake_info_cert string) error {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
 	peer_id, ok, err := h.net.AppendKnownPeer(root_cert, handshake_info_cert)
 	if ok {
 		h.event_ch <- &EPeerFound{PeerID: peer_id}
 	}
-
+	return err
+}
+func (h *AbyssHost) AppendKnownPeerDer(root_cert_der []byte, handshake_info_cert_der []byte) error {
+	peer_id, ok, err := h.net.AppendKnownPeerDer(root_cert_der, handshake_info_cert_der)
+	if ok {
+		h.event_ch <- &EPeerFound{PeerID: peer_id}
+	}
 	return err
 }
 func (h *AbyssHost) EraseKnownPeer(id string) {
@@ -144,7 +147,7 @@ func (h *AbyssHost) NewCollocatedHttp3Client() *http.Client {
 	return h.net.NewCollocatedHttp3Client()
 }
 func (h *AbyssHost) ANDDial(info and.ANDFullPeerSessionInfo) {
-	h.AppendKnownPeer(string(info.RootCertificateDer), string(info.HandshakeKeyCertificateDer))
+	h.AppendKnownPeerDer(info.RootCertificateDer, info.HandshakeKeyCertificateDer)
 	h.net.Dial(info.PeerID)
 }
 
