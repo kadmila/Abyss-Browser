@@ -34,6 +34,7 @@ func (p *AbyssPeer) RemoteAddr() netip.AddrPort {
 }
 
 func (p *AbyssPeer) Send(t ahmp.AHMPMsgType, v any) error {
+	//fmt.Println("Send: " + t.String() + " > " + p.ID()[:4])
 	var msg ahmp.AHMPMessage
 	msg.Type = t
 	var err error

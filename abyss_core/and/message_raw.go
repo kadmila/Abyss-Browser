@@ -50,7 +50,7 @@ type RawJN struct {
 }
 
 func (r *RawJN) TryParse() (*JN, error) {
-	ssid, err := uuid.ParseBytes(r.SenderSessionID)
+	ssid, err := uuid.FromBytes(r.SenderSessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -65,16 +65,16 @@ type RawJOK struct {
 }
 
 func (r *RawJOK) TryParse() (*JOK, error) {
-	ssid, err := uuid.ParseBytes(r.SenderSessionID)
+	ssid, err := uuid.FromBytes(r.SenderSessionID)
 	if err != nil {
 		return nil, err
 	}
-	rsid, err := uuid.ParseBytes(r.RecverSessionID)
+	rsid, err := uuid.FromBytes(r.RecverSessionID)
 	if err != nil {
 		return nil, err
 	}
 	neig, _, err := functional.Filter_until_err(r.Neighbors, func(i RawANDFullPeerSessionInfo) (ANDFullPeerSessionInfo, error) {
-		psid, err := uuid.ParseBytes(i.SessionID)
+		psid, err := uuid.FromBytes(i.SessionID)
 		if err != nil {
 			return ANDFullPeerSessionInfo{}, err
 		}
@@ -106,16 +106,16 @@ type RawJNI struct {
 }
 
 func (r *RawJNI) TryParse() (*JNI, error) {
-	ssid, err := uuid.ParseBytes(r.SenderSessionID)
+	ssid, err := uuid.FromBytes(r.SenderSessionID)
 	if err != nil {
 		return nil, err
 	}
-	rsid, err := uuid.ParseBytes(r.RecverSessionID)
+	rsid, err := uuid.FromBytes(r.RecverSessionID)
 	if err != nil {
 		return nil, err
 	}
 
-	psid, err := uuid.ParseBytes(r.Joiner.SessionID)
+	psid, err := uuid.FromBytes(r.Joiner.SessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -140,11 +140,11 @@ type RawMEM struct {
 }
 
 func (r *RawMEM) TryParse() (*MEM, error) {
-	ssid, err := uuid.ParseBytes(r.SenderSessionID)
+	ssid, err := uuid.FromBytes(r.SenderSessionID)
 	if err != nil {
 		return nil, err
 	}
-	rsid, err := uuid.ParseBytes(r.RecverSessionID)
+	rsid, err := uuid.FromBytes(r.RecverSessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -158,17 +158,17 @@ type RawSJN struct {
 }
 
 func (r *RawSJN) TryParse() (*SJN, error) {
-	ssid, err := uuid.ParseBytes(r.SenderSessionID)
+	ssid, err := uuid.FromBytes(r.SenderSessionID)
 	if err != nil {
 		return nil, err
 	}
-	rsid, err := uuid.ParseBytes(r.RecverSessionID)
+	rsid, err := uuid.FromBytes(r.RecverSessionID)
 	if err != nil {
 		return nil, err
 	}
 	infos, _, err := functional.Filter_until_err(r.MemberInfos,
 		func(info_raw RawANDIdentity) (ANDIdentity, error) {
-			id, err := uuid.ParseBytes(info_raw.SessionID)
+			id, err := uuid.FromBytes(info_raw.SessionID)
 			return ANDIdentity{
 				PeerID:    info_raw.PeerID,
 				SessionID: id,
@@ -187,17 +187,17 @@ type RawCRR struct {
 }
 
 func (r *RawCRR) TryParse() (*CRR, error) {
-	ssid, err := uuid.ParseBytes(r.SenderSessionID)
+	ssid, err := uuid.FromBytes(r.SenderSessionID)
 	if err != nil {
 		return nil, err
 	}
-	rsid, err := uuid.ParseBytes(r.RecverSessionID)
+	rsid, err := uuid.FromBytes(r.RecverSessionID)
 	if err != nil {
 		return nil, err
 	}
 	infos, _, err := functional.Filter_until_err(r.MemberInfos,
 		func(info_raw RawANDIdentity) (ANDIdentity, error) {
-			id, err := uuid.ParseBytes(info_raw.SessionID)
+			id, err := uuid.FromBytes(info_raw.SessionID)
 			return ANDIdentity{
 				PeerID:    info_raw.PeerID,
 				SessionID: id,
@@ -217,11 +217,11 @@ type RawRST struct {
 }
 
 func (r *RawRST) TryParse() (*RST, error) {
-	ssid, err := uuid.ParseBytes(r.SenderSessionID)
+	ssid, err := uuid.FromBytes(r.SenderSessionID)
 	if err != nil {
 		return nil, err
 	}
-	rsid, err := uuid.ParseBytes(r.RecverSessionID)
+	rsid, err := uuid.FromBytes(r.RecverSessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -240,18 +240,18 @@ type RawSOA struct {
 }
 
 func (r *RawSOA) TryParse() (*SOA, error) {
-	ssid, err := uuid.ParseBytes(r.SenderSessionID)
+	ssid, err := uuid.FromBytes(r.SenderSessionID)
 	if err != nil {
 		return nil, err
 	}
-	rsid, err := uuid.ParseBytes(r.RecverSessionID)
+	rsid, err := uuid.FromBytes(r.RecverSessionID)
 	if err != nil {
 		return nil, err
 	}
 	objects, _, err := functional.Filter_until_err(
 		r.Objects,
 		func(object_raw RawObjectInfo) (ObjectInfo, error) {
-			oid, err := uuid.ParseBytes(object_raw.ID)
+			oid, err := uuid.FromBytes(object_raw.ID)
 			return ObjectInfo{
 				ID:        oid,
 				Addr:      object_raw.Address,
@@ -272,18 +272,18 @@ type RawSOD struct {
 }
 
 func (r *RawSOD) TryParse() (*SOD, error) {
-	ssid, err := uuid.ParseBytes(r.SenderSessionID)
+	ssid, err := uuid.FromBytes(r.SenderSessionID)
 	if err != nil {
 		return nil, err
 	}
-	rsid, err := uuid.ParseBytes(r.RecverSessionID)
+	rsid, err := uuid.FromBytes(r.RecverSessionID)
 	if err != nil {
 		return nil, err
 	}
 	oids, _, err := functional.Filter_until_err(
 		r.ObjectIDs,
 		func(oid_raw []byte) (uuid.UUID, error) {
-			oid, err := uuid.ParseBytes(oid_raw)
+			oid, err := uuid.FromBytes(oid_raw)
 			return oid, err
 		},
 	)

@@ -88,7 +88,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 			if err != nil {
 				return err
 			}
-			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4], functional.Accum_all(SJN.MemberInfos, "", func(entry and.ANDPeerSessionIdentity, str string) string { return entry.PeerID[:4] + " " + str }))
+			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4], functional.Accum_all(SJN.MemberInfos, "", func(entry and.ANDIdentity, str string) string { return entry.PeerID[:4] + " " + str }))
 			if err := h.onSJN(SJN, peer); err != nil {
 				return err
 			}
@@ -97,7 +97,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 			if err != nil {
 				return err
 			}
-			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4], functional.Accum_all(CRR.MemberInfos, "", func(entry and.ANDPeerSessionIdentity, str string) string { return entry.PeerID[:4] + " " + str }))
+			//fmt.Println(time.Now().Format("05.0000"), msg.Type.String(), h.ID()[:4], "<", peer.ID()[:4], functional.Accum_all(CRR.MemberInfos, "", func(entry and.ANDIdentity, str string) string { return entry.PeerID[:4] + " " + str }))
 			if err := h.onCRR(CRR, peer); err != nil {
 				return err
 			}

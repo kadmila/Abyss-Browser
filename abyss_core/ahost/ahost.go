@@ -96,7 +96,10 @@ func (h *AbyssHost) acceptingLoop() error {
 			// other errors are fatal.
 			return err
 		}
-		go h.servePeer(peer)
+		go func() {
+			h.servePeer(peer)
+			//fmt.Println("Debug: peer failed: " + err.Error())
+		}()
 	}
 }
 

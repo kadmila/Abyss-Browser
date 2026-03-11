@@ -244,6 +244,10 @@ func (w *World) JOK(peer_session ANDPeerSession, env_url string, member_infos []
 			return
 		}
 	}
+	w.tryPushEvent(&EANDWorldEnter{
+		WSID: w.WSID,
+		URL:  env_url,
+	})
 
 	w.finalizeMember(peer_session, false)
 	for _, member_info := range member_infos {
