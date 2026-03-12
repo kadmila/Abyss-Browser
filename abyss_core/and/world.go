@@ -293,7 +293,7 @@ func (w *World) FetchReturn(peer_session ANDPeerSession, fwd bool) {
 	defer w.mtx.Unlock()
 
 	fmt.Println(time.Now().Format("15:04:05.00000") + "| Fetched " + peer_session.Peer.ID()[:8])
-	_, ok := w.entries[peer_session.ANDIdentity()]
+	entry, ok := w.entries[peer_session.ANDIdentity()]
 	if !ok {
 		w.sendMEM(peer_session)
 		w.entries[peer_session.ANDIdentity()] = &peerWorldSessionState{
@@ -302,6 +302,9 @@ func (w *World) FetchReturn(peer_session ANDPeerSession, fwd bool) {
 			fwd:            fwd,
 			cnt:            0,
 		}
+	} else if entry.state == WS_NOTISENT {
+		w.sendMEM(peer_session)
+		w.finalizeMember(peer_session, true)
 	}
 }
 
