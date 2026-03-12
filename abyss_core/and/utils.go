@@ -27,7 +27,7 @@ func NewANDTimer() *ANDTimer {
 
 const (
 	TimerMinInterval  = 100
-	TimerUnitInterval = 150
+	TimerUnitInterval = 300
 )
 
 // All durations are calculated in miliseconds, and then applied to native time type later.
