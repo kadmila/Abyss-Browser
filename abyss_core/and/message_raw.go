@@ -3,6 +3,7 @@ package and
 import (
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
 
@@ -227,7 +228,20 @@ func (r *RawCRR) TryParse() (*CRR, error) {
 	return &CRR{ssid, rsid, infos}, nil
 }
 func (r RawCRR) String() string {
-	return fmt.Sprintf("CRR{SenderSessionID: %s, RecverSessionID: %s, Members: %d}", hex.EncodeToString(r.SenderSessionID[:4]), hex.EncodeToString(r.RecverSessionID[:4]), len(r.MemberInfos))
+	return fmt.Sprintf(
+		"CRR{SenderSessionID: %s, RecverSessionID: %s, Members: %s}",
+		hex.EncodeToString(r.SenderSessionID[:4]),
+		hex.EncodeToString(r.RecverSessionID[:4]),
+		"["+strings.Join(
+			functional.Filter(
+				r.MemberInfos,
+				func(i RawANDIdentity) string {
+					return i.PeerID[:8] + ":" + hex.EncodeToString(i.SessionID[:4])
+				},
+			),
+			", ",
+		)+"]",
+	)
 }
 
 type RawRST struct {

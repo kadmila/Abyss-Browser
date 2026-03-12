@@ -39,6 +39,7 @@ func (t *ANDTimer) Increment() {
 	if t.due.After(now) {
 		time_remaining_ms := t.due.Sub(now).Milliseconds()
 		elongate_duration_ms := time_remaining_ms * t.N / (t.N - 1)
+		//fmt.Println("elongate_duration_ms: " + strconv.FormatInt(elongate_duration_ms, 10) + ", N: " + strconv.FormatInt(t.N, 10))
 		if elongate_duration_ms > TimerMinInterval {
 			elongated_duration := time.Duration(elongate_duration_ms) * time.Millisecond
 			t.Reset(elongated_duration)
@@ -47,6 +48,7 @@ func (t *ANDTimer) Increment() {
 		// worst case: double expiration - if the host is very very slow and badly timed. unlikely to happen.
 	} else {
 		rand_interval_ms := TimerMinInterval + rand.Int64N(TimerUnitInterval*t.N)
+		//fmt.Println("rand_interval_ms: " + strconv.FormatInt(rand_interval_ms, 10) + ", N: " + strconv.FormatInt(t.N, 10))
 		new_duration := time.Duration(rand_interval_ms) * time.Millisecond
 		t.Reset(new_duration)
 		t.due = now.Add(new_duration)
@@ -63,6 +65,7 @@ func (t *ANDTimer) Decrement() {
 
 	time_remaining_ms := t.due.Sub(now).Milliseconds()
 	shortened_duration_ms := time_remaining_ms * t.N / (t.N + 1)
+	//fmt.Println("shortened_duration_ms: " + strconv.FormatInt(shortened_duration_ms, 10) + ", N: " + strconv.FormatInt(t.N, 10))
 	if shortened_duration_ms > TimerMinInterval {
 		shortened_duration := time.Duration(shortened_duration_ms) * time.Millisecond
 		t.Reset(shortened_duration)
@@ -126,6 +129,14 @@ type ANDFullPeerSessionInfo struct {
 	ANDIdentity
 	RootCertificateDer         []byte
 	HandshakeKeyCertificateDer []byte
+}
+
+func MakeANDFullPeerSessionInfo(peer_session ANDPeerSession) ANDFullPeerSessionInfo {
+	return ANDFullPeerSessionInfo{
+		ANDIdentity:                peer_session.ANDIdentity(),
+		RootCertificateDer:         peer_session.Peer.RootCertificateDer(),
+		HandshakeKeyCertificateDer: peer_session.Peer.HandshakeKeyCertificateDer(),
+	}
 }
 
 // ObjectInfo is used to represent shared object.
