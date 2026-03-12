@@ -304,7 +304,7 @@ func (w *World) FetchReturn(peer_session ANDPeerSession, fwd bool) {
 		}
 	} else if entry.state == WS_NOTIRCVD {
 		w.sendMEM(peer_session)
-		w.finalizeMember(peer_session, true)
+		w.finalizeMember(peer_session, fwd)
 	}
 }
 
