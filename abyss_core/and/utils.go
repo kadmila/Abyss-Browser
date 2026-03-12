@@ -12,7 +12,7 @@ import (
 type ANDTimer struct {
 	*time.Timer
 	due time.Time
-	N   int
+	N   int64
 }
 
 func NewANDTimer() *ANDTimer {
@@ -26,23 +26,28 @@ func NewANDTimer() *ANDTimer {
 }
 
 const (
-	TimerMinInterval  = 100 * time.Millisecond
-	TimerIntervalUnit = 150.0
+	TimerMinInterval  = 100
+	TimerUnitInterval = 150
 )
+
+// All durations are calculated in miliseconds, and then applied to native time type later.
 
 func (t *ANDTimer) Increment() {
 	t.N++
 	now := time.Now()
 
 	if t.due.After(now) {
-		elongate_duration := t.due.Sub(now) * time.Duration(t.N) / time.Duration(t.N-1)
-		if elongate_duration > TimerMinInterval {
-			t.Reset(elongate_duration)
-			t.due = now.Add(elongate_duration)
+		time_remaining_ms := t.due.Sub(now).Milliseconds()
+		elongate_duration_ms := time_remaining_ms * t.N / (t.N - 1)
+		if elongate_duration_ms > TimerMinInterval {
+			elongated_duration := time.Duration(elongate_duration_ms) * time.Millisecond
+			t.Reset(elongated_duration)
+			t.due = now.Add(elongated_duration)
 		}
 		// worst case: double expiration - if the host is very very slow and badly timed. unlikely to happen.
 	} else {
-		new_duration := TimerMinInterval + time.Millisecond*time.Duration(rand.Float64()*TimerIntervalUnit*float64(t.N))
+		rand_interval_ms := TimerMinInterval + rand.Int64N(TimerUnitInterval*t.N)
+		new_duration := time.Duration(rand_interval_ms) * time.Millisecond
 		t.Reset(new_duration)
 		t.due = now.Add(new_duration)
 		// worst case: timer expiration miss if a new timer is set before the previous expiration is handled.
@@ -56,8 +61,10 @@ func (t *ANDTimer) Decrement() {
 	}
 	now := time.Now()
 
-	shortened_duration := t.due.Sub(now) * time.Duration(t.N) / time.Duration(t.N+1)
-	if shortened_duration > TimerMinInterval {
+	time_remaining_ms := t.due.Sub(now).Milliseconds()
+	shortened_duration_ms := time_remaining_ms * t.N / (t.N + 1)
+	if shortened_duration_ms > TimerMinInterval {
+		shortened_duration := time.Duration(shortened_duration_ms) * time.Millisecond
 		t.Reset(shortened_duration)
 		t.due = now.Add(shortened_duration)
 	}
