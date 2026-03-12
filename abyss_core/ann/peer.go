@@ -3,8 +3,10 @@ package ann
 import (
 	"context"
 	"crypto/x509"
+	"fmt"
 	"net/netip"
 	"sync/atomic"
+	"time"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ahmp"
@@ -34,7 +36,7 @@ func (p *AbyssPeer) RemoteAddr() netip.AddrPort {
 }
 
 func (p *AbyssPeer) Send(t ahmp.AHMPMsgType, v any) error {
-	//fmt.Println(time.Now().Format("15:04:05.00000") + "| Send: " + p.origin.ID()[:8] + " > " + p.ID()[:8] + " | " + v.(fmt.Stringer).String())
+	fmt.Println(time.Now().Format("15:04:05.00000") + "| Send: " + p.origin.ID()[:8] + " > " + p.ID()[:8] + " | " + v.(fmt.Stringer).String())
 	var msg ahmp.AHMPMessage
 	msg.Type = t
 	var err error
