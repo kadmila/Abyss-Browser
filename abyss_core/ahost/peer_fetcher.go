@@ -2,6 +2,8 @@ package ahost
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
@@ -44,6 +46,7 @@ func (f *FetchQueue) Fetch(
 	target and.ANDFullPeerSessionInfo,
 	fwd bool,
 ) {
+	fmt.Println(time.Now().Format("15:04:05.00000") + "| Fetch " + target.PeerID)
 	f.dial_func(target)
 	f.fetch_ch <- fetchEntry{
 		world:       world,
