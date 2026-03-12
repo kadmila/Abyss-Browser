@@ -3,6 +3,7 @@ package ann
 import (
 	"context"
 	"crypto/x509"
+	"fmt"
 	"net/netip"
 	"sync/atomic"
 
@@ -18,7 +19,7 @@ type AbyssPeer struct {
 	internal_id     uint64
 	client_tls_cert *x509.Certificate // this is stupid
 
-	connection   quic.Connection
+	connection   *quic.Conn
 	remote_addr  netip.AddrPort
 	ahmp_encoder *cbor.Encoder
 	ahmp_decoder *cbor.Decoder
@@ -34,7 +35,7 @@ func (p *AbyssPeer) RemoteAddr() netip.AddrPort {
 }
 
 func (p *AbyssPeer) Send(t ahmp.AHMPMsgType, v any) error {
-	//fmt.Println("Send: " + p.origin.ID()[:4] + " > " + v.(fmt.Stringer).String() + " > " + p.ID()[:4])
+	fmt.Println("Send: " + p.origin.ID()[:8] + " > " + p.ID()[:8] + " | " + v.(fmt.Stringer).String())
 	var msg ahmp.AHMPMessage
 	msg.Type = t
 	var err error

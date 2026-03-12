@@ -351,3 +351,143 @@ func TestJoinWorldTransitive(t *testing.T) {
 
 	<-time.After(3 * time.Second)
 }
+
+func TestJoinWorldCollision(t *testing.T) {
+	// Construct three hosts
+	root_key_A, _ := sec.NewRootPrivateKey()
+	host_A, _ := ahost.NewAbyssHost(root_key_A)
+
+	root_key_B, _ := sec.NewRootPrivateKey()
+	host_B, _ := ahost.NewAbyssHost(root_key_B)
+
+	root_key_C, _ := sec.NewRootPrivateKey()
+	host_C, _ := ahost.NewAbyssHost(root_key_C)
+
+	root_key_D, _ := sec.NewRootPrivateKey()
+	host_D, _ := ahost.NewAbyssHost(root_key_D)
+
+	host_A.Bind()
+	host_B.Bind()
+	host_C.Bind()
+	host_D.Bind()
+
+	// Start serving
+	go host_A.Serve()
+	go host_B.Serve()
+	go host_C.Serve()
+	go host_D.Serve()
+	defer host_A.Close()
+	defer host_B.Close()
+	defer host_C.Close()
+	defer host_D.Close()
+
+	//fmt.Println("A: " + host_A.ID())
+	//fmt.Println("B: " + host_B.ID())
+	//fmt.Println("C: " + host_C.ID())
+	//fmt.Println("D: " + host_D.ID())
+
+	// Exchange peer information (A-B and B-C, but not A-C initially)
+	host_A.AppendKnownPeer(host_B.RootCertificate(), host_B.HandshakeKeyCertificate())
+	host_B.AppendKnownPeer(host_A.RootCertificate(), host_A.HandshakeKeyCertificate())
+
+	host_A.AppendKnownPeer(host_C.RootCertificate(), host_C.HandshakeKeyCertificate())
+	host_C.AppendKnownPeer(host_A.RootCertificate(), host_A.HandshakeKeyCertificate())
+
+	host_B.AppendKnownPeer(host_D.RootCertificate(), host_D.HandshakeKeyCertificate())
+	host_D.AppendKnownPeer(host_B.RootCertificate(), host_B.HandshakeKeyCertificate())
+
+	// Synchronization channels
+	world_exposed_A := make(chan struct{})
+	world_exposed_B := make(chan struct{})
+
+	// Run each host's event handling in separate goroutines
+	done_A := make(chan error, 1)
+	done_B := make(chan error, 1)
+	done_C := make(chan error, 1)
+	done_D := make(chan error, 1)
+
+	// Host A goroutine
+	go func() {
+		defer func() { done_A <- nil }()
+
+		// 1. Opens world, exposes at "/" -> EANDWorldEnter
+		world_A, _ := host_A.OpenWorld("abyss://example.com/transitive")
+		expectEvent[*and.EANDWorldEnter](t, host_A.GetEventCh())
+		host_A.ExposeWorldForJoin(world_A, "/")
+		close(world_exposed_A)
+
+		// 2. EPeerConnected (B)
+		host_A.Dial(host_B.ID())
+		expectEvent[*ahost.EPeerConnected](t, host_A.GetEventCh())
+
+		// 3. receives EANDSessionReady (from B)
+		expectEvent[*and.EANDSessionReady](t, host_A.GetEventCh())
+
+		host_A.Dial(host_C.ID())
+
+		// C and D will join.
+	}()
+
+	// Host B goroutine
+	go func() {
+		defer func() { done_B <- nil }()
+
+		// Wait for A to expose the world
+		<-world_exposed_A
+
+		// 1. EPeerConnected (A)
+		host_B.Dial(host_A.ID())
+		expectEvent[*ahost.EPeerConnected](t, host_B.GetEventCh())
+
+		// 2. joins "/" to A -> EANDWorldEnter -> exposes at "/"
+		world_B, _ := host_B.JoinWorld(host_A.ID(), "/")
+		expectEvent[*and.EANDWorldEnter](t, host_B.GetEventCh())
+		host_B.ExposeWorldForJoin(world_B, "/")
+		close(world_exposed_B)
+
+		// 3. EANDSessionReady (from A)
+		expectEvent[*and.EANDSessionReady](t, host_B.GetEventCh())
+
+		host_B.Dial(host_D.ID())
+
+		// C and D will join.
+	}()
+
+	// Wait for A, B to join and expose the world
+	<-world_exposed_A
+	<-world_exposed_B
+
+	// Host C goroutine
+	go func() {
+		defer func() { done_C <- nil }()
+
+		// 1. dials A -> EPeerConnected (a)
+		host_C.Dial(host_A.ID())
+		expectEvent[*ahost.EPeerConnected](t, host_C.GetEventCh())
+
+		// 2. joins "/" to B -> EANDWorldEnter
+		host_C.JoinWorld(host_A.ID(), "/")
+		expectEvent[*and.EANDWorldEnter](t, host_C.GetEventCh())
+	}()
+
+	// Host D goroutine
+	go func() {
+		defer func() { done_D <- nil }()
+
+		// 1. dials A -> EPeerConnected (a)
+		host_D.Dial(host_B.ID())
+		expectEvent[*ahost.EPeerConnected](t, host_D.GetEventCh())
+
+		// 2. joins "/" to B -> EANDWorldEnter
+		host_D.JoinWorld(host_B.ID(), "/")
+		expectEvent[*and.EANDWorldEnter](t, host_D.GetEventCh())
+	}()
+
+	// Wait for all goroutines to complete
+	timeout := time.After(time.Second * 5)
+	<-done_A
+	<-done_B
+	<-done_C
+	<-done_D
+	<-timeout
+}

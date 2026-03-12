@@ -4,15 +4,9 @@ import (
 	"crypto/x509"
 	"net/netip"
 	"sync"
-	"time"
 
 	"github.com/kadmila/Abyss-Browser/abyss_core/sec"
 )
-
-type dialHistory struct {
-	handshake_key_issue_time time.Time
-	addresses                []netip.Addr
-}
 
 // AbyssPeerRegistry ensures only one connection exists with a peer.
 // tls_certs entry only exists while the corresponding peer is connected.

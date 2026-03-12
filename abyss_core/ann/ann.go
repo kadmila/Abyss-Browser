@@ -145,7 +145,7 @@ func (n *AbyssNode) Serve() error {
 	var err error
 MAIN_LOOP:
 	for {
-		var connection quic.Connection
+		var connection *quic.Conn
 		connection, err = n.listener.Accept(n.service_ctx)
 		if err != nil {
 			var addr netip.AddrPort
@@ -346,7 +346,7 @@ func (n *AbyssNode) AbystDial(
 	ctx context.Context,
 	dial_subject string,
 	_ *tls.Config, _ *quic.Config,
-) (quic.EarlyConnection, error) {
+) (*quic.Conn, error) {
 	peer_id := strings.Split(dial_subject, ".")[0]
 	peer, ok := n.registry.GetPeer(peer_id)
 	if !ok {
@@ -385,7 +385,7 @@ func (n *AbyssNode) NewCollocatedHttp3Client() *http.Client {
 		Transport: &http3.Transport{
 			TLSClientConfig: n.NewCollocatedH3TlsConf(),
 			QUICConfig:      newQuicConfig(),
-			Dial: func(ctx context.Context, addr string, _ *tls.Config, _ *quic.Config) (quic.EarlyConnection, error) {
+			Dial: func(ctx context.Context, addr string, _ *tls.Config, _ *quic.Config) (*quic.Conn, error) {
 				udpAddr, err := net.ResolveUDPAddr("udp", addr)
 				if err != nil {
 					return nil, err

@@ -30,15 +30,6 @@ func decodeWithContext(ctx context.Context, decoder *cbor.Decoder, v any) error 
 	}
 }
 
-// handshakeResult is for dialRoutine and serveRoutine internal use only.
-type handshakeResult struct {
-	err               error
-	do_timeout        bool // this is set true, if we must disguise this as timeout for security reasons.
-	close_code        quic.ApplicationErrorCode
-	close_msg         string
-	received_identity *sec.AbyssPeerIdentity // only for serving side.
-}
-
 func (n *AbyssNode) dialRoutine(addr netip.AddrPort, peer_identity *sec.AbyssPeerIdentity) {
 	// prepare handshake context - sets timeout for abyss handshake
 	handshake_ctx, handshake_ctx_cancel := context.WithTimeout(n.service_ctx, time.Second*5)
@@ -192,7 +183,7 @@ func (n *AbyssNode) dialRoutine(addr netip.AddrPort, peer_identity *sec.AbyssPee
 		})
 }
 
-func (n *AbyssNode) serveRoutine(connection quic.Connection) {
+func (n *AbyssNode) serveRoutine(connection *quic.Conn) {
 	// prepare handshake context - sets timeout for abyss handshake
 	handshake_ctx, handshake_ctx_cancel := context.WithTimeout(n.service_ctx, time.Second*5)
 	defer func() {

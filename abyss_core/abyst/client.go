@@ -15,7 +15,7 @@ import (
 // In IHost, uno reverse
 
 type IHost interface {
-	AbystDial(ctx context.Context, addr string, _ *tls.Config, _ *quic.Config) (quic.EarlyConnection, error)
+	AbystDial(ctx context.Context, addr string, _ *tls.Config, _ *quic.Config) (*quic.Conn, error)
 }
 
 type AbystClient struct {
