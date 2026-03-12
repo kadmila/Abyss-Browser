@@ -46,7 +46,7 @@ func (f *FetchQueue) Fetch(
 	target and.ANDFullPeerSessionInfo,
 	fwd bool,
 ) {
-	fmt.Println(time.Now().Format("15:04:05.00000") + "| Fetch " + target.PeerID)
+	fmt.Println(time.Now().Format("15:04:05.00000") + "| Fetch " + target.PeerID[:8])
 	f.dial_func(target)
 	f.fetch_ch <- fetchEntry{
 		world:       world,
