@@ -38,11 +38,13 @@ func (t *ANDTimer) Increment() {
 		elongate_duration := t.due.Sub(now) * time.Duration(t.N) / time.Duration(t.N-1)
 		if elongate_duration > TimerMinInterval {
 			t.Reset(elongate_duration)
+			t.due = now.Add(elongate_duration)
 		}
 		// worst case: double expiration - if the host is very very slow and badly timed. unlikely to happen.
 	} else {
 		new_duration := TimerMinInterval + time.Millisecond*time.Duration(rand.Float64()*TimerIntervalUnit*float64(t.N))
 		t.Reset(new_duration)
+		t.due = now.Add(new_duration)
 		// worst case: timer expiration miss if a new timer is set before the previous expiration is handled.
 		// This should be ignorable; just missing one SJN.
 	}
@@ -57,6 +59,7 @@ func (t *ANDTimer) Decrement() {
 	shortened_duration := t.due.Sub(now) * time.Duration(t.N) / time.Duration(t.N+1)
 	if shortened_duration > TimerMinInterval {
 		t.Reset(shortened_duration)
+		t.due = now.Add(shortened_duration)
 	}
 }
 

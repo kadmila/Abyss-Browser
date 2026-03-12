@@ -48,15 +48,6 @@ type World struct {
 	done       chan bool // closed when the world is closed.
 }
 
-func (w *World) tryPushEvent(event any) bool {
-	select {
-	case w.event_ch <- event:
-		return true
-	default:
-		return false
-	}
-}
-
 func NewWorld_Open(ctx context.Context, fetcher IFetcher, event_ch chan any, localID string, env_url string) (*World, error) {
 	inner_ctx, cancel := context.WithCancel(ctx)
 	result := &World{
@@ -109,6 +100,28 @@ func NewWorld_Join(ctx context.Context, fetcher IFetcher, event_ch chan any, loc
 	return result, nil
 }
 
+// worker handles background works for the world, such as timer events. It must be called in a separate goroutine for each world.
+func (w *World) worker() {
+	for {
+		select {
+		case <-w.ctx.Done():
+			w.done <- true
+			return
+		case <-w.callback_timer.C:
+			w.TimerExpire()
+		}
+	}
+}
+
+func (w *World) tryPushEvent(event any) bool {
+	select {
+	case w.event_ch <- event:
+		return true
+	default:
+		return false
+	}
+}
+
 func (w *World) Close() {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
@@ -133,19 +146,6 @@ func (w *World) cleanup() {
 	w.ctx_cancel()
 	w.callback_timer.Stop()
 	<-w.done
-}
-
-// worker handles background works for the world, such as timer events. It must be called in a separate goroutine for each world.
-func (w *World) worker() {
-	for {
-		select {
-		case <-w.ctx.Done():
-			w.done <- true
-			return
-		case <-w.callback_timer.C:
-			w.TimerExpire()
-		}
-	}
 }
 
 func (w *World) TimerExpire() {
