@@ -216,7 +216,6 @@ func (h *AbyssHost) CloseWorld(world *and.World) {
 
 	// Destroy the world
 	world.Close()
-	delete(h.worlds, world.WSID)
 }
 
 func (h *AbyssHost) getWorldByPath(path string) (*and.World, bool) {
