@@ -140,15 +140,14 @@ func (f *PeerFetcher) onFetch(fetch fetchEntry) {
 			},
 			fetch.fwd,
 		)
+		return
 	}
 
 	rem, ok := f.and_fetch_pending[fetch.PeerID]
 	if ok {
 		f.and_fetch_pending[fetch.PeerID] = append(rem, fetch)
 	} else {
-		new_entry := make([]fetchEntry, 0, 1)
-		new_entry = append(new_entry, fetch)
-		f.and_fetch_pending[fetch.PeerID] = new_entry
+		f.and_fetch_pending[fetch.PeerID] = []fetchEntry{fetch}
 	}
 }
 func (f *PeerFetcher) onPeer(peer ani.IAbyssPeer) {
