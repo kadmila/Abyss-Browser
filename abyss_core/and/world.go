@@ -302,7 +302,7 @@ func (w *World) FetchReturn(peer_session ANDPeerSession, fwd bool) {
 			fwd:            fwd,
 			cnt:            0,
 		}
-	} else if entry.state == WS_NOTISENT {
+	} else if entry.state == WS_NOTIRCVD {
 		w.sendMEM(peer_session)
 		w.finalizeMember(peer_session, true)
 	}
