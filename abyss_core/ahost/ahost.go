@@ -165,7 +165,7 @@ func (h *AbyssHost) OpenWorld(world_url string) (*and.World, error) {
 
 	world, err := and.NewWorld_Open(
 		h.service_ctx,
-		h.peer_fetcher.FetchQueue,
+		h.peer_fetcher,
 		h.event_ch,
 		h.net.ID(),
 		world_url,
@@ -182,14 +182,14 @@ func (h *AbyssHost) JoinWorld(peer_id string, path string) (*and.World, error) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	peer, ok := h.peer_fetcher.QueryPeer(peer_id)
+	peer, ok := h.peer_fetcher.GetPeer(peer_id)
 	if !ok {
 		return nil, errors.New("peer not found")
 	}
 
 	world, err := and.NewWorld_Join(
 		h.service_ctx,
-		h.peer_fetcher.FetchQueue,
+		h.peer_fetcher,
 		h.event_ch,
 		h.net.ID(),
 		peer,
@@ -210,7 +210,7 @@ func (h *AbyssHost) CloseWorld(world *and.World) {
 	defer h.mtx.Unlock()
 
 	// Remove pending fetches for the world; This is not perfect
-	h.peer_fetcher.RemoveWorld(world)
+	h.peer_fetcher.WorldClose(world)
 
 	// Remove world from host's worlds and exposed worlds
 	delete(h.worlds, world.WSID)
