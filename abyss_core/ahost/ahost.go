@@ -95,6 +95,7 @@ func (h *AbyssHost) acceptingLoop() error {
 				continue // TODO: log handshake errors for diagnosis
 			}
 			// other errors are fatal.
+			fmt.Println("acceptingLoop failed: " + err.Error())
 			return err
 		}
 		go func() {
