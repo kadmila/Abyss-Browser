@@ -292,7 +292,7 @@ func (w *World) FetchReturn(peer_session ANDPeerSession, fwd bool) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
-	fmt.Println(time.Now().Format("15:04:05.00000") + "| Fetched " + peer_session.Peer.ID()[:8])
+	fmt.Println(time.Now().Format("15:04:05.00000") + "| World.FetchReturn " + peer_session.Peer.ID()[:8])
 	entry, ok := w.entries[peer_session.ANDIdentity()]
 	if !ok {
 		w.sendMEM(peer_session)

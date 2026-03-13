@@ -154,7 +154,7 @@ func (f *PeerFetcher) onFetch(fetch fetchEntry) {
 	}
 }
 func (f *PeerFetcher) onPeer(peer ani.IAbyssPeer) {
-	fmt.Println(time.Now().Format("15:04:05.00000") + "| Fetcher: Peer added: " + peer.ID()[:8])
+	fmt.Println(time.Now().Format("15:04:05.00000") + "| Fetcher.onPeer: " + peer.ID()[:8])
 	pending_fetches, ok := f.and_fetch_pending[peer.ID()]
 	if ok {
 		for _, fetch := range pending_fetches {
@@ -170,7 +170,7 @@ func (f *PeerFetcher) onPeer(peer ani.IAbyssPeer) {
 	}
 
 	f.peers[peer.ID()] = peer
-	fmt.Println(time.Now().Format("15:04:05.00000") + "| Fetcher: Peer added - Done: " + peer.ID()[:8])
+	fmt.Println(time.Now().Format("15:04:05.00000") + "| Fetcher.onPeer - Done: " + peer.ID()[:8])
 }
 func (f *PeerFetcher) onWorldClose(world *and.World) {
 	f.and_fetch_pending = functional.Filter_M_ok(
