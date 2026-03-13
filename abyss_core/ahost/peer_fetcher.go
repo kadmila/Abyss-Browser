@@ -2,6 +2,8 @@ package ahost
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
@@ -152,6 +154,7 @@ func (f *PeerFetcher) onFetch(fetch fetchEntry) {
 	}
 }
 func (f *PeerFetcher) onPeer(peer ani.IAbyssPeer) {
+	fmt.Println(time.Now().Format("15:04:05.00000") + "| Fetcher: Peer added: " + peer.ID())
 	pending_fetches, ok := f.and_fetch_pending[peer.ID()]
 	if ok {
 		for _, fetch := range pending_fetches {

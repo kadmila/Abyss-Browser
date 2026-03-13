@@ -5,6 +5,7 @@ package ahost
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/netip"
 	"sync"
@@ -97,8 +98,10 @@ func (h *AbyssHost) acceptingLoop() error {
 			return err
 		}
 		go func() {
-			h.servePeer(peer)
-			//fmt.Println("Debug: peer failed: " + err.Error())
+			err := h.servePeer(peer)
+			if err != nil {
+				fmt.Println("Debug: peer failed: " + err.Error())
+			}
 		}()
 	}
 }
