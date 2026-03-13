@@ -154,7 +154,7 @@ func (f *PeerFetcher) onFetch(fetch fetchEntry) {
 	}
 }
 func (f *PeerFetcher) onPeer(peer ani.IAbyssPeer) {
-	fmt.Println(time.Now().Format("15:04:05.00000") + "| Fetcher: Peer added: " + peer.ID())
+	fmt.Println(time.Now().Format("15:04:05.00000") + "| Fetcher: Peer added: " + peer.ID()[:8])
 	pending_fetches, ok := f.and_fetch_pending[peer.ID()]
 	if ok {
 		for _, fetch := range pending_fetches {

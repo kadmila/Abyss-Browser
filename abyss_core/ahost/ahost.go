@@ -99,7 +99,7 @@ func (h *AbyssHost) acceptingLoop() error {
 			fmt.Println("acceptingLoop failed: " + err.Error())
 			return err
 		}
-		fmt.Println(time.Now().Format("15:04:05.00000") + "| Host: Peer accepted: " + peer.ID())
+		fmt.Println(time.Now().Format("15:04:05.00000") + "| Host: Peer accepted: " + peer.ID()[:8])
 		go func() {
 			err := h.servePeer(peer)
 			if err != nil {
