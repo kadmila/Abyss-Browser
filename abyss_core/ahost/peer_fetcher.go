@@ -170,6 +170,7 @@ func (f *PeerFetcher) onPeer(peer ani.IAbyssPeer) {
 	}
 
 	f.peers[peer.ID()] = peer
+	fmt.Println(time.Now().Format("15:04:05.00000") + "| Fetcher: Peer added - Done: " + peer.ID()[:8])
 }
 func (f *PeerFetcher) onWorldClose(world *and.World) {
 	f.and_fetch_pending = functional.Filter_M_ok(
@@ -199,7 +200,7 @@ func (f *PeerFetcher) AddPeer(peer ani.IAbyssPeer) {
 // RemovePeer is synchronous.
 // TODO: let PeerFetcher call and.World.Disconnect().
 func (f *PeerFetcher) RemovePeer(peerID string) {
-	done := make(chan bool)
+	done := make(chan bool, 1)
 	f.peer_close_ch <- &peerCloseEntry{
 		peerID: peerID,
 		done:   done,
@@ -208,7 +209,7 @@ func (f *PeerFetcher) RemovePeer(peerID string) {
 }
 
 func (f *PeerFetcher) QueryPeer(peerID string) (ani.IAbyssPeer, bool) {
-	result := make(chan ani.IAbyssPeer)
+	result := make(chan ani.IAbyssPeer, 1)
 	f.peer_query_ch <- &peerQueryEntry{
 		peerID: peerID,
 		result: result,
