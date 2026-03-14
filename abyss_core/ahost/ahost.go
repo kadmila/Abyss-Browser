@@ -5,6 +5,7 @@ package ahost
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/netip"
 	"sync"
@@ -197,12 +198,15 @@ func (h *AbyssHost) JoinWorld(peer_id string, path string) (*and.World, error) {
 // CloseWorld closes a world and broadcasts RST to all peers.
 // This also cleans up the world from the host's tracking maps.
 func (h *AbyssHost) CloseWorld(world *and.World) {
+	fmt.Println("Debug-L")
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
 	// Remove pending fetches for the world; This is not perfect
+	fmt.Println("Debug-K")
 	h.peer_fetcher.WorldClose(world)
 
+	fmt.Println("Debug-J")
 	// Remove world from host's worlds and exposed worlds
 	delete(h.worlds, world.WSID)
 	join_path, ok := h.world_path_mapping[world.WSID]
@@ -211,8 +215,10 @@ func (h *AbyssHost) CloseWorld(world *and.World) {
 		delete(h.exposed_worlds, join_path)
 	}
 
+	fmt.Println("Debug-H")
 	// Destroy the world
 	world.Close()
+	fmt.Println("Debug-G")
 }
 
 func (h *AbyssHost) getWorldByPath(path string) (*and.World, bool) {

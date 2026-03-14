@@ -3,6 +3,7 @@ package and
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/google/uuid"
@@ -123,19 +124,23 @@ func (w *World) tryPushEvent(event any) bool {
 }
 
 func (w *World) Close() {
+	fmt.Println("Debug-M")
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
+	fmt.Println("Debug-N")
 	w.broadcastRST(JNC_CLOSED, JNM_CLOSED)
 	w.cleanup()
 }
 
 // cleanup forcefully clears world, unabling it to produce further events.
 func (w *World) cleanup() {
+	fmt.Println("Debug-B")
 	w.join_target = ""
 	w.env_url = ""
 	w.entries = make(map[ANDIdentity]*peerWorldSessionState)
 
+	fmt.Println("Debug-V")
 	// We don't check error.
 	w.tryPushEvent(&EANDWorldLeave{
 		WSID:    w.WSID,
@@ -143,9 +148,12 @@ func (w *World) cleanup() {
 		Message: JNM_CLOSED,
 	})
 
+	fmt.Println("Debug-C")
 	w.ctx_cancel()
 	w.callback_timer.Stop()
+	fmt.Println("Debug-X")
 	<-w.done
+	fmt.Println("Debug-Z")
 }
 
 func (w *World) TimerExpire() {
