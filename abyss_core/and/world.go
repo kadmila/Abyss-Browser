@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -123,6 +124,29 @@ func (w *World) tryPushEvent(event any) bool {
 	}
 }
 
+// quick and dirty debug
+type DeadlockChecker struct {
+	done chan bool
+}
+
+func NewDeadlockChecker(tag string) *DeadlockChecker {
+	result := &DeadlockChecker{
+		done: make(chan bool, 1),
+	}
+	go func() {
+		select {
+		case <-result.done:
+		case <-time.After(time.Second * 3):
+			fmt.Println("DEADLOCK: " + tag)
+		}
+	}()
+	return result
+}
+
+func (d *DeadlockChecker) Done() {
+	d.done <- true
+}
+
 func (w *World) Close() {
 	fmt.Println("Debug-M")
 	w.mtx.Lock()
@@ -159,6 +183,7 @@ func (w *World) cleanup() {
 func (w *World) TimerExpire() {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
+	defer NewDeadlockChecker("TimerExpire").Done()
 
 	w.broadcastSJN()
 }
@@ -167,6 +192,7 @@ func (w *World) TimerExpire() {
 func (w *World) IsActive() bool {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
+	defer NewDeadlockChecker("IsActive").Done()
 
 	return w.env_url != ""
 }
@@ -230,6 +256,7 @@ func (w *World) mustBeMemberGetEntry(peer_session ANDPeerSession) (*peerWorldSes
 func (w *World) JN(peer_session ANDPeerSession) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
+	defer NewDeadlockChecker("JN").Done()
 
 	entry, ok := w.entries[peer_session.ANDIdentity()]
 	if ok {
@@ -244,6 +271,7 @@ func (w *World) JN(peer_session ANDPeerSession) {
 func (w *World) JOK(peer_session ANDPeerSession, env_url string, member_infos []ANDFullPeerSessionInfo) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
+	defer NewDeadlockChecker("JOK").Done()
 
 	if w.join_target != peer_session.Peer.ID() {
 		if entry, ok := w.entries[peer_session.ANDIdentity()]; ok {
@@ -268,6 +296,7 @@ func (w *World) JOK(peer_session ANDPeerSession, env_url string, member_infos []
 func (w *World) JNI(peer_session ANDPeerSession, member_info ANDFullPeerSessionInfo, fwd bool) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
+	defer NewDeadlockChecker("JNI").Done()
 
 	// only the members can send JNI.
 	_, ok := w.mustBeMemberGetEntry(peer_session)
@@ -281,6 +310,7 @@ func (w *World) JNI(peer_session ANDPeerSession, member_info ANDFullPeerSessionI
 func (w *World) MEM(peer_session ANDPeerSession) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
+	defer NewDeadlockChecker("MEM").Done()
 
 	entry, ok := w.entries[peer_session.ANDIdentity()]
 	if !ok {
@@ -297,6 +327,7 @@ func (w *World) MEM(peer_session ANDPeerSession) {
 func (w *World) FetchReturn(peer_session ANDPeerSession, fwd bool) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
+	defer NewDeadlockChecker("FetchReturn").Done()
 
 	entry, ok := w.entries[peer_session.ANDIdentity()]
 	if !ok {
@@ -316,6 +347,7 @@ func (w *World) FetchReturn(peer_session ANDPeerSession, fwd bool) {
 func (w *World) SJN(peer_session ANDPeerSession, member_infos []ANDIdentity) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
+	defer NewDeadlockChecker("SJN").Done()
 
 	entry, ok := w.mustBeMemberGetEntry(peer_session)
 	if !ok {
@@ -351,6 +383,7 @@ func (w *World) SJN(peer_session ANDPeerSession, member_infos []ANDIdentity) {
 func (w *World) CRR(peer_session ANDPeerSession, member_infos []ANDIdentity) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
+	defer NewDeadlockChecker("CRR").Done()
 
 	sender, ok := w.mustBeMemberGetEntry(peer_session)
 	if !ok {
@@ -370,6 +403,7 @@ func (w *World) CRR(peer_session ANDPeerSession, member_infos []ANDIdentity) {
 func (w *World) RST(peer_session ANDPeerSession) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
+	defer NewDeadlockChecker("RST").Done()
 
 	entry, ok := w.entries[peer_session.ANDIdentity()]
 	if !ok {
@@ -382,6 +416,7 @@ func (w *World) RST(peer_session ANDPeerSession) {
 func (w *World) Disconnect(PeerID string) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
+	defer NewDeadlockChecker("Disconnect").Done()
 
 	for _, entry := range w.entries {
 		if entry.Peer.ID() == PeerID {
@@ -393,6 +428,7 @@ func (w *World) Disconnect(PeerID string) {
 func (w *World) ObjectAppend(peer_session_identities []ANDIdentity, objects []ObjectInfo) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
+	defer NewDeadlockChecker("ObjectAppend").Done()
 
 	for _, peer_session_identity := range peer_session_identities {
 		entry, ok := w.entries[peer_session_identity]
@@ -407,6 +443,7 @@ func (w *World) ObjectAppend(peer_session_identities []ANDIdentity, objects []Ob
 func (w *World) ObjectDelete(peer_session_identities []ANDIdentity, objectIDs []uuid.UUID) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
+	defer NewDeadlockChecker("ObjectDelete").Done()
 
 	for _, peer_session_identity := range peer_session_identities {
 		entry, ok := w.entries[peer_session_identity]
@@ -421,6 +458,7 @@ func (w *World) ObjectDelete(peer_session_identities []ANDIdentity, objectIDs []
 func (w *World) SOA(peer_session ANDPeerSession, objects []ObjectInfo) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
+	defer NewDeadlockChecker("SOA").Done()
 
 	_, ok := w.mustBeMemberGetEntry(peer_session)
 	if !ok {
@@ -437,6 +475,7 @@ func (w *World) SOA(peer_session ANDPeerSession, objects []ObjectInfo) {
 func (w *World) SOD(peer_session ANDPeerSession, objectIDs []uuid.UUID) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
+	defer NewDeadlockChecker("SOD").Done()
 
 	_, ok := w.mustBeMemberGetEntry(peer_session)
 	if !ok {
