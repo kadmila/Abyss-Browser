@@ -151,6 +151,7 @@ func (w *World) Close() {
 	fmt.Println("Debug-M")
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
+	defer NewDeadlockChecker("Close").Done()
 
 	fmt.Println("Debug-N")
 	w.broadcastRST(JNC_CLOSED, JNM_CLOSED)
