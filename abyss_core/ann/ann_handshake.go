@@ -172,15 +172,15 @@ func (n *AbyssNode) dialRoutine(addr netip.AddrPort, peer_identity *sec.AbyssPee
 	n.tryCompletePeer(
 		handshake_ctx,
 		true,
-		&AbyssPeer{
-			AbyssPeerIdentity: peer_identity,
-			origin:            n,
-			client_tls_cert:   client_tls_cert,
-			connection:        connection,
-			remote_addr:       addr,
-			ahmp_encoder:      ahmp_encoder,
-			ahmp_decoder:      ahmp_decoder,
-		})
+		NewAbyssPeer(
+			peer_identity,
+			n,
+			client_tls_cert,
+			connection,
+			addr,
+			ahmp_encoder,
+			ahmp_decoder,
+		))
 }
 
 func (n *AbyssNode) serveRoutine(connection *quic.Conn) {
@@ -365,15 +365,15 @@ IDENTITY_RETRIEVE_LOOP:
 	n.tryCompletePeer(
 		handshake_ctx,
 		false,
-		&AbyssPeer{
-			AbyssPeerIdentity: peer_identity,
-			origin:            n,
-			client_tls_cert:   client_tls_cert,
-			connection:        connection,
-			remote_addr:       addr,
-			ahmp_encoder:      ahmp_encoder,
-			ahmp_decoder:      ahmp_decoder,
-		})
+		NewAbyssPeer(
+			peer_identity,
+			n,
+			client_tls_cert,
+			connection,
+			addr,
+			ahmp_encoder,
+			ahmp_decoder,
+		))
 }
 
 // Append blocks until 1) context cancels, or 2) abyss peer is constructed.
