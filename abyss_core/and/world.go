@@ -183,10 +183,10 @@ func (w *World) acceptRemoteMember(member_info ANDFullPeerSessionInfo, fwd bool)
 func (w *World) closeEntry(entry *peerWorldSessionState) {
 	if entry.state == WS_MEM {
 		w.callback_timer.Decrement()
-	}
-	w.event_ch.In <- &EANDSessionClose{
-		WSID:        w.WSID,
-		ANDIdentity: entry.ANDIdentity(),
+		w.event_ch.In <- &EANDSessionClose{
+			WSID:        w.WSID,
+			ANDIdentity: entry.ANDIdentity(),
+		}
 	}
 	delete(w.entries, entry.ANDIdentity())
 }
