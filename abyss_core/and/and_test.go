@@ -12,6 +12,7 @@ import (
 	"github.com/kadmila/Abyss-Browser/abyss_core/ahmp"
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
 	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
+	"github.com/kadmila/Abyss-Browser/abyss_core/tools/infchan"
 )
 
 type DummyFetcher struct{}
@@ -50,7 +51,7 @@ func MakeDummyPeerSession(peerID string) and.ANDPeerSession {
 	}
 }
 
-func expectEvent[T any](t *testing.T, event_ch <-chan any) T {
+func expectEvent[T any](t *testing.T, event_ch *infchan.InfiniteChan[any]) T {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -62,7 +63,7 @@ func expectEvent[T any](t *testing.T, event_ch <-chan any) T {
 		case <-ctx.Done():
 			t.Fatalf("timeout waiting for event %T", zero)
 			return zero
-		case event := <-event_ch:
+		case event := <-event_ch.Out:
 			if typed_event, ok := event.(T); ok {
 				return typed_event
 			}
@@ -73,7 +74,7 @@ func expectEvent[T any](t *testing.T, event_ch <-chan any) T {
 }
 
 func TestSJN(t *testing.T) {
-	event_ch := make(chan any, 128)
+	event_ch := infchan.NewInfiniteChan[any](32)
 	world, err := and.NewWorld_Open(context.Background(), &DummyFetcher{}, event_ch, "local", "example.com")
 	if err != nil {
 		t.Fatal(err)
@@ -94,7 +95,7 @@ func TestSJN(t *testing.T) {
 }
 
 func TestCramChurn(t *testing.T) {
-	event_ch := make(chan any, 128)
+	event_ch := infchan.NewInfiniteChan[any](32)
 	world, err := and.NewWorld_Open(context.Background(), &DummyFetcher{}, event_ch, "local", "example.com")
 	if err != nil {
 		t.Fatal(err)
@@ -119,7 +120,7 @@ func TestCramChurn(t *testing.T) {
 func TestCramChurnJoin(t *testing.T) {
 	target_session := MakeDummyPeerSession("H-target")
 
-	event_ch := make(chan any, 128)
+	event_ch := infchan.NewInfiniteChan[any](32)
 	world, err := and.NewWorld_Join(context.Background(), &DummyFetcher{}, event_ch, "local", target_session.Peer, "/")
 	if err != nil {
 		t.Fatal(err)
@@ -152,7 +153,7 @@ func TestCramChurnJoin(t *testing.T) {
 }
 
 func TestCRR(t *testing.T) {
-	event_ch := make(chan any, 128)
+	event_ch := infchan.NewInfiniteChan[any](32)
 	world, err := and.NewWorld_Open(context.Background(), &DummyFetcher{}, event_ch, "local", "example.com")
 	if err != nil {
 		t.Fatal(err)

@@ -2,7 +2,6 @@ package ahost
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
@@ -149,11 +148,9 @@ func (f *PeerFetcher) GetPeer(peerID string) (ani.IAbyssPeer, bool) {
 }
 
 func (f *PeerFetcher) WorldClose(world *and.World) {
-	fmt.Println("Debug-P")
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 
-	fmt.Println("Debug-O")
 	f.and_fetch_pending = functional.Filter_M_ok(
 		f.and_fetch_pending,
 		func(pendings []fetchEntry) ([]fetchEntry, bool) {

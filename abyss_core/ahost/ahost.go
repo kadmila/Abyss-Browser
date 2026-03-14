@@ -5,7 +5,6 @@ package ahost
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/netip"
 	"sync"
@@ -15,6 +14,7 @@ import (
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ann"
 	"github.com/kadmila/Abyss-Browser/abyss_core/sec"
+	"github.com/kadmila/Abyss-Browser/abyss_core/tools/infchan"
 )
 
 type ANDFetchPendingInfo struct {
@@ -35,7 +35,7 @@ type AbyssHost struct {
 	exposed_worlds     map[string]*and.World // JN path -> world
 	peer_fetcher       *PeerFetcher
 
-	event_ch chan any
+	event_ch *infchan.InfiniteChan[any]
 }
 
 func NewAbyssHost(root_key sec.PrivateKey) (*AbyssHost, error) {
@@ -54,7 +54,7 @@ func NewAbyssHost(root_key sec.PrivateKey) (*AbyssHost, error) {
 		world_path_mapping: make(map[uuid.UUID]string),
 		exposed_worlds:     make(map[string]*and.World),
 
-		event_ch: make(chan any, 1024),
+		event_ch: infchan.NewInfiniteChan[any](512),
 	}
 	result.peer_fetcher = NewPeerFetcher(service_ctx, result.ANDDial)
 
@@ -78,7 +78,7 @@ func (h *AbyssHost) Serve() error {
 	accept_err := h.acceptingLoop()
 	serve_err := <-serve_done
 
-	close(h.event_ch)
+	close(h.event_ch.In)
 	close_err := h.net.Close()
 
 	return errors.Join(accept_err, serve_err, close_err)
@@ -119,14 +119,14 @@ func (h *AbyssHost) UpdateHandshakeInfo(address_candidates []netip.AddrPort) err
 func (h *AbyssHost) AppendKnownPeer(root_cert string, handshake_info_cert string) error {
 	peer_id, ok, err := h.net.AppendKnownPeer(root_cert, handshake_info_cert)
 	if ok {
-		h.event_ch <- &EPeerFound{PeerID: peer_id}
+		h.event_ch.In <- &EPeerFound{PeerID: peer_id}
 	}
 	return err
 }
 func (h *AbyssHost) AppendKnownPeerDer(root_cert_der []byte, handshake_info_cert_der []byte) error {
 	peer_id, ok, err := h.net.AppendKnownPeerDer(root_cert_der, handshake_info_cert_der)
 	if ok {
-		h.event_ch <- &EPeerFound{PeerID: peer_id}
+		h.event_ch.In <- &EPeerFound{PeerID: peer_id}
 	}
 	return err
 }
@@ -135,7 +135,7 @@ func (h *AbyssHost) EraseKnownPeer(id string) {
 	defer h.mtx.Unlock()
 
 	if h.net.EraseKnownPeer(id) {
-		h.event_ch <- &EPeerForgot{PeerID: id}
+		h.event_ch.In <- &EPeerForgot{PeerID: id}
 	}
 }
 func (h *AbyssHost) Dial(id string) error                   { return h.net.Dial(id) }
@@ -198,15 +198,12 @@ func (h *AbyssHost) JoinWorld(peer_id string, path string) (*and.World, error) {
 // CloseWorld closes a world and broadcasts RST to all peers.
 // This also cleans up the world from the host's tracking maps.
 func (h *AbyssHost) CloseWorld(world *and.World) {
-	fmt.Println("Debug-L")
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
 	// Remove pending fetches for the world; This is not perfect
-	fmt.Println("Debug-K")
 	h.peer_fetcher.WorldClose(world)
 
-	fmt.Println("Debug-J")
 	// Remove world from host's worlds and exposed worlds
 	delete(h.worlds, world.WSID)
 	join_path, ok := h.world_path_mapping[world.WSID]
@@ -215,10 +212,8 @@ func (h *AbyssHost) CloseWorld(world *and.World) {
 		delete(h.exposed_worlds, join_path)
 	}
 
-	fmt.Println("Debug-H")
 	// Destroy the world
 	world.Close()
-	fmt.Println("Debug-G")
 }
 
 func (h *AbyssHost) getWorldByPath(path string) (*and.World, bool) {
@@ -265,7 +260,7 @@ EPeerFound
 EPeerForgot
 */
 func (h *AbyssHost) GetEventCh() <-chan any {
-	return h.event_ch
+	return h.event_ch.Out
 }
 
 func (h *AbyssHost) ExposeWorldForJoin(world *and.World, path string) error {

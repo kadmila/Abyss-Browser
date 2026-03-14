@@ -23,7 +23,7 @@ func tryParseAhmp[RawT parsibleAhmp[T], T any](msg *ahmp.AHMPMessage) (*T, error
 
 func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 	// register related information to the host, and handle pending peer requests
-	h.event_ch <- &EPeerConnected{PeerID: peer.ID()}
+	h.event_ch.In <- &EPeerConnected{PeerID: peer.ID()}
 
 	// notify peer fetcher
 	h.peer_fetcher.AddPeer(peer)
@@ -35,7 +35,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 
 		// reverse order of peer insertion
 		h.peer_fetcher.RemovePeer(peer.ID())
-		h.event_ch <- &EPeerDisconnected{PeerID: peer.ID()}
+		h.event_ch.In <- &EPeerDisconnected{PeerID: peer.ID()}
 		peer.Close()
 	}()
 
