@@ -120,6 +120,7 @@ func (w *World) tryPushEvent(event any) bool {
 	case w.event_ch <- event:
 		return true
 	default:
+		fmt.Println("Fatal: failed to push event")
 		return false
 	}
 }

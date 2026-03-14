@@ -3,12 +3,14 @@ package ann
 import (
 	"context"
 	"crypto/x509"
+	"errors"
 	"net/netip"
 	"sync/atomic"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ahmp"
 	"github.com/kadmila/Abyss-Browser/abyss_core/sec"
+	"github.com/kadmila/Abyss-Browser/abyss_core/tools/infchan"
 	"github.com/quic-go/quic-go"
 )
 
@@ -23,10 +25,53 @@ type AbyssPeer struct {
 	ahmp_encoder *cbor.Encoder
 	ahmp_decoder *cbor.Decoder
 
-	// abyst connections
+	send_ch  *infchan.InfiniteChan[*ahmp.AHMPMessage]
+	closed   chan bool
+	done_err chan error
 
 	// is_closed should be referenced only from AbyssNode.
 	is_closed atomic.Bool
+}
+
+func NewAbyssPeer(
+	peer_identity *sec.AbyssPeerIdentity,
+	origin *AbyssNode,
+	client_tls_cert *x509.Certificate,
+	connection *quic.Conn,
+	remote_addr netip.AddrPort,
+	ahmp_encoder *cbor.Encoder,
+	ahmp_decoder *cbor.Decoder,
+) *AbyssPeer {
+	result := &AbyssPeer{
+		AbyssPeerIdentity: peer_identity,
+		origin:            origin,
+		client_tls_cert:   client_tls_cert,
+		connection:        connection,
+		remote_addr:       remote_addr,
+		ahmp_encoder:      ahmp_encoder,
+		ahmp_decoder:      ahmp_decoder,
+
+		send_ch:  infchan.NewInfiniteChan[*ahmp.AHMPMessage](32),
+		closed:   make(chan bool, 1),
+		done_err: make(chan error, 1),
+	}
+	go func() {
+		var err error
+	SEND_LOOP:
+		for {
+			select {
+			case <-result.closed:
+				break SEND_LOOP
+			case msg := <-result.send_ch.Out:
+				err = result.ahmp_encoder.Encode(msg)
+				if err != nil {
+					break SEND_LOOP
+				}
+			}
+		}
+		result.done_err <- err
+	}()
+	return result
 }
 
 func (p *AbyssPeer) RemoteAddr() netip.AddrPort {
@@ -35,14 +80,15 @@ func (p *AbyssPeer) RemoteAddr() netip.AddrPort {
 
 func (p *AbyssPeer) Send(t ahmp.AHMPMsgType, v any) error {
 	//fmt.Println(time.Now().Format("15:04:05.00000") + "| Send: " + p.origin.ID()[:8] + " > " + p.ID()[:8] + " | " + v.(fmt.Stringer).String())
-	var msg ahmp.AHMPMessage
-	msg.Type = t
-	var err error
-	msg.Payload, err = cbor.Marshal(v)
+	payload, err := cbor.Marshal(v)
 	if err != nil {
 		return err
 	}
-	return p.ahmp_encoder.Encode(&msg)
+	p.send_ch.In <- &ahmp.AHMPMessage{
+		Type:    t,
+		Payload: payload,
+	}
+	return nil
 }
 func (p *AbyssPeer) Recv(v *ahmp.AHMPMessage) error {
 	return p.ahmp_decoder.Decode(v)
@@ -52,7 +98,10 @@ func (p *AbyssPeer) Context() context.Context {
 }
 
 func (p *AbyssPeer) Close() error {
-	return p.origin.registry.ReportPeerClose(p)
+	p.closed <- true
+	err := <-p.done_err
+
+	return errors.Join(err, p.origin.registry.ReportPeerClose(p))
 }
 
 func (p *AbyssPeer) Equal(subject *AbyssPeer) bool {

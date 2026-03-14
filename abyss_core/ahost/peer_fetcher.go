@@ -101,7 +101,7 @@ func (f *PeerFetcher) Fetch(
 		)
 	} else {
 		f.and_fetch_pending[target.PeerID] = []fetchEntry{
-			fetchEntry{
+			{
 				world:       world,
 				ANDIdentity: target.ANDIdentity,
 				fwd:         fwd,
