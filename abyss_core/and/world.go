@@ -151,7 +151,6 @@ func (d *DeadlockChecker) Done() {
 func (w *World) Close() {
 	defer NewDeadlockChecker("Close").Done()
 	fmt.Println("Debug-M")
-	w.mtx.TryLock()
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
