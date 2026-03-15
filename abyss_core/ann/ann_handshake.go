@@ -14,6 +14,8 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
+const HANDSHAKE_TIMEOUT = time.Second * 20
+
 // decodeWithContext decodes CBOR data with context support.
 // This is somewhat lame, but is forced by the quic interface.
 func decodeWithContext(ctx context.Context, decoder *cbor.Decoder, v any) error {
@@ -32,7 +34,7 @@ func decodeWithContext(ctx context.Context, decoder *cbor.Decoder, v any) error 
 
 func (n *AbyssNode) dialRoutine(addr netip.AddrPort, peer_identity *sec.AbyssPeerIdentity) {
 	// prepare handshake context - sets timeout for abyss handshake
-	handshake_ctx, handshake_ctx_cancel := context.WithTimeout(n.service_ctx, time.Second*5)
+	handshake_ctx, handshake_ctx_cancel := context.WithTimeout(n.service_ctx, HANDSHAKE_TIMEOUT)
 	defer func() {
 		handshake_ctx_cancel()
 		n.registry.ReportDialTermination(peer_identity, addr.Addr())
@@ -185,7 +187,7 @@ func (n *AbyssNode) dialRoutine(addr netip.AddrPort, peer_identity *sec.AbyssPee
 
 func (n *AbyssNode) serveRoutine(connection *quic.Conn) {
 	// prepare handshake context - sets timeout for abyss handshake
-	handshake_ctx, handshake_ctx_cancel := context.WithTimeout(n.service_ctx, time.Second*5)
+	handshake_ctx, handshake_ctx_cancel := context.WithTimeout(n.service_ctx, HANDSHAKE_TIMEOUT)
 	defer func() {
 		handshake_ctx_cancel()
 		n.serve_wg.Done()
