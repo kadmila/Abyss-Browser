@@ -94,10 +94,12 @@ func (h *AbyssHost) onRST(
 	RST *and.RST,
 	peer ani.IAbyssPeer,
 ) error {
-	world, peer_session, ok := h.ahmpWorldPrep(peer, RST.SenderSessionID, RST.RecverSessionID)
+	// cannot use ahmpWorldPrep here; RST reflection
+	world, ok := h.getWorld(RST.RecverSessionID)
 	if !ok {
 		return nil
 	}
+	peer_session := and.ANDPeerSession{Peer: peer, SessionID: RST.SenderSessionID}
 	world.RST(peer_session)
 	return nil
 }
