@@ -67,7 +67,7 @@ func NewAbyssPeer(
 				break SEND_LOOP
 			case msg := <-result.send_ch.Out:
 				err = result.ahmp_encoder.Encode(msg)
-				fmt.Println(time.Now().Format("15:04:05.00000") + "| Tx " + msg.Type.String() + " delay (mS): " + strconv.FormatInt(time.Now().Sub(msg.TimeStamp()).Milliseconds(), 10))
+				fmt.Println(time.Now().Format("15:04:05.00000") + "| Tx " + msg.Type.String() + " delay (mS): " + strconv.FormatInt(time.Since(msg.TimeStamp()).Milliseconds(), 10))
 				if err != nil {
 					break SEND_LOOP
 				}
