@@ -115,8 +115,11 @@ func (s ANDSessionState) String() string {
 type peerWorldSessionState struct {
 	ANDPeerSession
 	state ANDSessionState
-	fwd   bool
-	cnt   int
+
+	// trickle broadcast
+	t    float32 // ratio
+	cnt  int
+	done chan bool
 }
 
 // ANDFullPeerSessionInfo provides all the information required to

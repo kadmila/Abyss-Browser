@@ -50,7 +50,7 @@ func (h *AbyssHost) onJNI(
 	if !ok {
 		return nil
 	}
-	world.JNI(peer_session, JNI.Neighbor, JNI.Fwd)
+	world.JNI(peer_session, JNI.Neighbor)
 	return nil
 }
 

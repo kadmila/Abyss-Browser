@@ -26,7 +26,6 @@ type IFetcher interface {
 	Fetch(
 		world *World,
 		target ANDFullPeerSessionInfo,
-		fwd bool,
 	)
 }
 
@@ -36,16 +35,16 @@ type World struct {
 	fetcher  IFetcher
 	event_ch *infchan.InfiniteChan[any] // target origin event channel
 
-	localID        string
-	WSID           uuid.UUID                              // local world session id
-	join_target    string                                 // (when constructed with Join) join target peer ID
-	env_url        string                                 // (when constructed with Open, or Join accepted) environmental content URL.
-	entries        map[ANDIdentity]*peerWorldSessionState // key: id, value: peer states
-	callback_timer *ANDTimer
+	localID     string
+	WSID        uuid.UUID                              // local world session id
+	join_target string                                 // (when constructed with Join) join target peer ID
+	env_url     string                                 // (when constructed with Open, or Join accepted) environmental content URL.
+	entries     map[ANDIdentity]*peerWorldSessionState // key: id, value: peer states
+
+	trickle *TrickleWorker
 
 	ctx        context.Context
 	ctx_cancel context.CancelFunc
-	done       chan bool // closed when the world is closed.
 }
 
 func NewWorld_Open(ctx context.Context, fetcher IFetcher, event_ch *infchan.InfiniteChan[any], localID string, env_url string) (*World, error) {
@@ -54,22 +53,21 @@ func NewWorld_Open(ctx context.Context, fetcher IFetcher, event_ch *infchan.Infi
 		fetcher:  fetcher,
 		event_ch: event_ch,
 
-		localID:        localID,
-		WSID:           uuid.New(),
-		join_target:    "",
-		env_url:        env_url,
-		entries:        make(map[ANDIdentity]*peerWorldSessionState),
-		callback_timer: NewANDTimer(),
+		localID:     localID,
+		WSID:        uuid.New(),
+		join_target: "",
+		env_url:     env_url,
+		entries:     make(map[ANDIdentity]*peerWorldSessionState),
+
+		trickle: NewTrickleWorker(inner_ctx),
 
 		ctx:        inner_ctx,
 		ctx_cancel: cancel,
-		done:       make(chan bool, 1),
 	}
 	result.event_ch.In <- &EANDWorldEnter{
 		WSID: result.WSID,
 		URL:  env_url,
 	}
-	go result.worker()
 	return result, nil
 }
 
@@ -79,36 +77,20 @@ func NewWorld_Join(ctx context.Context, fetcher IFetcher, event_ch *infchan.Infi
 		fetcher:  fetcher,
 		event_ch: event_ch,
 
-		localID:        localID,
-		WSID:           uuid.New(),
-		join_target:    target.ID(),
-		env_url:        "",
-		entries:        make(map[ANDIdentity]*peerWorldSessionState),
-		callback_timer: NewANDTimer(),
+		localID:     localID,
+		WSID:        uuid.New(),
+		join_target: target.ID(),
+		env_url:     "",
+		entries:     make(map[ANDIdentity]*peerWorldSessionState),
 
 		ctx:        inner_ctx,
 		ctx_cancel: cancel,
-		done:       make(chan bool, 1),
 	}
 	err := result.sendJN(target, path)
 	if err != nil {
 		return nil, err
 	}
-	go result.worker()
 	return result, nil
-}
-
-// worker handles background works for the world, such as timer events. It must be called in a separate goroutine for each world.
-func (w *World) worker() {
-	for {
-		select {
-		case <-w.ctx.Done():
-			w.done <- true
-			return
-		case <-w.callback_timer.C:
-			w.TimerExpire()
-		}
-	}
 }
 
 func (w *World) Close() {
@@ -133,15 +115,6 @@ func (w *World) cleanup() {
 	}
 
 	w.ctx_cancel()
-	w.callback_timer.Stop()
-	<-w.done
-}
-
-func (w *World) TimerExpire() {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
-
-	w.broadcastSJN()
 }
 
 // IsActive checks if the world is active and ready for use.
@@ -152,37 +125,44 @@ func (w *World) IsActive() bool {
 	return w.env_url != ""
 }
 
-func (w *World) finalizeMember(subject ANDPeerSession, fwd bool) {
-	w.entries[subject.ANDIdentity()] = &peerWorldSessionState{
+func (w *World) TrickleTimeout(subject_identity ANDIdentity) {
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+
+	w.broadcastSJN(subject_identity)
+}
+
+func (w *World) finalizeMember(subject ANDPeerSession) {
+	subject_identity := subject.ANDIdentity()
+	w.entries[subject_identity] = &peerWorldSessionState{
 		ANDPeerSession: subject,
 		state:          WS_MEM,
-		fwd:            fwd,
 		cnt:            0,
 	}
 	w.event_ch.In <- &EANDSessionReady{
 		WSID:        w.WSID,
-		ANDIdentity: subject.ANDIdentity(),
+		ANDIdentity: subject_identity,
 	}
-	w.callback_timer.Increment()
+	w.trickle.Add(subject_identity, func() { w.TrickleTimeout(subject_identity) })
 }
 
-func (w *World) acceptRemoteMember(member_info ANDFullPeerSessionInfo, fwd bool) {
+func (w *World) acceptRemoteMember(member_info ANDFullPeerSessionInfo) {
 	if member_info.PeerID == w.localID {
 		return
 	}
 
 	entry, ok := w.entries[member_info.ANDIdentity]
 	if !ok {
-		w.fetcher.Fetch(w, member_info, fwd)
+		w.fetcher.Fetch(w, member_info)
 	} else if entry.state == WS_NOTIRCVD {
 		w.sendMEM(entry.ANDPeerSession)
-		w.finalizeMember(entry.ANDPeerSession, false)
+		w.finalizeMember(entry.ANDPeerSession)
 	}
 }
 
 func (w *World) closeEntry(entry *peerWorldSessionState) {
 	if entry.state == WS_MEM {
-		w.callback_timer.Decrement()
+		w.trickle.Remove(entry.ANDIdentity())
 		w.event_ch.In <- &EANDSessionClose{
 			WSID:        w.WSID,
 			ANDIdentity: entry.ANDIdentity(),
@@ -219,7 +199,7 @@ func (w *World) JN(peer_session ANDPeerSession) {
 		return
 	}
 	w.sendJOK_JNI(peer_session)
-	w.finalizeMember(peer_session, false)
+	w.finalizeMember(peer_session)
 }
 
 func (w *World) JOK(peer_session ANDPeerSession, env_url string, member_infos []ANDFullPeerSessionInfo) {
@@ -238,15 +218,15 @@ func (w *World) JOK(peer_session ANDPeerSession, env_url string, member_infos []
 		URL:  env_url,
 	}
 
-	w.finalizeMember(peer_session, false)
+	w.finalizeMember(peer_session)
 	for _, member_info := range member_infos {
-		w.acceptRemoteMember(member_info, false)
+		w.acceptRemoteMember(member_info)
 	}
 	w.join_target = ""
 	w.env_url = env_url
 }
 
-func (w *World) JNI(peer_session ANDPeerSession, member_info ANDFullPeerSessionInfo, fwd bool) {
+func (w *World) JNI(peer_session ANDPeerSession, member_info ANDFullPeerSessionInfo) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
@@ -256,7 +236,7 @@ func (w *World) JNI(peer_session ANDPeerSession, member_info ANDFullPeerSessionI
 		return
 	}
 
-	w.acceptRemoteMember(member_info, fwd)
+	w.acceptRemoteMember(member_info)
 }
 
 func (w *World) MEM(peer_session ANDPeerSession) {
@@ -271,11 +251,11 @@ func (w *World) MEM(peer_session ANDPeerSession) {
 			cnt:            0,
 		}
 	} else if entry.state == WS_NOTISENT {
-		w.finalizeMember(peer_session, entry.fwd)
+		w.finalizeMember(peer_session)
 	}
 }
 
-func (w *World) FetchReturn(peer_session ANDPeerSession, fwd bool) {
+func (w *World) FetchReturn(peer_session ANDPeerSession) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
@@ -285,12 +265,11 @@ func (w *World) FetchReturn(peer_session ANDPeerSession, fwd bool) {
 		w.entries[peer_session.ANDIdentity()] = &peerWorldSessionState{
 			ANDPeerSession: peer_session,
 			state:          WS_NOTISENT,
-			fwd:            fwd,
 			cnt:            0,
 		}
 	} else if entry.state == WS_NOTIRCVD {
 		w.sendMEM(peer_session)
-		w.finalizeMember(peer_session, fwd)
+		w.finalizeMember(peer_session)
 	}
 }
 
@@ -315,11 +294,8 @@ func (w *World) SJN(peer_session ANDPeerSession, member_infos []ANDIdentity) {
 		}
 
 		// peer with corresponding session exists.
-		if r_sji.fwd && r_sji.state == WS_MEM {
+		if r_sji.state == WS_MEM {
 			r_sji.cnt++
-			if r_sji.cnt >= 3 {
-				r_sji.fwd = false
-			}
 		}
 		return e, false
 	})

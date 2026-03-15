@@ -13,13 +13,11 @@ import (
 type fetchEntry struct {
 	world *and.World
 	and.ANDIdentity
-	fwd bool
 }
 
 type fetchReadyEntry struct {
 	world *and.World
 	and.ANDPeerSession
-	fwd bool
 }
 
 type PeerFetcher struct {
@@ -60,7 +58,7 @@ func NewPeerFetcher(
 				result.done <- true
 				return
 			case pending_fetch := <-result.fetch_ready_ch.Out:
-				pending_fetch.world.FetchReturn(pending_fetch.ANDPeerSession, pending_fetch.fwd)
+				pending_fetch.world.FetchReturn(pending_fetch.ANDPeerSession)
 			}
 		}
 	}()
@@ -70,7 +68,6 @@ func NewPeerFetcher(
 func (f *PeerFetcher) Fetch(
 	world *and.World,
 	target and.ANDFullPeerSessionInfo,
-	fwd bool,
 ) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -82,7 +79,6 @@ func (f *PeerFetcher) Fetch(
 				Peer:      peer,
 				SessionID: target.SessionID,
 			},
-			fwd: fwd,
 		}
 		return
 	}
@@ -95,7 +91,6 @@ func (f *PeerFetcher) Fetch(
 			fetchEntry{
 				world:       world,
 				ANDIdentity: target.ANDIdentity,
-				fwd:         fwd,
 			},
 		)
 	} else {
@@ -103,7 +98,6 @@ func (f *PeerFetcher) Fetch(
 			{
 				world:       world,
 				ANDIdentity: target.ANDIdentity,
-				fwd:         fwd,
 			},
 		}
 	}
@@ -122,7 +116,6 @@ func (f *PeerFetcher) AddPeer(peer ani.IAbyssPeer) {
 					Peer:      peer,
 					SessionID: fetch.SessionID,
 				},
-				fwd: fetch.fwd,
 			}
 		}
 		delete(f.and_fetch_pending, peer.ID())

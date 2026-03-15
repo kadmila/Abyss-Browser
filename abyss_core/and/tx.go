@@ -45,26 +45,7 @@ func (w *World) sendMEM(member ANDPeerSession) error {
 		RecverSessionID: member.SessionID[:],
 	})
 }
-func (w *World) broadcastSJN() error {
-	sjn_entries := functional.Filter_MtS_ok(
-		w.entries,
-		func(e *peerWorldSessionState) (RawANDIdentity, bool) {
-			if e.state == WS_MEM && e.fwd && e.cnt < 3 {
-				e.fwd = false
-				return RawANDIdentity{
-					e.Peer.ID(),
-					e.SessionID[:],
-				}, true
-			}
-			return RawANDIdentity{}, false
-		},
-	)
-
-	if len(sjn_entries) == 0 {
-		return nil
-	}
-
-	// send
+func (w *World) broadcastSJN(member_identity ANDIdentity) error {
 	for _, entry := range w.entries {
 		if entry.state != WS_MEM {
 			continue
@@ -72,7 +53,12 @@ func (w *World) broadcastSJN() error {
 		entry.Peer.Send(ahmp.SJN_T, RawSJN{
 			SenderSessionID: w.WSID[:],
 			RecverSessionID: entry.SessionID[:],
-			MemberInfos:     sjn_entries,
+			MemberInfos: []RawANDIdentity{
+				{
+					PeerID:    member_identity.PeerID,
+					SessionID: member_identity.SessionID[:],
+				},
+			},
 		})
 	}
 	return nil
