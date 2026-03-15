@@ -120,9 +120,10 @@ func (p *AbyssPeer) Context() context.Context {
 
 func (p *AbyssPeer) Close() error {
 	p.closed <- true
-	err := <-p.send_done_err
+	err_send := <-p.send_done_err
+	err_recv := <-p.recv_done_err
 
-	return errors.Join(err, p.origin.registry.ReportPeerClose(p))
+	return errors.Join(err_send, err_recv, p.origin.registry.ReportPeerClose(p))
 }
 
 func (p *AbyssPeer) Equal(subject *AbyssPeer) bool {
