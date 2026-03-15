@@ -66,30 +66,6 @@ func (h *AbyssHost) onMEM(
 	return nil
 }
 
-func (h *AbyssHost) onSJN(
-	SJN *and.SJN,
-	peer ani.IAbyssPeer,
-) error {
-	world, peer_session, ok := h.ahmpWorldPrep(peer, SJN.SenderSessionID, SJN.RecverSessionID)
-	if !ok {
-		return nil
-	}
-	world.SJN(peer_session, SJN.MemberInfos)
-	return nil
-}
-
-func (h *AbyssHost) onCRR(
-	CRR *and.CRR,
-	peer ani.IAbyssPeer,
-) error {
-	world, peer_session, ok := h.ahmpWorldPrep(peer, CRR.SenderSessionID, CRR.RecverSessionID)
-	if !ok {
-		return nil
-	}
-	world.CRR(peer_session, CRR.MemberInfos)
-	return nil
-}
-
 func (h *AbyssHost) onRST(
 	RST *and.RST,
 	peer ani.IAbyssPeer,

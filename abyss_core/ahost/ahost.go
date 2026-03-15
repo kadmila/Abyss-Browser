@@ -156,7 +156,6 @@ func (h *AbyssHost) OpenWorld(world_url string) (*and.World, error) {
 	defer h.mtx.Unlock()
 
 	world, err := and.NewWorld_Open(
-		h.service_ctx,
 		h.peer_fetcher,
 		h.event_ch,
 		h.net.ID(),
@@ -180,7 +179,6 @@ func (h *AbyssHost) JoinWorld(peer_id string, path string) (*and.World, error) {
 	}
 
 	world, err := and.NewWorld_Join(
-		h.service_ctx,
 		h.peer_fetcher,
 		h.event_ch,
 		h.net.ID(),

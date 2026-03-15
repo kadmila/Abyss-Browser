@@ -1,13 +1,11 @@
 package and
 
 import (
-	"context"
 	"sync"
 
 	"github.com/google/uuid"
 
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
-	"github.com/kadmila/Abyss-Browser/abyss_core/tools/functional"
 	"github.com/kadmila/Abyss-Browser/abyss_core/tools/infchan"
 )
 
@@ -36,79 +34,47 @@ type World struct {
 	fetcher  IFetcher
 	event_ch *infchan.InfiniteChan[any] // target origin event channel
 
-	localID        string
-	WSID           uuid.UUID                              // local world session id
-	join_target    string                                 // (when constructed with Join) join target peer ID
-	env_url        string                                 // (when constructed with Open, or Join accepted) environmental content URL.
-	entries        map[ANDIdentity]*peerWorldSessionState // key: id, value: peer states
-	callback_timer *ANDTimer
-
-	ctx        context.Context
-	ctx_cancel context.CancelFunc
-	done       chan bool // closed when the world is closed.
+	localID     string
+	WSID        uuid.UUID                              // local world session id
+	join_target string                                 // (when constructed with Join) join target peer ID
+	env_url     string                                 // (when constructed with Open, or Join accepted) environmental content URL.
+	entries     map[ANDIdentity]*peerWorldSessionState // key: id, value: peer states
 }
 
-func NewWorld_Open(ctx context.Context, fetcher IFetcher, event_ch *infchan.InfiniteChan[any], localID string, env_url string) (*World, error) {
-	inner_ctx, cancel := context.WithCancel(ctx)
+func NewWorld_Open(fetcher IFetcher, event_ch *infchan.InfiniteChan[any], localID string, env_url string) (*World, error) {
 	result := &World{
 		fetcher:  fetcher,
 		event_ch: event_ch,
 
-		localID:        localID,
-		WSID:           uuid.New(),
-		join_target:    "",
-		env_url:        env_url,
-		entries:        make(map[ANDIdentity]*peerWorldSessionState),
-		callback_timer: NewANDTimer(),
-
-		ctx:        inner_ctx,
-		ctx_cancel: cancel,
-		done:       make(chan bool, 1),
+		localID:     localID,
+		WSID:        uuid.New(),
+		join_target: "",
+		env_url:     env_url,
+		entries:     make(map[ANDIdentity]*peerWorldSessionState),
 	}
 	result.event_ch.In <- &EANDWorldEnter{
 		WSID: result.WSID,
 		URL:  env_url,
 	}
-	go result.worker()
 	return result, nil
 }
 
-func NewWorld_Join(ctx context.Context, fetcher IFetcher, event_ch *infchan.InfiniteChan[any], localID string, target ani.IAbyssPeer, path string) (*World, error) {
-	inner_ctx, cancel := context.WithCancel(ctx)
+func NewWorld_Join(fetcher IFetcher, event_ch *infchan.InfiniteChan[any], localID string, target ani.IAbyssPeer, path string) (*World, error) {
 	result := &World{
 		fetcher:  fetcher,
 		event_ch: event_ch,
 
-		localID:        localID,
-		WSID:           uuid.New(),
-		join_target:    target.ID(),
-		env_url:        "",
-		entries:        make(map[ANDIdentity]*peerWorldSessionState),
-		callback_timer: NewANDTimer(),
-
-		ctx:        inner_ctx,
-		ctx_cancel: cancel,
-		done:       make(chan bool, 1),
+		localID:     localID,
+		WSID:        uuid.New(),
+		join_target: target.ID(),
+		env_url:     "",
+		entries:     make(map[ANDIdentity]*peerWorldSessionState),
 	}
 	err := result.sendJN(target, path)
 	if err != nil {
 		return nil, err
 	}
-	go result.worker()
 	return result, nil
-}
-
-// worker handles background works for the world, such as timer events. It must be called in a separate goroutine for each world.
-func (w *World) worker() {
-	for {
-		select {
-		case <-w.ctx.Done():
-			w.done <- true
-			return
-		case <-w.callback_timer.C:
-			w.TimerExpire()
-		}
-	}
 }
 
 func (w *World) Close() {
@@ -131,17 +97,6 @@ func (w *World) cleanup() {
 		Code:    JNC_CLOSED,
 		Message: JNM_CLOSED,
 	}
-
-	w.ctx_cancel()
-	w.callback_timer.Stop()
-	<-w.done
-}
-
-func (w *World) TimerExpire() {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
-
-	w.broadcastSJN()
 }
 
 // IsActive checks if the world is active and ready for use.
@@ -163,7 +118,6 @@ func (w *World) finalizeMember(subject ANDPeerSession, fwd bool) {
 		WSID:        w.WSID,
 		ANDIdentity: subject.ANDIdentity(),
 	}
-	w.callback_timer.Increment()
 }
 
 func (w *World) acceptRemoteMember(member_info ANDFullPeerSessionInfo, fwd bool) {
@@ -182,7 +136,6 @@ func (w *World) acceptRemoteMember(member_info ANDFullPeerSessionInfo, fwd bool)
 
 func (w *World) closeEntry(entry *peerWorldSessionState) {
 	if entry.state == WS_MEM {
-		w.callback_timer.Decrement()
 		w.event_ch.In <- &EANDSessionClose{
 			WSID:        w.WSID,
 			ANDIdentity: entry.ANDIdentity(),
@@ -291,60 +244,6 @@ func (w *World) FetchReturn(peer_session ANDPeerSession, fwd bool) {
 	} else if entry.state == WS_NOTIRCVD {
 		w.sendMEM(peer_session)
 		w.finalizeMember(peer_session, fwd)
-	}
-}
-
-func (w *World) SJN(peer_session ANDPeerSession, member_infos []ANDIdentity) {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
-
-	entry, ok := w.mustBeMemberGetEntry(peer_session)
-	if !ok {
-		return
-	}
-
-	missing_members := functional.Filter_ok(member_infos, func(e ANDIdentity) (ANDIdentity, bool) {
-		if e.PeerID == w.localID {
-			// exclude self
-			return e, false
-		}
-		r_sji, ok := w.entries[e]
-		if !ok {
-			// peer not found
-			return e, true
-		}
-
-		// peer with corresponding session exists.
-		if r_sji.fwd && r_sji.state == WS_MEM {
-			r_sji.cnt++
-			if r_sji.cnt >= 3 {
-				r_sji.fwd = false
-			}
-		}
-		return e, false
-	})
-
-	if len(missing_members) != 0 {
-		w.sendCRR(entry.ANDPeerSession, missing_members)
-	}
-}
-
-func (w *World) CRR(peer_session ANDPeerSession, member_infos []ANDIdentity) {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
-
-	sender, ok := w.mustBeMemberGetEntry(peer_session)
-	if !ok {
-		return
-	}
-
-	for _, mem_info := range member_infos {
-		entry, ok := w.entries[mem_info]
-		if !ok || entry.state != WS_MEM {
-			continue
-		}
-		w.sendJNI(entry.ANDPeerSession, sender.ANDPeerSession, false)
-		w.sendJNI(sender.ANDPeerSession, entry.ANDPeerSession, true)
 	}
 }
 

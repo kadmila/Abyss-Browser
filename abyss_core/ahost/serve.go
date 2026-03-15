@@ -78,22 +78,6 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 			if err := h.onMEM(MEM, peer); err != nil {
 				return err
 			}
-		case ahmp.SJN_T:
-			SJN, err := tryParseAhmp[*and.RawSJN](msg)
-			if err != nil {
-				return err
-			}
-			if err := h.onSJN(SJN, peer); err != nil {
-				return err
-			}
-		case ahmp.CRR_T:
-			CRR, err := tryParseAhmp[*and.RawCRR](msg)
-			if err != nil {
-				return err
-			}
-			if err := h.onCRR(CRR, peer); err != nil {
-				return err
-			}
 		case ahmp.RST_T:
 			RST, err := tryParseAhmp[*and.RawRST](msg)
 			if err != nil {
