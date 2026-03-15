@@ -9,6 +9,7 @@ package ahmp
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/fxamacker/cbor/v2"
 )
@@ -18,6 +19,21 @@ type AHMPMsgType int
 type AHMPMessage struct {
 	Type    AHMPMsgType     `cbor:"0,keyasint"`
 	Payload cbor.RawMessage `cbor:"1,keyasint"`
+
+	timestamp time.Time
+}
+
+func NewAHMPMessage(t AHMPMsgType, payload cbor.RawMessage) *AHMPMessage {
+	return &AHMPMessage{
+		Type:    t,
+		Payload: payload,
+
+		timestamp: time.Now(),
+	}
+}
+
+func (m *AHMPMessage) TimeStamp() time.Time {
+	return m.timestamp
 }
 
 // Abyss Neigbor Discovery (AND)

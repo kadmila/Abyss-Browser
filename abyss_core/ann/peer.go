@@ -4,8 +4,11 @@ import (
 	"context"
 	"crypto/x509"
 	"errors"
+	"fmt"
 	"net/netip"
+	"strconv"
 	"sync/atomic"
+	"time"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ahmp"
@@ -64,6 +67,7 @@ func NewAbyssPeer(
 				break SEND_LOOP
 			case msg := <-result.send_ch.Out:
 				err = result.ahmp_encoder.Encode(msg)
+				fmt.Println(time.Now().Format("15:04:05.00000") + "| Tx " + msg.Type.String() + " delay (mS): " + strconv.FormatInt(time.Now().Sub(msg.TimeStamp()).Milliseconds(), 10))
 				if err != nil {
 					break SEND_LOOP
 				}
@@ -84,10 +88,7 @@ func (p *AbyssPeer) Send(t ahmp.AHMPMsgType, v any) error {
 	if err != nil {
 		return err
 	}
-	p.send_ch.In <- &ahmp.AHMPMessage{
-		Type:    t,
-		Payload: payload,
-	}
+	p.send_ch.In <- ahmp.NewAHMPMessage(t, payload)
 	return nil
 }
 func (p *AbyssPeer) Recv(v *ahmp.AHMPMessage) error {
