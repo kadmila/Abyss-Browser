@@ -34,7 +34,7 @@ type IAbyssPeer interface {
 	// Send and Recv exchange ahmp messages. Encoding details are defined in ahmp package.
 	// Warning: Nither of them are thread safe, but they are mutually thread-safe (isolated).
 	Send(ahmp.AHMPMsgType, any) error
-	Recv(*ahmp.AHMPMessage) error
+	Recv() (*ahmp.AHMPMessage, error)
 
 	// Close disconnectes the peer and resets internal states.
 	// Calling this is mendatory before dialing the same peer again.

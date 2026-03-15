@@ -40,15 +40,14 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 	}()
 
 	// receive AHMP messages and handle them
-	var msg ahmp.AHMPMessage
 	for {
-		err := peer.Recv(&msg)
+		msg, err := peer.Recv()
 		if err != nil {
 			return err
 		}
 		switch msg.Type {
 		case ahmp.JN_T:
-			JN, err := tryParseAhmp[*and.RawJN](&msg)
+			JN, err := tryParseAhmp[*and.RawJN](msg)
 			if err != nil {
 				return err
 			}
@@ -56,7 +55,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 				return err
 			}
 		case ahmp.JOK_T:
-			JOK, err := tryParseAhmp[*and.RawJOK](&msg)
+			JOK, err := tryParseAhmp[*and.RawJOK](msg)
 			if err != nil {
 				return err
 			}
@@ -64,7 +63,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 				return err
 			}
 		case ahmp.JNI_T:
-			JNI, err := tryParseAhmp[*and.RawJNI](&msg)
+			JNI, err := tryParseAhmp[*and.RawJNI](msg)
 			if err != nil {
 				return err
 			}
@@ -72,7 +71,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 				return err
 			}
 		case ahmp.MEM_T:
-			MEM, err := tryParseAhmp[*and.RawMEM](&msg)
+			MEM, err := tryParseAhmp[*and.RawMEM](msg)
 			if err != nil {
 				return err
 			}
@@ -80,7 +79,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 				return err
 			}
 		case ahmp.SJN_T:
-			SJN, err := tryParseAhmp[*and.RawSJN](&msg)
+			SJN, err := tryParseAhmp[*and.RawSJN](msg)
 			if err != nil {
 				return err
 			}
@@ -88,7 +87,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 				return err
 			}
 		case ahmp.CRR_T:
-			CRR, err := tryParseAhmp[*and.RawCRR](&msg)
+			CRR, err := tryParseAhmp[*and.RawCRR](msg)
 			if err != nil {
 				return err
 			}
@@ -96,7 +95,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 				return err
 			}
 		case ahmp.RST_T:
-			RST, err := tryParseAhmp[*and.RawRST](&msg)
+			RST, err := tryParseAhmp[*and.RawRST](msg)
 			if err != nil {
 				return err
 			}
@@ -104,7 +103,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 				return err
 			}
 		case ahmp.SOA_T:
-			SOA, err := tryParseAhmp[*and.RawSOA](&msg)
+			SOA, err := tryParseAhmp[*and.RawSOA](msg)
 			if err != nil {
 				return err
 			}
@@ -112,7 +111,7 @@ func (h *AbyssHost) servePeer(peer ani.IAbyssPeer) error {
 				return err
 			}
 		case ahmp.SOD_T:
-			SOD, err := tryParseAhmp[*and.RawSOD](&msg)
+			SOD, err := tryParseAhmp[*and.RawSOD](msg)
 			if err != nil {
 				return err
 			}

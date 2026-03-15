@@ -28,9 +28,11 @@ type AbyssPeer struct {
 	ahmp_encoder *cbor.Encoder
 	ahmp_decoder *cbor.Decoder
 
-	send_ch  *infchan.InfiniteChan[*ahmp.AHMPMessage]
-	closed   chan bool
-	done_err chan error
+	send_ch       *infchan.InfiniteChan[*ahmp.AHMPMessage]
+	recv_ch       *infchan.InfiniteChan[*ahmp.AHMPMessage]
+	closed        chan bool
+	send_done_err chan error
+	recv_done_err chan error
 
 	// is_closed should be referenced only from AbyssNode.
 	is_closed atomic.Bool
@@ -54,9 +56,11 @@ func NewAbyssPeer(
 		ahmp_encoder:      ahmp_encoder,
 		ahmp_decoder:      ahmp_decoder,
 
-		send_ch:  infchan.NewInfiniteChan[*ahmp.AHMPMessage](32),
-		closed:   make(chan bool, 1),
-		done_err: make(chan error, 1),
+		send_ch:       infchan.NewInfiniteChan[*ahmp.AHMPMessage](32),
+		recv_ch:       infchan.NewInfiniteChan[*ahmp.AHMPMessage](32),
+		closed:        make(chan bool, 1),
+		send_done_err: make(chan error, 1),
+		recv_done_err: make(chan error, 1),
 	}
 	go func() {
 		var err error
@@ -73,7 +77,19 @@ func NewAbyssPeer(
 				}
 			}
 		}
-		result.done_err <- err
+		result.send_done_err <- err
+	}()
+	go func() {
+		var err error
+		for {
+			var msg ahmp.AHMPMessage
+			if err = result.ahmp_decoder.Decode(&msg); err != nil {
+				close(result.recv_ch.In)
+				break
+			}
+			result.recv_ch.In <- &msg
+		}
+		result.recv_done_err <- err
 	}()
 	return result
 }
@@ -91,8 +107,12 @@ func (p *AbyssPeer) Send(t ahmp.AHMPMsgType, v any) error {
 	p.send_ch.In <- ahmp.NewAHMPMessage(t, payload)
 	return nil
 }
-func (p *AbyssPeer) Recv(v *ahmp.AHMPMessage) error {
-	return p.ahmp_decoder.Decode(v)
+func (p *AbyssPeer) Recv() (*ahmp.AHMPMessage, error) {
+	msg, ok := <-p.recv_ch.Out
+	if !ok {
+		return nil, quic.ErrTransportClosed
+	}
+	return msg, nil
 }
 func (p *AbyssPeer) Context() context.Context {
 	return p.connection.Context()
@@ -100,7 +120,7 @@ func (p *AbyssPeer) Context() context.Context {
 
 func (p *AbyssPeer) Close() error {
 	p.closed <- true
-	err := <-p.done_err
+	err := <-p.send_done_err
 
 	return errors.Join(err, p.origin.registry.ReportPeerClose(p))
 }

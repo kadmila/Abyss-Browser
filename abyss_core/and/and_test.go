@@ -40,9 +40,9 @@ func (p *DummyPeer) Send(_ ahmp.AHMPMsgType, v any) error {
 	fmt.Println(time.Now().Format("15:04:05.00000") + "| Send > " + p.peerID[:8] + " | " + v.(fmt.Stringer).String())
 	return nil
 }
-func (p *DummyPeer) Recv(*ahmp.AHMPMessage) error { return nil }
-func (p *DummyPeer) Close() error                 { return nil }
-func (p *DummyPeer) IssueTime() time.Time         { return time.Time{} }
+func (p *DummyPeer) Recv() (*ahmp.AHMPMessage, error) { return nil, nil }
+func (p *DummyPeer) Close() error                     { return nil }
+func (p *DummyPeer) IssueTime() time.Time             { return time.Time{} }
 
 func MakeDummyPeerSession(peerID string) and.ANDPeerSession {
 	return and.ANDPeerSession{
