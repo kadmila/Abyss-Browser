@@ -28,6 +28,7 @@ type AbyssPeer struct {
 	ahmp_encoder *cbor.Encoder
 	ahmp_decoder *cbor.Decoder
 
+	running       bool
 	send_ch       *infchan.InfiniteChan[*ahmp.AHMPMessage]
 	recv_ch       *infchan.InfiniteChan[*ahmp.AHMPMessage]
 	closed        chan bool
@@ -56,42 +57,47 @@ func NewAbyssPeer(
 		ahmp_encoder:      ahmp_encoder,
 		ahmp_decoder:      ahmp_decoder,
 
+		running:       false,
 		send_ch:       infchan.NewInfiniteChan[*ahmp.AHMPMessage](32),
 		recv_ch:       infchan.NewInfiniteChan[*ahmp.AHMPMessage](32),
 		closed:        make(chan bool, 1),
 		send_done_err: make(chan error, 1),
 		recv_done_err: make(chan error, 1),
 	}
+	return result
+}
+
+func (p *AbyssPeer) runWorkers() {
+	p.running = true
 	go func() {
 		var err error
 	SEND_LOOP:
 		for {
 			select {
-			case <-result.closed:
+			case <-p.closed:
 				break SEND_LOOP
-			case msg := <-result.send_ch.Out:
-				err = result.ahmp_encoder.Encode(msg)
+			case msg := <-p.send_ch.Out:
+				err = p.ahmp_encoder.Encode(msg)
 				fmt.Println(time.Now().Format("15:04:05.00000") + "| Tx " + msg.Type.String() + " delay (mS): " + strconv.FormatInt(time.Since(msg.TimeStamp()).Milliseconds(), 10))
 				if err != nil {
 					break SEND_LOOP
 				}
 			}
 		}
-		result.send_done_err <- err
+		p.send_done_err <- err
 	}()
 	go func() {
 		var err error
 		for {
 			var msg ahmp.AHMPMessage
-			if err = result.ahmp_decoder.Decode(&msg); err != nil {
-				close(result.recv_ch.In)
+			if err = p.ahmp_decoder.Decode(&msg); err != nil {
+				close(p.recv_ch.In)
 				break
 			}
-			result.recv_ch.In <- &msg
+			p.recv_ch.In <- &msg
 		}
-		result.recv_done_err <- err
+		p.recv_done_err <- err
 	}()
-	return result
 }
 
 func (p *AbyssPeer) RemoteAddr() netip.AddrPort {
@@ -118,11 +124,14 @@ func (p *AbyssPeer) Context() context.Context {
 	return p.connection.Context()
 }
 
+// Close must not be called twice.
 func (p *AbyssPeer) Close() error {
+	if !p.running {
+		return nil
+	}
 	p.closed <- true
 	err_send := <-p.send_done_err
 	err_recv := <-p.recv_done_err
-
 	return errors.Join(err_send, err_recv, p.origin.registry.ReportPeerClose(p))
 }
 

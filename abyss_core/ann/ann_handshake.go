@@ -454,6 +454,7 @@ func (n *AbyssNode) tryCompletePeerMaster(is_dialing bool, pre_peer *AbyssPeer) 
 		return
 	}
 
+	new_peer.runWorkers()
 	n.backlog <- backLogEntry{
 		peer: new_peer,
 		err:  nil,
@@ -506,6 +507,7 @@ func (n *AbyssNode) tryCompletePeerSlave(ctx context.Context, is_dialing bool, p
 		return
 	}
 
+	new_peer.runWorkers()
 	n.backlog <- backLogEntry{
 		peer: new_peer,
 		err:  nil,
