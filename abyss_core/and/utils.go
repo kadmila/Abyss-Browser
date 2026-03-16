@@ -26,7 +26,7 @@ func NewANDTimer() *ANDTimer {
 }
 
 const (
-	TimerMinInterval  = 300
+	TimerMinInterval  = 400
 	TimerUnitInterval = 300
 )
 
