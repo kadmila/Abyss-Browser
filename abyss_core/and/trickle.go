@@ -28,17 +28,16 @@ func NewTrickleEntry(ctx context.Context, callback func()) *TrickleEntry {
 	}
 	go func() {
 		t_ms := int64((0.5 + 0.5*rand.Float64()) * float64(result.interval_ms))
+	MAIN_LOOP:
 		for {
 			select {
 			case <-result.ctx.Done():
-				result.done <- true
-				return
+				break MAIN_LOOP
 			case <-time.After(time.Millisecond * time.Duration(t_ms)):
 				result.callback()
 				select {
 				case <-result.ctx.Done():
-					result.done <- true
-					return
+					break MAIN_LOOP
 				case <-time.After(time.Millisecond * time.Duration(result.interval_ms-t_ms)):
 					if result.interval_ms < INTERVAL_MAX_MS {
 						result.interval_ms *= 2
@@ -47,6 +46,7 @@ func NewTrickleEntry(ctx context.Context, callback func()) *TrickleEntry {
 				}
 			}
 		}
+		result.done <- true
 	}()
 	return result
 }

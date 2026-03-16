@@ -83,6 +83,8 @@ func NewWorld_Join(ctx context.Context, fetcher IFetcher, event_ch *infchan.Infi
 		env_url:     "",
 		entries:     make(map[ANDIdentity]*peerWorldSessionState),
 
+		trickle: NewTrickleWorker(inner_ctx),
+
 		ctx:        inner_ctx,
 		ctx_cancel: cancel,
 	}
@@ -129,7 +131,10 @@ func (w *World) TrickleTimeout(subject_identity ANDIdentity) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 
-	w.broadcastSJN(subject_identity)
+	entry, ok := w.entries[subject_identity]
+	if ok && entry.state == WS_MEM && entry.cnt < 3 {
+		w.broadcastSJN(subject_identity)
+	}
 }
 
 func (w *World) finalizeMember(subject ANDPeerSession) {
