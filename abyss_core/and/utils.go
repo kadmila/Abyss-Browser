@@ -38,8 +38,8 @@ func (t *ANDTimer) Increment() {
 
 	if t.due.After(now) {
 		time_remaining_ms := t.due.Sub(now).Milliseconds()
-		elongate_duration_ms := time_remaining_ms * t.N / (t.N - 1)
-		if elongate_duration_ms > TimerMinInterval {
+		if time_remaining_ms > TimerMinInterval {
+			elongate_duration_ms := TimerMinInterval + (time_remaining_ms-TimerMinInterval)*t.N/(t.N-1)
 			elongated_duration := time.Duration(elongate_duration_ms) * time.Millisecond
 			t.Reset(elongated_duration)
 			t.due = now.Add(elongated_duration)
@@ -62,8 +62,8 @@ func (t *ANDTimer) Decrement() {
 	now := time.Now()
 
 	time_remaining_ms := t.due.Sub(now).Milliseconds()
-	shortened_duration_ms := time_remaining_ms * t.N / (t.N + 1)
-	if shortened_duration_ms > TimerMinInterval {
+	if time_remaining_ms > TimerMinInterval {
+		shortened_duration_ms := TimerMinInterval + (time_remaining_ms-TimerMinInterval)*t.N/(t.N+1)
 		shortened_duration := time.Duration(shortened_duration_ms) * time.Millisecond
 		t.Reset(shortened_duration)
 		t.due = now.Add(shortened_duration)
