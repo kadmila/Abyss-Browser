@@ -176,7 +176,7 @@ func (w *World) acceptRemoteMember(member_info ANDFullPeerSessionInfo, fwd bool)
 		w.fetcher.Fetch(w, member_info, fwd)
 	} else if entry.state == WS_NOTIRCVD {
 		w.sendMEM(entry.ANDPeerSession)
-		w.finalizeMember(entry.ANDPeerSession, false)
+		w.finalizeMember(entry.ANDPeerSession, fwd)
 	}
 }
 
