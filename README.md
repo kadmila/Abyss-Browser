@@ -1,5 +1,4 @@
 # Abyss Browser
-The Web Conf. 2026 Demo Track Artifact
 Prototype Abyss Browser, along with a simple public peer registry.
 <!-- See https://github.com/kadmila/Abyss-Browser/wiki for development guide, user guide, AML specification, and others. -->
 
@@ -57,3 +56,4 @@ run release build to produce release binary (/release folder).
 
 **Close Unity Editor before release build.**
 ./build_release.ps1
+
