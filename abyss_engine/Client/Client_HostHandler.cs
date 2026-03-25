@@ -41,9 +41,6 @@ public static partial class Client
                 case AbyssLibB.EWorldEnter e when _mainWorld.WSID == e.WSID:
                     _mainWorld.OnWorldEnter(e);
                     break;
-                case AbyssLibB.ESessionRequest e when _mainWorld.WSID == e.WSID:
-                    _mainWorld.OnMemberRequest(e);
-                    break;
                 case AbyssLibB.ESessionReady e when _mainWorld.WSID == e.WSID:
                     _mainWorld.OnMemberReady(e);
                     break;

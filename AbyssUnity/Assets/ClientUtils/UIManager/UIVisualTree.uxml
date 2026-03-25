@@ -3,13 +3,13 @@
     <Style src="project://database/Assets/ClientUtils/UIManager/UIStyleSheet.uss?fileID=7433441132597879392&amp;guid=5dfc18a63d6253140bdb99a24ded5c29&amp;type=3#UIStyleSheet"/>
     <ui:VisualElement name="body" style="background-color: rgba(13, 12, 13, 0.94);">
         <ui:VisualElement class="tabs">
-            <ui:Button text="Home" name="tab-home-button" class="tab tab-active"/>
-            <ui:Button text="Social" name="tab-social-button" class="tab"/>
+            <ui:Button text="Home" name="tab-home-button" class="tab"/>
+            <ui:Button text="Social" name="tab-social-button" class="tab tab-active"/>
             <ui:Button text="Settings" name="tab-settings-button" class="tab"/>
             <ui:Button text="Dev" name="tab-dev-button" class="tab"/>
         </ui:VisualElement>
         <ui:VisualElement class="content">
-            <ui:VisualElement name="home" style="display: none;">
+            <ui:VisualElement name="home" style="display: flex;">
                 <ui:VisualElement name="VisualElement" class="center-area">
                     <ui:VisualElement class="world-info-section">
                         <ui:Image source="project://database/Assets/ClientUtils/UIManager/img/free-icon-village-2388458.png?fileID=2800000&amp;guid=08ceb19d24bc6d241a330101049c5202&amp;type=3#free-icon-village-2388458" name="world-pic"/>
@@ -42,8 +42,8 @@
                 </ui:VisualElement>
             </ui:VisualElement>
             <ui:VisualElement name="social"/>
-            <ui:VisualElement name="settings"/>
-            <ui:VisualElement name="dev" style="display: flex;">
+            <ui:VisualElement name="settings" style="display: none;"/>
+            <ui:VisualElement name="dev" style="display: none;">
                 <ui:VisualElement class="dev-left">
                     <ui:Label text="ID: " name="local-id" class="dev-label"/>
                     <ui:Label text="frame time not measured" name="frame-time" class="dev-label"/>

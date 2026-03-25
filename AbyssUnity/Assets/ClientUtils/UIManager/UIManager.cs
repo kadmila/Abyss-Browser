@@ -114,6 +114,9 @@ namespace ClientUtils.UIManager
 
             _console_lines = new();
             _is_console_updated = false;
+
+            // Initialization
+            ChangeTabContent(home, tabHomeButton);
         }
         private void ChangeTabContent(VisualElement target, Button button)
         {
@@ -199,7 +202,7 @@ namespace ClientUtils.UIManager
 
             item.VisualElement.RemoveFromHierarchy();
 
-            localItems.Remove(element_id);
+            _=localItems.Remove(element_id);
             return true;
         }
         public bool TryUpdateLocalItemUIIcon(int element_id, Texture2D image)

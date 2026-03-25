@@ -69,11 +69,6 @@ public class World : IDisposable
 			Client.Cerr.WriteLine("failed to expose the world: " + expose_err.Message);
 		}
     }
-	public void OnMemberRequest(AbyssLibB.ESessionRequest evnt)
-	{
-		Client.Cerr.WriteLine($"OnMemberRequest from {evnt.PeerID}");
-		_world.AcceptSession(evnt.PeerID, evnt.PeerWSID);
-	}
 	public void OnMemberReady(AbyssLibB.ESessionReady evnt)
 	{
 		Client.Cerr.WriteLine($"OnMemberReady: {evnt.PeerID}");
