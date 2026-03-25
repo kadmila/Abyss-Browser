@@ -66,11 +66,9 @@ public static class AbyssLibB
     [DllImport(DllName)] private static extern void CloseHttpResponse(IntPtr h_response);
     
     [DllImport(DllName)] private static extern unsafe void World_Query(IntPtr h_world, byte* world_session_id_buf);
-    [DllImport(DllName)] private static extern unsafe void World_AcceptSession(IntPtr h_host, IntPtr h_world, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf);
-    [DllImport(DllName)] private static extern unsafe void World_DeclineSession(IntPtr h_host, IntPtr h_world, byte* peer_id_buf_ptr, int peer_id_buf_len, byte* peer_session_id_buf, int code, byte* message_buf_ptr, int message_buf_len);
     [DllImport(DllName)] private static extern void Host_CloseWorld(IntPtr h_host, IntPtr h_world);
-    [DllImport(DllName)] private static extern unsafe void World_ObjectAppend(IntPtr h_host, IntPtr h_world, int peer_count, byte** peer_id_bufs, int* peer_id_buf_lens, byte** peer_session_id_bufs, int object_count, byte** object_id_bufs, float** object_transform_bufs, byte** object_addr_bufs, int* object_addr_buf_lens);
-    [DllImport(DllName)] private static extern unsafe void World_ObjectDelete(IntPtr h_host, IntPtr h_world, int peer_count, byte** peer_id_bufs, int* peer_id_buf_lens, byte** peer_session_id_bufs, int object_count, byte** object_id_bufs);
+    [DllImport(DllName)] private static extern unsafe void World_ObjectAppend(IntPtr h_world, int peer_count, byte** peer_id_bufs, int* peer_id_buf_lens, byte** peer_session_id_bufs, int object_count, byte** object_id_bufs, float** object_transform_bufs, byte** object_addr_bufs, int* object_addr_buf_lens);
+    [DllImport(DllName)] private static extern unsafe void World_ObjectDelete(IntPtr h_world, int peer_count, byte** peer_id_bufs, int* peer_id_buf_lens, byte** peer_session_id_bufs, int object_count, byte** object_id_bufs);
 
     // Event query functions
     [DllImport(DllName)] private static extern unsafe int Event_WorldEnter_Query(IntPtr h_event, byte* world_session_id_buf, byte* url_buf_ptr, int url_buf_len);
@@ -205,7 +203,6 @@ public static class AbyssLibB
                 dynamic? ev = (EventType)eventType switch
                 {
                     EventType.WorldEnter => new EWorldEnter(eventHandle),
-                    EventType.SessionRequest => new ESessionRequest(eventHandle),
                     EventType.SessionReady => new ESessionReady(eventHandle),
                     EventType.SessionClose => new ESessionClose(eventHandle),
                     EventType.ObjectAppend => new EObjectAppend(eventHandle),
@@ -446,16 +443,15 @@ public static class AbyssLibB
     {
         None = 0,
         WorldEnter = 1,
-        SessionRequest = 2,
-        SessionReady = 3,
-        SessionClose = 4,
-        ObjectAppend = 5,
-        ObjectDelete = 6,
-        WorldLeave = 7,
-        PeerConnected = 8,
-        PeerDisconnected = 9,
-        PeerFound = 10,
-        PeerForgot = 11,
+        SessionReady = 2,
+        SessionClose = 3,
+        ObjectAppend = 4,
+        ObjectDelete = 5,
+        WorldLeave = 6,
+        PeerConnected = 7,
+        PeerDisconnected = 8,
+        PeerFound = 9,
+        PeerForgot = 10,
     }
 
     public class EWorldEnter
@@ -476,34 +472,6 @@ public static class AbyssLibB
                         throw new InternalBufferOverflowException("Event_WorldEnter_Query");
                     WSID = new Guid(worldSessionId);
                     URL = Encoding.UTF8.GetString(urlBuf, 0, urlLen);
-                }
-            }
-            CloseEvent(handle);
-        }
-    }
-
-    public class ESessionRequest
-    {
-        public Guid WSID { get; }
-        public Guid PeerWSID { get; }
-        public string PeerID { get; }
-        public ESessionRequest(IntPtr handle)
-        {
-            byte[] worldSessionId = new byte[16];
-            byte[] peerSessionId = new byte[16];
-            byte[] peerIdBuf = new byte[PeerIdMaxLength];
-            unsafe
-            {
-                fixed (byte* wsidPtr = worldSessionId)
-                fixed (byte* psidPtr = peerSessionId)
-                fixed (byte* pidPtr = peerIdBuf)
-                {
-                    int peerIdLen = Event_SessionRequest_Query(handle, wsidPtr, pidPtr, peerIdBuf.Length, psidPtr);
-                    if (peerIdLen < 0)
-                        throw new InternalBufferOverflowException("Event_SessionRequest_Query");
-                    WSID = new Guid(worldSessionId);
-                    PeerWSID = new Guid(peerSessionId);
-                    PeerID = Encoding.UTF8.GetString(peerIdBuf, 0, peerIdLen);
                 }
             }
             CloseEvent(handle);
@@ -872,36 +840,6 @@ public static class AbyssLibB
         public bool IsValid => _handle != IntPtr.Zero;
         internal IntPtr Handle => _handle;
 
-        public void AcceptSession(string peer_id, Guid peerWSID)
-        {
-            var pidBytes = Encoding.UTF8.GetBytes(peer_id);
-            var psidBytes = peerWSID.ToByteArray();
-            unsafe
-            {
-                fixed (byte* pidPtr = pidBytes)
-                fixed (byte* psidPtr = psidBytes)
-                {
-                    World_AcceptSession(_host.Handle, _handle, pidPtr, pidBytes.Length, psidPtr);
-                }
-            }
-        }
-
-        public void DeclineSession(string peer_id, Guid peerWSID, int code, string message)
-        {
-            var pidBytes = Encoding.UTF8.GetBytes(peer_id);
-            var psidBytes = peerWSID.ToByteArray();
-            byte[] msgBytes = Encoding.UTF8.GetBytes(message);
-            unsafe
-            {
-                fixed (byte* pidPtr = pidBytes)
-                fixed (byte* psidPtr = psidBytes)
-                fixed (byte* msgPtr = msgBytes)
-                {
-                    World_DeclineSession(_host.Handle, _handle, pidPtr, pidBytes.Length, psidPtr, code, msgPtr, msgBytes.Length);
-                }
-            }
-        }
-
         public void ObjectAppend((string, Guid)[] targets, ObjectInfo[] info)
         {
             unsafe
@@ -1005,7 +943,7 @@ public static class AbyssLibB
                     fixed (byte** objAddrDpPtr = objAddrDp)
                     fixed (int* objAddrLenSpPtr = objAddrLenSp)
                     {
-                        World_ObjectAppend(_host.Handle, _handle, peerCount, peerIdDpPtr, peerIdLensPtr, sessionIdDpPtr, 
+                        World_ObjectAppend(_handle, peerCount, peerIdDpPtr, peerIdLensPtr, sessionIdDpPtr, 
                                          objectCount, objIdDpPtr, trDpPtr, objAddrDpPtr, objAddrLenSpPtr);
                     }
                 }
@@ -1079,7 +1017,7 @@ public static class AbyssLibB
                     fixed (byte** sessionIdDpPtr = sessionIdDp)
                     fixed (byte** objIdDpPtr = objIdDp)
                     {
-                        World_ObjectDelete(_host.Handle, _handle, peerCount, peerIdDpPtr, peerIdLensPtr, sessionIdDpPtr, 
+                        World_ObjectDelete(_handle, peerCount, peerIdDpPtr, peerIdLensPtr, sessionIdDpPtr, 
                                         objectCount, objIdDpPtr);
                     }
                 }

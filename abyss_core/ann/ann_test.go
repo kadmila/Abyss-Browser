@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
-	"github.com/kadmila/Abyss-Browser/abyss_core/ahmp"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ann"
 	"github.com/kadmila/Abyss-Browser/abyss_core/sec"
@@ -226,8 +225,7 @@ func TestReconnect(t *testing.T) {
 		v_sent := rand.Int()
 		peer_A_B.Send(0, v_sent)
 
-		var msg_rcvd ahmp.AHMPMessage
-		peer_B_A.Recv(&msg_rcvd)
+		msg_rcvd, _ := peer_B_A.Recv()
 
 		var v_rcvd int
 		if err := cbor.Unmarshal(msg_rcvd.Payload, &v_rcvd); err != nil {

@@ -1,8 +1,6 @@
 package and
 
 import (
-	"time"
-
 	"github.com/google/uuid"
 )
 
@@ -11,39 +9,32 @@ import (
 type JN struct {
 	SenderSessionID uuid.UUID
 	Path            string
-	TimeStamp       time.Time
 }
 type JOK struct {
 	SenderSessionID uuid.UUID
 	RecverSessionID uuid.UUID
 	URL             string
-	TimeStamp       time.Time
 	Neighbors       []ANDFullPeerSessionInfo
-}
-type JDN struct { // Do I ever need this? why not just use RST instead? - needs thinking
-	RecverSessionID uuid.UUID
-	Code            int
-	Message         string
 }
 type JNI struct {
 	SenderSessionID uuid.UUID
 	RecverSessionID uuid.UUID
 	Neighbor        ANDFullPeerSessionInfo
+	Fwd             bool // whether this JNI can be forwarded by a SJN.
 }
 type MEM struct {
 	SenderSessionID uuid.UUID
 	RecverSessionID uuid.UUID
-	TimeStamp       time.Time
 }
 type SJN struct {
 	SenderSessionID uuid.UUID
 	RecverSessionID uuid.UUID
-	MemberInfos     []ANDPeerSessionIdentity
+	MemberInfos     []ANDIdentity
 }
 type CRR struct {
 	SenderSessionID uuid.UUID
 	RecverSessionID uuid.UUID
-	MemberInfos     []ANDPeerSessionIdentity
+	MemberInfos     []ANDIdentity
 }
 type RST struct {
 	SenderSessionID uuid.UUID //may nil.

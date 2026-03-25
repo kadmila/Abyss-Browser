@@ -8,7 +8,7 @@ func Filter[T any, Q any](s []T, f func(T) Q) []Q {
 	return result
 }
 
-// Filter_MtS equlivalents to Filter, but takes and returns map.
+// Filter_M equlivalents to Filter, but takes and returns map.
 func Filter_M[K comparable, T any, Q any](s map[K]T, f func(T) Q) map[K]Q {
 	result := make(map[K]Q)
 	for i, e := range s {
@@ -34,6 +34,18 @@ func Filter_ok[T any, Q any](s []T, f func(T) (Q, bool)) []Q {
 		v, ok := f(e)
 		if ok {
 			result = append(result, v)
+		}
+	}
+	return result
+}
+
+// Filter_M_ok equlivalents to Filter, but takes and returns map.
+func Filter_M_ok[K comparable, T any, Q any](s map[K]T, f func(T) (Q, bool)) map[K]Q {
+	result := make(map[K]Q)
+	for i, e := range s {
+		output, ok := f(e)
+		if ok {
+			result[i] = output
 		}
 	}
 	return result

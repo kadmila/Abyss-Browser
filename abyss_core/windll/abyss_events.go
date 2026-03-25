@@ -18,7 +18,6 @@ import (
 const (
 	// AND Events
 	AbyssEvent_WorldEnter = iota + 1
-	AbyssEvent_SessionRequest
 	AbyssEvent_SessionReady
 	AbyssEvent_SessionClose
 	AbyssEvent_ObjectAppend
@@ -37,8 +36,6 @@ func getEventType(event any) int {
 	switch event.(type) {
 	case *and.EANDWorldEnter:
 		return AbyssEvent_WorldEnter
-	case *and.EANDSessionRequest:
-		return AbyssEvent_SessionRequest
 	case *and.EANDSessionReady:
 		return AbyssEvent_SessionReady
 	case *and.EANDSessionClose:
@@ -71,37 +68,12 @@ func Event_WorldEnter_Query(
 	event := cgo.Handle(h_event).Value().(*and.EANDWorldEnter)
 
 	// Copy world session ID (16 bytes)
-	world_session_id := event.World.SessionID()
 	world_session_id_slice := (*[16]byte)(unsafe.Pointer(world_session_id_buf))[:]
-	copy(world_session_id_slice, world_session_id[:])
+	copy(world_session_id_slice, event.WSID[:])
 
 	// Copy URL to buffer
 	url_bytes := []byte(event.URL)
 	return TryMarshalBytes(url_buf_ptr, url_buf_len, url_bytes)
-}
-
-//export Event_SessionRequest_Query
-func Event_SessionRequest_Query(
-	h_event C.uintptr_t,
-	world_session_id_buf *C.char,
-	peer_id_buf_ptr *C.char, peer_id_buf_len C.int,
-	peer_session_id_buf *C.char,
-) C.int {
-	event := cgo.Handle(h_event).Value().(*and.EANDSessionRequest)
-
-	// Copy world session ID (16 bytes)
-	world_session_id := event.World.SessionID()
-	world_session_id_slice := (*[16]byte)(unsafe.Pointer(world_session_id_buf))[:]
-	copy(world_session_id_slice, world_session_id[:])
-
-	// Copy peer session ID (16 bytes)
-	peer_session_id_bytes := event.SessionID[:]
-	peer_session_id_slice := (*[16]byte)(unsafe.Pointer(peer_session_id_buf))[:]
-	copy(peer_session_id_slice, peer_session_id_bytes)
-
-	// Copy peer ID to buffer
-	peer_id_bytes := []byte(event.Peer.ID())
-	return TryMarshalBytes(peer_id_buf_ptr, peer_id_buf_len, peer_id_bytes)
 }
 
 //export Event_SessionReady_Query
@@ -114,9 +86,8 @@ func Event_SessionReady_Query(
 	event := cgo.Handle(h_event).Value().(*and.EANDSessionReady)
 
 	// Copy world session ID (16 bytes)
-	world_session_id := event.World.SessionID()
 	world_session_id_slice := (*[16]byte)(unsafe.Pointer(world_session_id_buf))[:]
-	copy(world_session_id_slice, world_session_id[:])
+	copy(world_session_id_slice, event.WSID[:])
 
 	// Copy peer session ID (16 bytes)
 	peer_session_id_bytes := event.SessionID[:]
@@ -124,7 +95,7 @@ func Event_SessionReady_Query(
 	copy(peer_session_id_slice, peer_session_id_bytes)
 
 	// Copy peer ID to buffer
-	peer_id_bytes := []byte(event.Peer.ID())
+	peer_id_bytes := []byte(event.PeerID)
 	return TryMarshalBytes(peer_id_buf_ptr, peer_id_buf_len, peer_id_bytes)
 }
 
@@ -138,9 +109,8 @@ func Event_SessionClose_Query(
 	event := cgo.Handle(h_event).Value().(*and.EANDSessionClose)
 
 	// Copy world session ID (16 bytes)
-	world_session_id := event.World.SessionID()
 	world_session_id_slice := (*[16]byte)(unsafe.Pointer(world_session_id_buf))[:]
-	copy(world_session_id_slice, world_session_id[:])
+	copy(world_session_id_slice, event.WSID[:])
 
 	// Copy peer session ID (16 bytes)
 	peer_session_id_bytes := event.SessionID[:]
@@ -148,7 +118,7 @@ func Event_SessionClose_Query(
 	copy(peer_session_id_slice, peer_session_id_bytes)
 
 	// Copy peer ID to buffer
-	peer_id_bytes := []byte(event.Peer.ID())
+	peer_id_bytes := []byte(event.PeerID)
 	return TryMarshalBytes(peer_id_buf_ptr, peer_id_buf_len, peer_id_bytes)
 }
 
@@ -163,9 +133,8 @@ func Event_ObjectAppend_Query(
 	event := cgo.Handle(h_event).Value().(*and.EANDObjectAppend)
 
 	// Copy world session ID (16 bytes)
-	world_session_id := event.World.SessionID()
 	world_session_id_slice := (*[16]byte)(unsafe.Pointer(world_session_id_buf))[:]
-	copy(world_session_id_slice, world_session_id[:])
+	copy(world_session_id_slice, event.WSID[:])
 
 	// Copy peer session ID (16 bytes)
 	peer_session_id_bytes := event.SessionID[:]
@@ -176,7 +145,7 @@ func Event_ObjectAppend_Query(
 	*object_count_out = C.int(len(event.Objects))
 
 	// Copy peer ID to buffer
-	peer_id_bytes := []byte(event.Peer.ID())
+	peer_id_bytes := []byte(event.PeerID)
 	return TryMarshalBytes(peer_id_buf_ptr, peer_id_buf_len, peer_id_bytes)
 }
 
@@ -244,9 +213,8 @@ func Event_ObjectDelete_Query(
 	event := cgo.Handle(h_event).Value().(*and.EANDObjectDelete)
 
 	// Copy world session ID (16 bytes)
-	world_session_id := event.World.SessionID()
 	world_session_id_slice := (*[16]byte)(unsafe.Pointer(world_session_id_buf))[:]
-	copy(world_session_id_slice, world_session_id[:])
+	copy(world_session_id_slice, event.WSID[:])
 
 	// Copy peer session ID (16 bytes)
 	peer_session_id_bytes := event.SessionID[:]
@@ -257,7 +225,7 @@ func Event_ObjectDelete_Query(
 	*object_count_out = C.int(len(event.ObjectIDs))
 
 	// Copy peer ID to buffer
-	peer_id_bytes := []byte(event.Peer.ID())
+	peer_id_bytes := []byte(event.PeerID)
 	return TryMarshalBytes(peer_id_buf_ptr, peer_id_buf_len, peer_id_bytes)
 }
 
@@ -290,9 +258,8 @@ func Event_WorldLeave_Query(
 	event := cgo.Handle(h_event).Value().(*and.EANDWorldLeave)
 
 	// Copy world session ID (16 bytes)
-	world_session_id := event.World.SessionID()
 	world_session_id_slice := (*[16]byte)(unsafe.Pointer(world_session_id_buf))[:]
-	copy(world_session_id_slice, world_session_id[:])
+	copy(world_session_id_slice, event.WSID[:])
 
 	// Set code
 	*code_out = C.int(event.Code)

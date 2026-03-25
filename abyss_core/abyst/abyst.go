@@ -70,7 +70,7 @@ func dfsConstructHttpMux(mux *http.ServeMux, data map[string]any, prev_path stri
 }
 
 // ServeConnection creates a dedicated handler for the abyst connection, and serve it.
-func (g *AbystGateway) ServeConnection(conn quic.Connection, peer_id string) error {
+func (g *AbystGateway) ServeConnection(conn *quic.Conn, peer_id string) error {
 	server := &http3.Server{
 		Handler: g.newAbystHandler(peer_id),
 	}

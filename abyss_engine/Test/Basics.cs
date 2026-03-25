@@ -184,10 +184,6 @@ namespace AbyssCLI.Test
                         var e_pc = evnt as EPeerConnected;
 
                         (evnt, evnt_error) = host.WaitForEvent();
-                        var e_srq = evnt as ESessionRequest;
-                        world!.AcceptSession(e_srq!.PeerID, e_srq.PeerWSID);
-
-                        (evnt, evnt_error) = host.WaitForEvent();
                         var e_srd = evnt as ESessionReady;
 
                         (evnt, evnt_error) = host.WaitForEvent();

@@ -11,7 +11,6 @@ import (
 	"unsafe"
 
 	"github.com/google/uuid"
-	"github.com/kadmila/Abyss-Browser/abyss_core/ahost"
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
 )
 
@@ -22,61 +21,11 @@ func World_Query(
 ) {
 	world := cgo.Handle(h_world).Value().(*and.World)
 	world_session_id_slice := (*[16]byte)(unsafe.Pointer(world_session_id_buf))[:]
-	wsid := world.SessionID()
-	copy(world_session_id_slice, wsid[:])
-}
-
-//export World_AcceptSession
-func World_AcceptSession(
-	h_host C.uintptr_t,
-	h_world C.uintptr_t,
-	peer_id_buf_ptr *C.char,
-	peer_id_buf_len C.int,
-	peer_session_id_buf *C.char,
-) {
-	host := cgo.Handle(h_host).Value().(*ahost.AbyssHost)
-	world := cgo.Handle(h_world).Value().(*and.World)
-
-	// Parse peer id
-	peer_id, _ := TryUnmarshalBytes(peer_id_buf_ptr, peer_id_buf_len)
-
-	// Parse UUID from buffer (16 bytes)
-	peer_session_id_bytes := (*[16]byte)(unsafe.Pointer(peer_session_id_buf))[:]
-	peer_session_id, _ := uuid.FromBytes(peer_session_id_bytes)
-
-	host.AcceptWorldSession(world, string(peer_id), peer_session_id)
-}
-
-//export World_DeclineSession
-func World_DeclineSession(
-	h_host C.uintptr_t,
-	h_world C.uintptr_t,
-	peer_id_buf_ptr *C.char,
-	peer_id_buf_len C.int,
-	peer_session_id_buf *C.char,
-	code C.int,
-	message_buf_ptr *C.char, message_buf_len C.int,
-) {
-	host := cgo.Handle(h_host).Value().(*ahost.AbyssHost)
-	world := cgo.Handle(h_world).Value().(*and.World)
-
-	// Parse peer id
-	peer_id, _ := TryUnmarshalBytes(peer_id_buf_ptr, peer_id_buf_len)
-
-	// Parse UUID from buffer (16 bytes)
-	peer_session_id_bytes := (*[16]byte)(unsafe.Pointer(peer_session_id_buf))[:]
-	peer_session_id, _ := uuid.FromBytes(peer_session_id_bytes)
-
-	// Parse message string
-	message_bytes, _ := TryUnmarshalBytes(message_buf_ptr, message_buf_len)
-	message := string(message_bytes)
-
-	host.DeclineWorldSession(world, string(peer_id), peer_session_id, int(code), message)
+	copy(world_session_id_slice, world.WSID[:])
 }
 
 //export World_ObjectAppend
 func World_ObjectAppend(
-	h_host C.uintptr_t,
 	h_world C.uintptr_t,
 	peer_count C.int,
 	peer_id_bufs **C.char, peer_id_buf_lens *C.int,
@@ -86,11 +35,10 @@ func World_ObjectAppend(
 	object_transform_bufs **C.float,
 	object_addr_bufs **C.char, object_addr_buf_lens *C.int,
 ) {
-	host := cgo.Handle(h_host).Value().(*ahost.AbyssHost)
 	world := cgo.Handle(h_world).Value().(*and.World)
 
 	// Parse peer session identities array
-	peer_session_identities := make([]and.ANDPeerSessionIdentity, peer_count)
+	peer_session_identities := make([]and.ANDIdentity, peer_count)
 	peer_id_bufs_slice := (*[1 << 28]*C.char)(unsafe.Pointer(peer_id_bufs))[:peer_count]
 	peer_id_buf_lens_slice := (*[1 << 28]C.int)(unsafe.Pointer(peer_id_buf_lens))[:peer_count]
 	peer_session_id_bufs_slice := (*[1 << 28]*C.char)(unsafe.Pointer(peer_session_id_bufs))[:peer_count]
@@ -122,12 +70,11 @@ func World_ObjectAppend(
 		objects[i].Addr = string(addr_bytes)
 	}
 
-	host.WorldObjectAppend(world, peer_session_identities, objects)
+	world.ObjectAppend(peer_session_identities, objects)
 }
 
 //export World_ObjectDelete
 func World_ObjectDelete(
-	h_host C.uintptr_t,
 	h_world C.uintptr_t,
 	peer_count C.int,
 	peer_id_bufs **C.char, peer_id_buf_lens *C.int,
@@ -135,11 +82,10 @@ func World_ObjectDelete(
 	object_count C.int,
 	object_id_bufs **C.char,
 ) {
-	host := cgo.Handle(h_host).Value().(*ahost.AbyssHost)
 	world := cgo.Handle(h_world).Value().(*and.World)
 
 	// Parse peer session identities array
-	peer_session_identities := make([]and.ANDPeerSessionIdentity, peer_count)
+	peer_session_identities := make([]and.ANDIdentity, peer_count)
 	peer_id_bufs_slice := (*[1 << 28]*C.char)(unsafe.Pointer(peer_id_bufs))[:peer_count]
 	peer_id_buf_lens_slice := (*[1 << 28]C.int)(unsafe.Pointer(peer_id_buf_lens))[:peer_count]
 	peer_session_id_bufs_slice := (*[1 << 28]*C.char)(unsafe.Pointer(peer_session_id_bufs))[:peer_count]
@@ -158,5 +104,5 @@ func World_ObjectDelete(
 		object_ids[i], _ = uuid.FromBytes(object_id_bytes)
 	}
 
-	host.WorldObjectDelete(world, peer_session_identities, object_ids)
+	world.ObjectDelete(peer_session_identities, object_ids)
 }

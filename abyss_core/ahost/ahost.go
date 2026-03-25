@@ -12,30 +12,30 @@ import (
 	"github.com/google/uuid"
 	"github.com/kadmila/Abyss-Browser/abyss_core/abyst"
 	"github.com/kadmila/Abyss-Browser/abyss_core/and"
-	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
 	"github.com/kadmila/Abyss-Browser/abyss_core/ann"
 	"github.com/kadmila/Abyss-Browser/abyss_core/sec"
-	"github.com/kadmila/Abyss-Browser/abyss_core/tools/ds"
+	"github.com/kadmila/Abyss-Browser/abyss_core/tools/infchan"
 )
+
+type ANDFetchPendingInfo struct {
+	world         *and.World
+	PeerSessionID uuid.UUID
+	fwd           bool
+}
 
 type AbyssHost struct {
 	net *ann.AbyssNode
-	and *and.AND
 
 	service_ctx        context.Context
 	service_cancelfunc context.CancelFunc
 
-	timer_queue *worldTimerQueue // This is thread safe.
+	mtx                sync.Mutex // Below this are not thread safe.
+	worlds             map[uuid.UUID]*and.World
+	world_path_mapping map[uuid.UUID]string  // inverse of exposed_worlds
+	exposed_worlds     map[string]*and.World // JN path -> world
+	peer_fetcher       *PeerFetcher
 
-	mtx                       sync.Mutex // Below this are not thread safe.
-	peers                     map[string]ani.IAbyssPeer
-	worlds                    map[uuid.UUID]*and.World
-	world_path_mapping        map[uuid.UUID]string  // inverse of exposed_worlds
-	exposed_worlds            map[string]*and.World // JN path -> world
-	peer_participating_worlds map[string]map[uuid.UUID]*and.World
-	requested_peers           map[string]map[uuid.UUID]*and.World // EANDPeerRequest origins
-
-	event_ch chan any
+	event_ch *infchan.InfiniteChan[any]
 }
 
 func NewAbyssHost(root_key sec.PrivateKey) (*AbyssHost, error) {
@@ -44,24 +44,21 @@ func NewAbyssHost(root_key sec.PrivateKey) (*AbyssHost, error) {
 		return nil, err
 	}
 	service_ctx, service_cancelfunc := context.WithCancel(context.Background())
-	return &AbyssHost{
+	result := &AbyssHost{
 		net: node,
-		and: and.NewAND(node.ID()),
 
 		service_ctx:        service_ctx,
 		service_cancelfunc: service_cancelfunc,
 
-		timer_queue: newWorldTimerQueue(),
+		worlds:             make(map[uuid.UUID]*and.World),
+		world_path_mapping: make(map[uuid.UUID]string),
+		exposed_worlds:     make(map[string]*and.World),
 
-		peers:                     make(map[string]ani.IAbyssPeer),
-		worlds:                    make(map[uuid.UUID]*and.World),
-		world_path_mapping:        make(map[uuid.UUID]string),
-		exposed_worlds:            make(map[string]*and.World),
-		peer_participating_worlds: make(map[string]map[uuid.UUID]*and.World),
-		requested_peers:           make(map[string]map[uuid.UUID]*and.World),
+		event_ch: infchan.NewInfiniteChan[any](512),
+	}
+	result.peer_fetcher = NewPeerFetcher(service_ctx, result.ANDDial)
 
-		event_ch: make(chan any, 1024),
-	}, nil
+	return result, nil
 }
 
 func (h *AbyssHost) Bind() error {
@@ -78,38 +75,13 @@ func (h *AbyssHost) Serve() error {
 	}()
 
 	// and timer event worker
-	timer_done := make(chan error)
-	go h.timerWorkingLoop(timer_done)
-
 	accept_err := h.acceptingLoop()
-
-	<-timer_done
 	serve_err := <-serve_done
 
-	close(h.event_ch)
+	close(h.event_ch.In)
 	close_err := h.net.Close()
 
 	return errors.Join(accept_err, serve_err, close_err)
-}
-
-func (h *AbyssHost) timerWorkingLoop(timer_done chan<- error) {
-	events := ds.MakeQueue()
-	for {
-		wsid, err := h.timer_queue.Wait(h.service_ctx)
-		if err != nil {
-			timer_done <- err
-			return
-		}
-
-		h.mtx.Lock()
-		world, ok := h.worlds[wsid]
-		if ok {
-			world.TimerExpire(events)
-			world.CheckSanity()
-			h.handleANDEvent(events)
-		}
-		h.mtx.Unlock()
-	}
 }
 
 // acceptingLoop accepts new connections.
@@ -145,14 +117,17 @@ func (h *AbyssHost) UpdateHandshakeInfo(address_candidates []netip.AddrPort) err
 }
 
 func (h *AbyssHost) AppendKnownPeer(root_cert string, handshake_info_cert string) error {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
 	peer_id, ok, err := h.net.AppendKnownPeer(root_cert, handshake_info_cert)
 	if ok {
-		h.event_ch <- &EPeerFound{PeerID: peer_id}
+		h.event_ch.In <- &EPeerFound{PeerID: peer_id}
 	}
-
+	return err
+}
+func (h *AbyssHost) AppendKnownPeerDer(root_cert_der []byte, handshake_info_cert_der []byte) error {
+	peer_id, ok, err := h.net.AppendKnownPeerDer(root_cert_der, handshake_info_cert_der)
+	if ok {
+		h.event_ch.In <- &EPeerFound{PeerID: peer_id}
+	}
 	return err
 }
 func (h *AbyssHost) EraseKnownPeer(id string) {
@@ -160,7 +135,7 @@ func (h *AbyssHost) EraseKnownPeer(id string) {
 	defer h.mtx.Unlock()
 
 	if h.net.EraseKnownPeer(id) {
-		h.event_ch <- &EPeerForgot{PeerID: id}
+		h.event_ch.In <- &EPeerForgot{PeerID: id}
 	}
 }
 func (h *AbyssHost) Dial(id string) error                   { return h.net.Dial(id) }
@@ -169,73 +144,55 @@ func (h *AbyssHost) NewAbystClient() *abyst.AbystClient     { return h.net.NewAb
 func (h *AbyssHost) NewCollocatedHttp3Client() *http.Client {
 	return h.net.NewCollocatedHttp3Client()
 }
+func (h *AbyssHost) ANDDial(info and.ANDFullPeerSessionInfo) {
+	h.AppendKnownPeerDer(info.RootCertificateDer, info.HandshakeKeyCertificateDer)
+	h.net.Dial(info.PeerID)
+}
 
 //// AND APIs
 
-func (h *AbyssHost) OpenWorld(world_url string) *and.World {
+func (h *AbyssHost) OpenWorld(world_url string) (*and.World, error) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	events := ds.MakeQueue()
-	world := h.and.OpenWorld(events, world_url)
-	h.handleANDEvent(events)
+	world, err := and.NewWorld_Open(
+		h.service_ctx,
+		h.peer_fetcher,
+		h.event_ch,
+		h.net.ID(),
+		world_url,
+	)
+	if err != nil {
+		return nil, err
+	}
 
-	h.worlds[world.SessionID()] = world
-	return world
+	h.worlds[world.WSID] = world
+	return world, nil
 }
 
 func (h *AbyssHost) JoinWorld(peer_id string, path string) (*and.World, error) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	peer, ok := h.peers[peer_id]
+	peer, ok := h.peer_fetcher.GetPeer(peer_id)
 	if !ok {
 		return nil, errors.New("peer not found")
 	}
 
-	world, err := h.and.JoinWorld(peer, path)
+	world, err := and.NewWorld_Join(
+		h.service_ctx,
+		h.peer_fetcher,
+		h.event_ch,
+		h.net.ID(),
+		peer,
+		path,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	// JoinWorld forces the join target partcipates in my local AND world
-	h.peer_participating_worlds[peer_id][world.SessionID()] = world
-	// don't call world.PeerConnected, as the join target is handled specially.
-
-	h.worlds[world.SessionID()] = world
+	h.worlds[world.WSID] = world
 	return world, err
-}
-
-// AcceptWorldSession accepts a peer session request for a world.
-// This creates an event queue, calls World.AcceptSession, and processes resulting events.
-func (h *AbyssHost) AcceptWorldSession(world *and.World, peer_id string, peerSessionID uuid.UUID) {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
-	events := ds.MakeQueue()
-	peer_session_identity := and.ANDPeerSessionIdentity{
-		PeerID:    peer_id,
-		SessionID: peerSessionID,
-	}
-	world.AcceptSession(events, peer_session_identity)
-	world.CheckSanity()
-	h.handleANDEvent(events)
-}
-
-// DeclineWorldSession declines a peer session request for a world.
-// This creates an event queue, calls World.DeclineSession, and processes resulting events.
-func (h *AbyssHost) DeclineWorldSession(world *and.World, peer_id string, peerSessionID uuid.UUID, code int, message string) {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-
-	events := ds.MakeQueue()
-	peer_session_identity := and.ANDPeerSessionIdentity{
-		PeerID:    peer_id,
-		SessionID: peerSessionID,
-	}
-	world.DeclineSession(events, peer_session_identity, code, message)
-	world.CheckSanity()
-	h.handleANDEvent(events)
 }
 
 // CloseWorld closes a world and broadcasts RST to all peers.
@@ -244,27 +201,14 @@ func (h *AbyssHost) CloseWorld(world *and.World) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	world_lsid := world.SessionID()
-
-	// Remove world from all peers' participating worlds
-	remaining_peers := world.Peers()
-	for _, peer := range remaining_peers {
-		delete(h.peer_participating_worlds[peer.ID()], world_lsid)
-	}
-
-	// Remove entry from requested_peers
-	for peer_id, entry := range h.requested_peers {
-		delete(entry, world_lsid)
-		if len(entry) == 0 {
-			delete(h.requested_peers, peer_id)
-		}
-	}
+	// Remove pending fetches for the world; This is not perfect
+	h.peer_fetcher.WorldClose(world)
 
 	// Remove world from host's worlds and exposed worlds
-	delete(h.worlds, world_lsid)
-	join_path, ok := h.world_path_mapping[world_lsid]
+	delete(h.worlds, world.WSID)
+	join_path, ok := h.world_path_mapping[world.WSID]
 	if ok {
-		delete(h.world_path_mapping, world_lsid)
+		delete(h.world_path_mapping, world.WSID)
 		delete(h.exposed_worlds, join_path)
 	}
 
@@ -272,20 +216,31 @@ func (h *AbyssHost) CloseWorld(world *and.World) {
 	world.Close()
 }
 
-// WorldObjectAppend sends SOA message to the specified peers in the world.
-func (h *AbyssHost) WorldObjectAppend(world *and.World, peer_session_identities []and.ANDPeerSessionIdentity, objects []and.ObjectInfo) {
+func (h *AbyssHost) getWorldByPath(path string) (*and.World, bool) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	world.ObjectAppend(peer_session_identities, objects)
+	world, ok := h.exposed_worlds[path]
+	return world, ok
 }
 
-// WorldObjectDelete sends SOD message to the specified peers in the world.
-func (h *AbyssHost) WorldObjectDelete(world *and.World, peer_session_identities []and.ANDPeerSessionIdentity, objectIDs []uuid.UUID) {
+func (h *AbyssHost) getWorld(wsid uuid.UUID) (*and.World, bool) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	world.ObjectDelete(peer_session_identities, objectIDs)
+	world, ok := h.worlds[wsid]
+	return world, ok
+}
+
+// propagatePeerClose is a quick and dirty approach for dead peer handling in AND.
+// This should be replaced with PeerFetcher.RemovePeer().
+func (h *AbyssHost) propagatePeerClose(peerID string) {
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
+	for _, world := range h.worlds {
+		world.Disconnect(peerID)
+	}
 }
 
 /// host features
@@ -294,7 +249,6 @@ func (h *AbyssHost) WorldObjectDelete(world *and.World, peer_session_identities 
 // Possible event types are below:
 /*
 and.EANDWorldEnter
-and.EANDSessionRequest
 and.EANDSessionReady
 and.EANDSessionClose
 and.EANDObjectAppend
@@ -306,26 +260,26 @@ EPeerFound
 EPeerForgot
 */
 func (h *AbyssHost) GetEventCh() <-chan any {
-	return h.event_ch
+	return h.event_ch.Out
 }
 
 func (h *AbyssHost) ExposeWorldForJoin(world *and.World, path string) error {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	if !world.IsExposable() {
-		return errors.New("This world is under joining procedure, thus not exposable.")
+	if !world.IsActive() {
+		return errors.New("Inactive world cannot be exposed for join")
 	}
 
 	if _, ok := h.exposed_worlds[path]; ok {
 		return errors.New("Path in use")
 	}
-	if _, ok := h.world_path_mapping[world.SessionID()]; ok {
+	if _, ok := h.world_path_mapping[world.WSID]; ok {
 		return errors.New("World already exposed to another path")
 	}
 
 	h.exposed_worlds[path] = world
-	h.world_path_mapping[world.SessionID()] = path
+	h.world_path_mapping[world.WSID] = path
 	return nil
 }
 
@@ -333,10 +287,10 @@ func (h *AbyssHost) HideWorld(world *and.World) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
-	path, ok := h.world_path_mapping[world.SessionID()]
+	path, ok := h.world_path_mapping[world.WSID]
 	if !ok {
 		return
 	}
-	delete(h.world_path_mapping, world.SessionID())
+	delete(h.world_path_mapping, world.WSID)
 	delete(h.exposed_worlds, path)
 }

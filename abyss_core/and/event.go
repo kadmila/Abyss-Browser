@@ -1,11 +1,7 @@
 package and
 
 import (
-	"net/netip"
-	"time"
-
 	"github.com/google/uuid"
-	"github.com/kadmila/Abyss-Browser/abyss_core/ani"
 )
 
 // IANDEvent conveys event/request from AND to host.
@@ -15,38 +11,19 @@ import (
 type IANDEvent any
 
 type EANDWorldEnter struct {
-	World *World
-	URL   string
-}
-type EANDSessionRequest struct {
-	World *World
-	ANDPeerSession
+	WSID uuid.UUID
+	URL  string
 }
 type EANDSessionReady struct {
-	World *World
-	ANDPeerSession
+	WSID uuid.UUID
+	ANDIdentity
 }
 type EANDSessionClose struct {
-	World *World
-	ANDPeerSession
-}
-type EANDPeerRequest struct {
-	World                      *World
-	PeerID                     string
-	AddressCandidates          []netip.AddrPort
-	RootCertificateDer         []byte
-	HandshakeKeyCertificateDer []byte
-}
-type EANDPeerDiscard struct {
-	World *World
-	Peer  ani.IAbyssPeer
-}
-type EANDTimerRequest struct {
-	World    *World
-	Duration time.Duration
+	WSID uuid.UUID
+	ANDIdentity
 }
 type EANDWorldLeave struct {
-	World   *World
+	WSID    uuid.UUID
 	Code    int
 	Message string
 }
@@ -54,38 +31,19 @@ type EANDWorldLeave struct {
 /// shared object
 
 type EANDObjectAppend struct {
-	World *World
-	ANDPeerSession
+	WSID uuid.UUID
+	ANDIdentity
 	Objects []ObjectInfo
 }
 type EANDObjectDelete struct {
-	World *World
-	ANDPeerSession
+	WSID uuid.UUID
+	ANDIdentity
 	ObjectIDs []uuid.UUID
 }
 
 /// debug
 
 type EANDError struct {
+	WSID  uuid.UUID
+	Error error
 }
-
-// type ANDEventQueue struct {
-// 	inner *list.List
-// }
-
-// func NewANDEventQueue() *ANDEventQueue {
-// 	return &ANDEventQueue{
-// 		inner: list.New(),
-// 	}
-// }
-
-// func (q *ANDEventQueue) Push(e any) {
-// 	q.inner.PushBack(e)
-// }
-// func (q *ANDEventQueue) Pop() (any, bool) {
-// 	front := q.inner.Front()
-// 	if front == nil {
-// 		return nil, false
-// 	}
-// 	return q.inner.Remove(front), true
-// }

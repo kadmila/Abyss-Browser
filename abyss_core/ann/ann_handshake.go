@@ -14,6 +14,8 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
+const HANDSHAKE_TIMEOUT = time.Second * 20
+
 // decodeWithContext decodes CBOR data with context support.
 // This is somewhat lame, but is forced by the quic interface.
 func decodeWithContext(ctx context.Context, decoder *cbor.Decoder, v any) error {
@@ -30,18 +32,9 @@ func decodeWithContext(ctx context.Context, decoder *cbor.Decoder, v any) error 
 	}
 }
 
-// handshakeResult is for dialRoutine and serveRoutine internal use only.
-type handshakeResult struct {
-	err               error
-	do_timeout        bool // this is set true, if we must disguise this as timeout for security reasons.
-	close_code        quic.ApplicationErrorCode
-	close_msg         string
-	received_identity *sec.AbyssPeerIdentity // only for serving side.
-}
-
 func (n *AbyssNode) dialRoutine(addr netip.AddrPort, peer_identity *sec.AbyssPeerIdentity) {
 	// prepare handshake context - sets timeout for abyss handshake
-	handshake_ctx, handshake_ctx_cancel := context.WithTimeout(n.service_ctx, time.Second*5)
+	handshake_ctx, handshake_ctx_cancel := context.WithTimeout(n.service_ctx, HANDSHAKE_TIMEOUT)
 	defer func() {
 		handshake_ctx_cancel()
 		n.registry.ReportDialTermination(peer_identity, addr.Addr())
@@ -181,20 +174,20 @@ func (n *AbyssNode) dialRoutine(addr netip.AddrPort, peer_identity *sec.AbyssPee
 	n.tryCompletePeer(
 		handshake_ctx,
 		true,
-		&AbyssPeer{
-			AbyssPeerIdentity: peer_identity,
-			origin:            n,
-			client_tls_cert:   client_tls_cert,
-			connection:        connection,
-			remote_addr:       addr,
-			ahmp_encoder:      ahmp_encoder,
-			ahmp_decoder:      ahmp_decoder,
-		})
+		NewAbyssPeer(
+			peer_identity,
+			n,
+			client_tls_cert,
+			connection,
+			addr,
+			ahmp_encoder,
+			ahmp_decoder,
+		))
 }
 
-func (n *AbyssNode) serveRoutine(connection quic.Connection) {
+func (n *AbyssNode) serveRoutine(connection *quic.Conn) {
 	// prepare handshake context - sets timeout for abyss handshake
-	handshake_ctx, handshake_ctx_cancel := context.WithTimeout(n.service_ctx, time.Second*5)
+	handshake_ctx, handshake_ctx_cancel := context.WithTimeout(n.service_ctx, HANDSHAKE_TIMEOUT)
 	defer func() {
 		handshake_ctx_cancel()
 		n.serve_wg.Done()
@@ -374,15 +367,15 @@ IDENTITY_RETRIEVE_LOOP:
 	n.tryCompletePeer(
 		handshake_ctx,
 		false,
-		&AbyssPeer{
-			AbyssPeerIdentity: peer_identity,
-			origin:            n,
-			client_tls_cert:   client_tls_cert,
-			connection:        connection,
-			remote_addr:       addr,
-			ahmp_encoder:      ahmp_encoder,
-			ahmp_decoder:      ahmp_decoder,
-		})
+		NewAbyssPeer(
+			peer_identity,
+			n,
+			client_tls_cert,
+			connection,
+			addr,
+			ahmp_encoder,
+			ahmp_decoder,
+		))
 }
 
 // Append blocks until 1) context cancels, or 2) abyss peer is constructed.
@@ -463,6 +456,7 @@ func (n *AbyssNode) tryCompletePeerMaster(is_dialing bool, pre_peer *AbyssPeer) 
 		return
 	}
 
+	new_peer.runWorkers()
 	n.backlog <- backLogEntry{
 		peer: new_peer,
 		err:  nil,
@@ -515,6 +509,7 @@ func (n *AbyssNode) tryCompletePeerSlave(ctx context.Context, is_dialing bool, p
 		return
 	}
 
+	new_peer.runWorkers()
 	n.backlog <- backLogEntry{
 		peer: new_peer,
 		err:  nil,
