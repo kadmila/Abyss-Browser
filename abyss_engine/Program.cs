@@ -1,5 +1,5 @@
 using AbyssCLI.Client;
-using AbyssCLI.Test;
+using AbyssCLI.GraphUtil;
 
 internal class Program
 {
@@ -9,6 +9,8 @@ internal class Program
         //await Basics.TestObjectAppend();
         //await Cache.TestAbystClientWithCacheCow();
         //Environment.Exit(0);
+
+        Environment.Exit(0);
 
         try
         {
