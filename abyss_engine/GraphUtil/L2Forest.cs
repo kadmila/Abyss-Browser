@@ -54,6 +54,10 @@ internal class L2TreeNode: IDisposable
         return false;
     }
 
+    protected virtual void OnAddChild(L2TreeNode child) {}
+    protected virtual void OnInsertChild(L2TreeNode child, int index) {}
+    protected virtual void OnIsolate() {}
+
     // Direct L1 Tree access is only allowed before initializing the Forest.
     public void L1AddChild(L2TreeNode child)
     {
@@ -62,6 +66,7 @@ internal class L2TreeNode: IDisposable
 
         child.L1Parent = this;
         L1Children.Add(child);
+        OnAddChild(child);
     }
     public void L1InsertChild(L2TreeNode child, int index)
     {
@@ -70,6 +75,7 @@ internal class L2TreeNode: IDisposable
 
         child.L1Parent = this;
         L1Children.Insert(index, child);
+        OnInsertChild(child, index);
     }
     public void L1Isolate()
     {
@@ -78,6 +84,7 @@ internal class L2TreeNode: IDisposable
 
         _ = L1Parent.L1Children.Remove(this);
         L1Parent = null;
+        OnIsolate();
     }
 
 #pragma warning disable CA1816 // Dispose 메서드는 SuppressFinalize를 호출해야 합니다.
@@ -149,12 +156,6 @@ internal class L2TreeNodeRef: IDisposable
 
         return (new L2TreeNodeRef(forest, found.Item1!), true);
     }
-    public void Isolate()
-    {
-        Origin.L1Isolate();
-        _=Origin.L2Parent?.L2Children.Remove(Origin);
-        Origin.L2Parent = null;
-    }
     public void AddChild(L2TreeNodeRef nodeRef)
     {
         if (nodeRef.Origin.L1Parent != null)
@@ -165,6 +166,23 @@ internal class L2TreeNodeRef: IDisposable
         Origin.L1AddChild(nodeRef.Origin);
         Origin.L2Children.Add(nodeRef.Origin);
         nodeRef.Origin.L2Parent = Origin;
+    }
+    public void InsertChild(L2TreeNodeRef nodeRef, int index)
+    {
+        if (nodeRef.Origin.L1Parent != null)
+            throw new InvalidOperationException("Child already has a parent");
+
+        _ = forest.Roots.Remove(nodeRef.Origin);
+
+        Origin.L1InsertChild(nodeRef.Origin, index);
+        Origin.L2Children.Add(nodeRef.Origin);
+        nodeRef.Origin.L2Parent = Origin;
+    }
+    public void Isolate()
+    {
+        Origin.L1Isolate();
+        _ = Origin.L2Parent?.L2Children.Remove(Origin);
+        Origin.L2Parent = null;
     }
 
     // L2 Tree Mutation Implementation

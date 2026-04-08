@@ -12,10 +12,18 @@ enum ResourceRole {
 }
 
 enum ElementTag {
-	O = 0;
-	Obj = 1;
-	Pbrm = 2;
-	Bcol = 3;
+	Aml = 0;
+	Head = 1;
+	Title = 2;
+	Script = 3;
+	Link = 4;
+	Meta = 5;
+
+	Body = 100;
+	O = 101;
+	Obj = 102;
+	Pbrm = 103;
+	Bcol = 104;
 }
 
 enum ValueRole {

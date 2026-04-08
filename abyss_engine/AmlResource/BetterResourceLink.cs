@@ -45,4 +45,8 @@ public abstract class BetterResourceLink : IDisposable
         GC.SuppressFinalize(this);
         _disposed = true;
     }
+    ~BetterResourceLink()
+    {
+        Client.Client.Cerr.WriteLine("BetterResourceLink finalized without being disposed. This is a fatal bug.");
+    }
 }

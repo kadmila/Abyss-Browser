@@ -10,8 +10,6 @@ internal class Program
         //await Cache.TestAbystClientWithCacheCow();
         //Environment.Exit(0);
 
-        Environment.Exit(0);
-
         try
         {
             await Client.Run();
