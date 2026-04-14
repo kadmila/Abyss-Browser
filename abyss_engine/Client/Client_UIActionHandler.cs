@@ -154,7 +154,7 @@ public static partial class Client
         Client.RenderWriter.ConsolePrint("console input: " + args.Text);
         if (args.ElementId == 0) //world environment content
         {
-			_mainWorld?.TryExecuteJavascript(args.Text);
+			_=_mainWorld?.TryExecuteJavascript(args.Text);
         }
     }
 }

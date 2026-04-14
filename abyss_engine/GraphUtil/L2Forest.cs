@@ -3,7 +3,7 @@ using System.ComponentModel;
 using System.Text;
 
 namespace AbyssCLI.GraphUtil;
-internal class L2TreeNode: IDisposable
+public class L2TreeNode: IDisposable
 {
     public L2TreeNode? L1Parent
     {
@@ -40,12 +40,21 @@ internal class L2TreeNode: IDisposable
             if (found.Item2)
                 return found;
         }
-        return (null, false, l2_ancestor);
+        return (null, false, null);
     }
-    public bool IsAncestorOf(L2TreeNode node)
+    public (L2TreeNode?, bool) FindChild(Predicate<L2TreeNode> cond)
+    {
+        foreach (var child in L1Children)
+        {
+            if (cond(child))
+                return (child, true);
+        }
+        return (null, false);
+    }
+    public bool IsL1AncestorOf(L2TreeNode node, L2TreeNode limit)
     {
         var current = node;
-        while (current != null)
+        while (current != null && current != limit)
         {
             if (current == this)
                 return true;
@@ -59,6 +68,7 @@ internal class L2TreeNode: IDisposable
     protected virtual void OnIsolate() {}
 
     // Direct L1 Tree access is only allowed before initializing the Forest.
+    // This does not provide cycle detection. The caller must ensure the tree structure is valid.
     public void L1AddChild(L2TreeNode child)
     {
         if (child.L1Parent != null)
@@ -122,7 +132,7 @@ internal class L2TreeNode: IDisposable
     }
 }
 
-internal class L2TreeNodeRef: IDisposable
+public class L2TreeNodeRef: IDisposable
 {
     private readonly L2Forest forest;
     public readonly L2TreeNode Origin;
@@ -135,54 +145,60 @@ internal class L2TreeNodeRef: IDisposable
         Origin = origin;
         origin.L2RefCount++;
     }
-    public (L2TreeNodeRef?, bool) Find(Predicate<L2TreeNode> cond)
+    public L2TreeNodeRef? Find(Predicate<L2TreeNode> cond)
     {
-        var found = Origin.Find(cond);
-        if (!found.Item2)
-        {
-            return (null, false);
-        }
+        var (result, ok, l2Ancestor) = Origin.Find(cond);
+        if (!ok)
+            return null;
 
-        // L2 Tree Mutation
-        if (found.Item1!.L2RefCount > 0)
-        {
-            // No mutation needed
-        }
-        else
-        {
-            // Found node is now lifted. no previous reference.
-            Lift(found.Item3!, found.Item1);
-        }
+        if (result!.L2RefCount == 0) // Lift node if there were no previous reference.
+            Lift(l2Ancestor!, result!);
 
-        return (new L2TreeNodeRef(forest, found.Item1!), true);
+        return new L2TreeNodeRef(forest, result!);
+    }
+    public L2TreeNodeRef? FindChild(Predicate<L2TreeNode> cond)
+    {
+        var (result, ok) = Origin.FindChild(cond);
+        if (!ok)
+            return null;
+
+        if (result!.L2RefCount == 0)
+            Lift(result!, Origin);
+
+        return new L2TreeNodeRef(forest, result!);
     }
     public void AddChild(L2TreeNodeRef nodeRef)
     {
         if (nodeRef.Origin.L1Parent != null)
-            throw new InvalidOperationException("Child already has a parent");
+            nodeRef.Isolate();
 
         _ = forest.Roots.Remove(nodeRef.Origin);
 
         Origin.L1AddChild(nodeRef.Origin);
+        
         Origin.L2Children.Add(nodeRef.Origin);
         nodeRef.Origin.L2Parent = Origin;
     }
     public void InsertChild(L2TreeNodeRef nodeRef, int index)
     {
         if (nodeRef.Origin.L1Parent != null)
-            throw new InvalidOperationException("Child already has a parent");
+            nodeRef.Isolate();
 
         _ = forest.Roots.Remove(nodeRef.Origin);
 
         Origin.L1InsertChild(nodeRef.Origin, index);
+        
         Origin.L2Children.Add(nodeRef.Origin);
         nodeRef.Origin.L2Parent = Origin;
     }
     public void Isolate()
     {
         Origin.L1Isolate();
+        
         _ = Origin.L2Parent?.L2Children.Remove(Origin);
         Origin.L2Parent = null;
+
+        forest.Roots.Add(Origin);
     }
 
     // L2 Tree Mutation Implementation
@@ -190,8 +206,9 @@ internal class L2TreeNodeRef: IDisposable
     {
         _=l2Parent.L2Children.RemoveAll(l2c =>
         {
-            if (l2Child.IsAncestorOf(l2c))
+            if (l2Child.IsL1AncestorOf(l2c, l2Parent))
             {
+                //in-path old children. They will be reparented to the lifted node.
                 l2c.L2Parent = l2Child;
                 l2Child.L2Children.Add(l2c);
                 return true;
@@ -224,9 +241,9 @@ internal class L2TreeNodeRef: IDisposable
                 Origin.L2Parent.L2Children.Add(l2c);
             }
             _ = Origin.L2Parent.L2Children.Remove(Origin);
+            Origin.L2Parent = null;
+            Origin.L2Children.Clear();
         }
-        Origin.L2Parent = null;
-        Origin.L2Children.Clear();
     }
 
     public void Dispose()
@@ -253,7 +270,7 @@ internal class L2TreeNodeRef: IDisposable
     }
 }
 
-internal class L2Forest
+public class L2Forest
 {
     public readonly List<L2TreeNode> Roots = []; // L2 roots
     public L2TreeNodeRef Insert(L2TreeNode node)

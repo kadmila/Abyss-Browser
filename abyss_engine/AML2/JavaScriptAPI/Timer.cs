@@ -1,9 +1,7 @@
 ﻿using Microsoft.ClearScript;
 using System.Collections.Concurrent;
 
-#nullable enable
-#pragma warning disable IDE1006 //naming convension
-namespace AbyssCLI.AML.JavaScriptAPI;
+namespace AbyssCLI.AML2.JavaScriptAPI;
 public class Timer
 {
     private readonly ConcurrentDictionary<int, System.Timers.Timer> _timers = new();

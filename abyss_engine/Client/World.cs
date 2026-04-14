@@ -1,7 +1,3 @@
-using AbyssCLI.HL;
-using System.Collections.Generic;
-using System.Numerics;
-
 namespace AbyssCLI.Client;
 
 // World is only accessed from Client. It is not thread safe.
@@ -53,7 +49,7 @@ public class World : IDisposable
 	public void OnWorldEnter(AbyssLibB.EWorldEnter evnt)
     {
         Client.Cerr.WriteLine($"OnWorldEnter: {evnt.URL}");
-		var metadata = new AML.AmlMetadata()
+		var metadata = new AML2.AmlMetadata()
 		{
 			title = evnt.URL.ToString()
 		};
@@ -135,7 +131,8 @@ public class World : IDisposable
     {
 		if (_environment == null)
 			return false;
-		return _environment.Document.TryRunScript("<console>", javascript);
+		_environment.InjectJavaScript("<console>", javascript);
+        return true;
     }
 
     public void Dispose()

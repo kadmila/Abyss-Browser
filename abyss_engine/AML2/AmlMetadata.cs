@@ -1,5 +1,4 @@
-﻿
-namespace AbyssCLI.AML;
+﻿namespace AbyssCLI.AML2;
 
 /// <summary>
 /// Metadata for AML documents.

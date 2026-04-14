@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Concurrent;
 
 namespace AbyssCLI.AML2;
 /// <summary>
@@ -13,11 +9,10 @@ namespace AbyssCLI.AML2;
 internal class DocumentDependencies
 {
     public readonly Cache.Cache Cache;
-    public readonly System.Collections.Concurrent.ConcurrentQueue<string> JavaScriptQueue;
-
-    public DocumentDependencies(Cache.Cache cache, System.Collections.Concurrent.ConcurrentQueue<string> script_queue)
+    public readonly Action<(string, string)> JavaScriptAppendCallback;
+    public DocumentDependencies(Cache.Cache cache, Action<(string, string)> jsAppendCallback)
     {
         Cache = cache;
-        JavaScriptQueue = script_queue;
+        JavaScriptAppendCallback = jsAppendCallback;
     }
 }

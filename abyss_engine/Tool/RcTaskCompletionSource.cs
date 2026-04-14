@@ -21,14 +21,14 @@ public class RcTaskCompletionSource<TResult>() : IDisposable where TResult : IDi
         last_access = _last_access;
         return true;
     }
-    public bool TryGetReference(out TaskCompletionReference<TResult> result)
+    public bool TryGetReference(out TaskCompletionReference<TResult>? result)
     {
         while (true)
         {
             int prev = _count;
             if (_count == -1)
             {
-                result = default;
+                result = null;
                 return false;
             }
             if (Interlocked.CompareExchange(ref _count, prev + 1, prev) == prev)

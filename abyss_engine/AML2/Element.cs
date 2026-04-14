@@ -1,5 +1,4 @@
-﻿using AbyssCLI.AML.JavaScriptAPI;
-using AbyssCLI.GraphUtil;
+﻿using AbyssCLI.GraphUtil;
 using Microsoft.ClearScript;
 using System.Xml;
 
@@ -13,6 +12,9 @@ internal class Element : GraphUtil.L2TreeNode
     public readonly ElementTag Tag;
     public readonly Dictionary<string, string> Attributes;
     protected readonly DocumentDependencies docDependencies;
+
+    // advanced internals
+    //public bool semantically_valid; // For instance, <o> under <head> should have false. Automatically, all of its descendants also.
     public Element(ElementTag tag, object? options, DocumentDependencies docDependencies)
     {
         Tag = tag;
@@ -23,7 +25,7 @@ internal class Element : GraphUtil.L2TreeNode
         }
         else if (options is ScriptObject optionsObj)
         {
-            Attributes = Helper.ScriptObjectToDictionaryForceString(optionsObj);
+            Attributes = JavaScriptAPI.Helper.ScriptObjectToDictionaryForceString(optionsObj);
         }
         else if (options is XmlAttributeCollection xmlAttributes)
         {
@@ -65,13 +67,4 @@ internal class Element : GraphUtil.L2TreeNode
             Client.Client.RenderWriter.DeleteElement(ElementId);
         }
     }
-
-    // Static Helpers
-    public static bool IsParentable(ElementTag parent, ElementTag child) =>
-    parent switch
-    {
-        ElementTag.O => true,
-        ElementTag.Obj => child == ElementTag.Pbrm,
-        _ => false,
-    };
 }
