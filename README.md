@@ -1,5 +1,6 @@
 # Abyss Browser
 Prototype Abyss Browser, along with a simple public peer registry.
+See https://github.com/kadmila/Abyss-Peer-Discovery-Evaluation for evaluation setup for ICWS 2026. <- This is going to be outdated.
 <!-- See https://github.com/kadmila/Abyss-Browser/wiki for development guide, user guide, AML specification, and others. -->
 
 # How to Run
